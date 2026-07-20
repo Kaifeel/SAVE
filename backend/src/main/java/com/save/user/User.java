@@ -44,6 +44,12 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "sanctioned_until")
+    private LocalDateTime sanctionedUntil;
+
+    @Column(name = "sanction_reason", length = 500)
+    private String sanctionReason;
+
     protected User() {}
     public User(String email, String name, String department, String profileImageUrl,
                 String oauthProvider, String oauthId) {
@@ -91,4 +97,19 @@ public class User {
     public UserRole getRole() { return role; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public LocalDateTime getSanctionedUntil() { return sanctionedUntil; }
+    public String getSanctionReason() { return sanctionReason; }
+
+    public void updateProfile(String name, String department, String profileImageUrl) {
+        if (name != null && !name.isBlank()) this.name = name.trim();
+        this.department = department == null || department.isBlank() ? null : department.trim();
+        if (profileImageUrl != null) {
+            this.profileImageUrl = profileImageUrl.isBlank() ? null : profileImageUrl.trim();
+        }
+    }
+
+    public void sanction(LocalDateTime until, String reason) {
+        this.sanctionedUntil = until;
+        this.sanctionReason = reason;
+    }
 }

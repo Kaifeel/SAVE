@@ -24,3 +24,6 @@ security:
     # Local development default only. Set JWT_SECRET to a long random value in production.
     secret: ${JWT_SECRET:save-local-development-jwt-secret-change-me-2026}
     expiration-seconds: ${JWT_EXPIRATION_SECONDS:3600}
+
+storage:
+  upload-dir: ${UPLOAD_DIR:uploads}

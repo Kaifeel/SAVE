@@ -1,0 +1,84 @@
+package com.save.report;
+
+import com.save.common.BusinessException;
+import com.save.item.Item;
+import com.save.item.ItemRepository;
+import com.save.user.User;
+import com.save.user.UserRepository;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Locale;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class ReportService {
+    private final ReportRepository reportRepository;
+    private final UserRepository userRepository;
+    private final ItemRepository itemRepository;
+
+    public ReportService(ReportRepository reportRepository, UserRepository userRepository,
+                         ItemRepository itemRepository) {
+        this.reportRepository = reportRepository;
+        this.userRepository = userRepository;
+        this.itemRepository = itemRepository;
+    }
+
+    @Transactional
+    public ReportResponse create(Integer reporterId, ReportCreateRequest request) {
+        User reporter = userRepository.findById(reporterId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다."));
+        String targetType = request.targetType().trim().toUpperCase(Locale.ROOT);
+        if (!targetType.equals("ITEM") && !targetType.equals("USER")) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "신고 대상 유형은 ITEM 또는 USER여야 합니다.");
+        }
+        if (targetType.equals("ITEM") && !itemRepository.existsById(request.targetId())) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "신고할 물품이 존재하지 않습니다.");
+        }
+        if (targetType.equals("USER") && !userRepository.existsById(request.targetId())) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "신고할 사용자가 존재하지 않습니다.");
+        }
+        return ReportResponse.from(reportRepository.save(new Report(reporter, targetType,
+                request.targetId(), request.itemId(), request.reason().trim())));
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReportResponse> list() {
+        return reportRepository.findAllByOrderByCreatedAtDesc().stream().map(ReportResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ReportResponse detail(Integer reportId) { return ReportResponse.from(findReport(reportId)); }
+
+    @Transactional
+    public ReportResponse changeStatus(Integer reportId, String rawStatus) {
+        Report report = findReport(reportId);
+        try {
+            report.changeStatus(ReportStatus.valueOf(rawStatus.trim().toUpperCase(Locale.ROOT)));
+            return ReportResponse.from(report);
+        } catch (IllegalArgumentException exception) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "지원하지 않는 신고 상태입니다.");
+        }
+    }
+
+    @Transactional
+    public void deleteItem(Integer itemId) {
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "물품이 존재하지 않습니다."));
+        item.markDeleted();
+    }
+
+    @Transactional
+    public void sanctionUser(Integer userId, UserSanctionRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다."));
+        int days = request.days() == null ? 7 : request.days();
+        user.sanction(LocalDateTime.now().plusDays(days), request.reason().trim());
+    }
+
+    private Report findReport(Integer reportId) {
+        return reportRepository.findById(reportId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "신고 내역이 존재하지 않습니다."));
+    }
+}

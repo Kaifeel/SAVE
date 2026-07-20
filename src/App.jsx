@@ -125,7 +125,7 @@ function App() {
 
     async function loadApiData() {
       try {
-        const itemResponse = await getItems({ university })
+        const itemResponse = await getItems({ university }, accessToken)
         if (!ignore) setItems(normalizeItemsResponse(itemResponse))
       } catch (error) {
         console.warn('물품 목록 API 연동 실패, 더미 데이터를 유지합니다.', error)
