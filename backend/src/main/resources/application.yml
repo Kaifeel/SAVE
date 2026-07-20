@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:save;MODE=MySQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  h2:
+    console:
+      enabled: true
+
+server:
+  error:
+    include-message: never
+
+firebase:
+  enabled: ${FIREBASE_ENABLED:false}
+  credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
+
+security:
+  jwt:
+    # Local development default only. Set JWT_SECRET to a long random value in production.
+    secret: ${JWT_SECRET:save-local-development-jwt-secret-change-me-2026}
+    expiration-seconds: ${JWT_EXPIRATION_SECONDS:3600}
