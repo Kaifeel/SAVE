@@ -1,8 +1,11 @@
 package com.save.rental;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
-public record RentalCreateRequest(@NotNull Integer itemId, LocalDate startDate,
-                                  LocalDate endDate, @Size(max = 1000) String message) {}
+public record RentalCreateRequest(@NotNull Integer itemId,
+                                  @NotNull Integer chatRoomId,
+                                  @NotNull LocalDateTime startDate,
+                                  @NotNull LocalDateTime endDate,
+                                  @NotNull @Min(0) Integer totalPrice) {}

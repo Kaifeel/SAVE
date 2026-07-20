@@ -8,8 +8,17 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/auth")
 public class AuthController {
     private final AuthService authService;
+    private final GoogleOAuthService googleOAuthService;
 
-    public AuthController(AuthService authService) { this.authService = authService; }
+    public AuthController(AuthService authService, GoogleOAuthService googleOAuthService) {
+        this.authService = authService;
+        this.googleOAuthService = googleOAuthService;
+    }
+
+    @PostMapping("/google")
+    public AuthResponse google(@Valid @RequestBody GoogleLoginRequest request) {
+        return googleOAuthService.login(request.idToken());
+    }
 
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.CREATED)

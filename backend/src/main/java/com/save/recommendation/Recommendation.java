@@ -18,13 +18,29 @@ public class Recommendation {
     private User user;
 
     @Column(length = 100)
-    private String university;
+    private String department;
 
-    @Column(length = 100)
-    private String weather;
+    @ElementCollection
+    @CollectionTable(name = "recommendation_interests",
+            joinColumns = @JoinColumn(name = "recommendation_id"))
+    @Column(name = "interest_item", length = 100)
+    private List<String> interestItems = new ArrayList<>();
 
-    @Column(length = 500)
-    private String situation;
+    @Column(name = "time_period", nullable = false, length = 30)
+    private String timePeriod;
+
+    @Column(name = "is_exam_period", nullable = false)
+    private boolean examPeriod;
+
+    @Column(name = "weather_status", nullable = false, length = 30)
+    private String weatherStatus;
+
+    @ElementCollection
+    @CollectionTable(name = "recommendation_keywords",
+            joinColumns = @JoinColumn(name = "recommendation_id"))
+    @Column(name = "keyword", nullable = false, length = 100)
+    @OrderColumn(name = "display_order")
+    private List<String> recommendedKeywords = new ArrayList<>();
 
     @ManyToMany
     @JoinTable(name = "recommendation_items",
@@ -37,20 +53,26 @@ public class Recommendation {
     private LocalDateTime createdAt;
 
     protected Recommendation() {}
-    public Recommendation(User user, String university, String weather,
-                          String situation, List<Item> items) {
+    public Recommendation(User user, RecommendationRequest request, List<String> keywords,
+                          List<Item> items) {
         this.user = user;
-        this.university = university;
-        this.weather = weather;
-        this.situation = situation;
+        this.department = request.department();
+        this.interestItems.addAll(request.interestItems());
+        this.timePeriod = request.timePeriod();
+        this.examPeriod = request.isExamPeriod();
+        this.weatherStatus = request.weatherStatus();
+        this.recommendedKeywords.addAll(keywords);
         this.items.addAll(items);
     }
     @PrePersist void prePersist() { createdAt = LocalDateTime.now(); }
     public Integer getId() { return id; }
     public User getUser() { return user; }
-    public String getUniversity() { return university; }
-    public String getWeather() { return weather; }
-    public String getSituation() { return situation; }
+    public String getDepartment() { return department; }
+    public List<String> getInterestItems() { return List.copyOf(interestItems); }
+    public String getTimePeriod() { return timePeriod; }
+    public boolean isExamPeriod() { return examPeriod; }
+    public String getWeatherStatus() { return weatherStatus; }
+    public List<String> getRecommendedKeywords() { return List.copyOf(recommendedKeywords); }
     public List<Item> getItems() { return List.copyOf(items); }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

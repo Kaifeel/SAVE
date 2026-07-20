@@ -5,7 +5,7 @@ const AUTH_STORAGE_KEY = 'save_auth'
 export function loginWithGoogle(idToken) {
   return apiFetch('/auth/google', {
     method: 'POST',
-    body: JSON.stringify({ idToken }),
+    body: JSON.stringify({ id_token: idToken }),
   })
 }
 
@@ -41,7 +41,7 @@ export function clearSavedAuth() {
 }
 
 export function getAccessToken(auth) {
-  return auth?.accessToken || auth?.token || auth?.jwt || null
+  return auth?.access_token || auth?.accessToken || auth?.token || auth?.jwt || null
 }
 
 export function getAuthUser(auth) {

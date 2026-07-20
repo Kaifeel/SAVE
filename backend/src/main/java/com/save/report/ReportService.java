@@ -1,5 +1,6 @@
 package com.save.report;
 
+import com.save.chat.repository.ChatRoomRepository;
 import com.save.common.BusinessException;
 import com.save.item.Item;
 import com.save.item.ItemRepository;
@@ -17,30 +18,31 @@ public class ReportService {
     private final ReportRepository reportRepository;
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;
+    private final ChatRoomRepository chatRoomRepository;
 
     public ReportService(ReportRepository reportRepository, UserRepository userRepository,
-                         ItemRepository itemRepository) {
+                         ItemRepository itemRepository, ChatRoomRepository chatRoomRepository) {
         this.reportRepository = reportRepository;
         this.userRepository = userRepository;
         this.itemRepository = itemRepository;
+        this.chatRoomRepository = chatRoomRepository;
     }
 
     @Transactional
     public ReportResponse create(Integer reporterId, ReportCreateRequest request) {
         User reporter = userRepository.findById(reporterId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다."));
-        String targetType = request.targetType().trim().toUpperCase(Locale.ROOT);
-        if (!targetType.equals("ITEM") && !targetType.equals("USER")) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "신고 대상 유형은 ITEM 또는 USER여야 합니다.");
-        }
-        if (targetType.equals("ITEM") && !itemRepository.existsById(request.targetId())) {
+        if (request.itemId() != null && !itemRepository.existsById(request.itemId())) {
             throw new BusinessException(HttpStatus.NOT_FOUND, "신고할 물품이 존재하지 않습니다.");
         }
-        if (targetType.equals("USER") && !userRepository.existsById(request.targetId())) {
+        if (request.reportedUserId() != null && !userRepository.existsById(request.reportedUserId())) {
             throw new BusinessException(HttpStatus.NOT_FOUND, "신고할 사용자가 존재하지 않습니다.");
         }
-        return ReportResponse.from(reportRepository.save(new Report(reporter, targetType,
-                request.targetId(), request.itemId(), request.reason().trim())));
+        if (request.chatRoomId() != null && !chatRoomRepository.existsById(request.chatRoomId())) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "신고할 채팅방이 존재하지 않습니다.");
+        }
+        return ReportResponse.from(reportRepository.save(new Report(reporter, request.reportedUserId(),
+                request.itemId(), request.chatRoomId(), request.reason().trim())));
     }
 
     @Transactional(readOnly = true)
@@ -70,11 +72,12 @@ public class ReportService {
     }
 
     @Transactional
-    public void sanctionUser(Integer userId, UserSanctionRequest request) {
+    public UserSanctionResponse sanctionUser(Integer userId, UserSanctionRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다."));
-        int days = request.days() == null ? 7 : request.days();
-        user.sanction(LocalDateTime.now().plusDays(days), request.reason().trim());
+        user.sanction(LocalDateTime.now().plusDays(7), request.reason().trim());
+        return new UserSanctionResponse(user.getId(), user.getStatus().name(),
+                user.getSanctionReason(), LocalDateTime.now());
     }
 
     private Report findReport(Integer reportId) {

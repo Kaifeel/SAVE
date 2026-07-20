@@ -6,6 +6,8 @@ import com.save.user.UserRepository;
 import com.save.wishlist.WishlistRepository;
 import java.util.List;
 import java.util.Locale;
+import java.util.Comparator;
+import java.util.stream.Stream;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,11 +28,34 @@ public class ItemService {
     }
 
     @Transactional(readOnly = true)
-    public List<ItemResponse> list(String university, Integer userId) {
+    public ItemPageResponse list(String type, String query, boolean onlyAvailable, String sort,
+                                 int page, int size, String university, Integer userId) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
         List<Item> items = university == null || university.isBlank()
                 ? itemRepository.findByStatusNotOrderByCreatedAtDesc(ItemStatus.DELETED)
                 : itemRepository.findByUniversityAndStatusNotOrderByCreatedAtDesc(university.trim(), ItemStatus.DELETED);
-        return items.stream().map(item -> response(item, userId)).toList();
+        Stream<Item> filtered = items.stream();
+        if (type != null && !type.isBlank()) {
+            String normalizedType = normalizeType(type);
+            filtered = filtered.filter(item -> item.getType().equals(normalizedType));
+        }
+        if (query != null && !query.isBlank()) {
+            String keyword = query.trim().toLowerCase(Locale.ROOT);
+            filtered = filtered.filter(item -> item.getTitle().toLowerCase(Locale.ROOT).contains(keyword)
+                    || (item.getDescription() != null
+                    && item.getDescription().toLowerCase(Locale.ROOT).contains(keyword)));
+        }
+        if (onlyAvailable) filtered = filtered.filter(item -> item.getStatus() == ItemStatus.AVAILABLE);
+        List<Item> matched = filtered.toList();
+        if ("popular".equalsIgnoreCase(sort)) {
+            matched = matched.stream().sorted(Comparator.comparing(Item::getViewCount).reversed()).toList();
+        }
+        int from = Math.min(safePage * safeSize, matched.size());
+        int to = Math.min(from + safeSize, matched.size());
+        List<ItemResponse> content = matched.subList(from, to).stream()
+                .map(item -> response(item, userId)).toList();
+        return new ItemPageResponse(content, new ItemPageResponse.PageableResponse(safePage, safeSize), matched.size());
     }
 
     @Transactional
@@ -47,7 +72,7 @@ public class ItemService {
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다."));
         List<String> photoUrls = photoStorageService.store(request.getPhotos());
         Item item = new Item(user, normalizeType(request.getType()), request.getTitle().trim(),
-                request.getPrice(), normalizePriceType(request.getPriceType()), trimToNull(request.getLocation()),
+                request.getPrice(), normalizePriceUnit(request.getPriceUnit()), trimToNull(request.getPickupLocation()),
                 defaultUniversity(request.getUniversity()), trimToNull(request.getDescription()),
                 trimToNull(request.getPrecautions()), photoUrls);
         return response(itemRepository.save(item), userId);
@@ -59,7 +84,7 @@ public class ItemService {
         Item item = findOwned(itemId, userId);
         List<String> photoUrls = photoStorageService.store(request.getPhotos());
         item.update(normalizeType(request.getType()), request.getTitle().trim(), request.getPrice(),
-                normalizePriceType(request.getPriceType()), trimToNull(request.getLocation()),
+                normalizePriceUnit(request.getPriceUnit()), trimToNull(request.getPickupLocation()),
                 defaultUniversity(request.getUniversity()), trimToNull(request.getDescription()),
                 trimToNull(request.getPrecautions()), photoUrls);
         return response(item, userId);
@@ -85,7 +110,7 @@ public class ItemService {
 
     private ItemResponse response(Item item, Integer userId) {
         boolean wishlisted = userId != null && wishlistRepository.existsByUserIdAndItemId(userId, item.getId());
-        return ItemResponse.from(item, wishlisted);
+        return ItemResponse.from(item, wishlisted, wishlistRepository.countByItemId(item.getId()));
     }
 
     private Item findVisible(Integer id) {
@@ -115,15 +140,19 @@ public class ItemService {
     }
 
     private String normalizeType(String type) {
-        if (type == null) return "rent";
-        String normalized = type.trim().toLowerCase(Locale.ROOT);
-        if (normalized.equals("rent") || normalized.equals("lend")) return "rent";
-        if (normalized.equals("want") || normalized.equals("request") || normalized.equals("borrow")) return "want";
+        if (type == null) return "LEND";
+        String normalized = type.trim().toUpperCase(Locale.ROOT);
+        if (normalized.equals("RENT") || normalized.equals("LEND")) return "LEND";
+        if (normalized.equals("WANT") || normalized.equals("REQUEST") || normalized.equals("BORROW")) return "BORROW";
         throw new BusinessException(HttpStatus.BAD_REQUEST, "지원하지 않는 게시글 유형입니다.");
     }
 
-    private String normalizePriceType(String priceType) {
-        return priceType == null || priceType.isBlank() ? "일" : priceType.trim();
+    private String normalizePriceUnit(String priceUnit) {
+        if (priceUnit == null || priceUnit.isBlank()) return "DAY";
+        String normalized = priceUnit.trim().toUpperCase(Locale.ROOT);
+        if (normalized.equals("일")) return "DAY";
+        if (normalized.equals("시간")) return "HOUR";
+        return normalized;
     }
 
     private String defaultUniversity(String university) {

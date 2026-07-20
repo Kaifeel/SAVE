@@ -13,9 +13,9 @@ public class WishlistController {
     public WishlistController(WishlistService wishlistService) { this.wishlistService = wishlistService; }
 
     @PostMapping
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void add(@PathVariable Integer itemId, @AuthenticationPrincipal Jwt jwt) {
-        wishlistService.add(userId(jwt), itemId);
+    @ResponseStatus(HttpStatus.CREATED)
+    public WishlistResponse add(@PathVariable Integer itemId, @AuthenticationPrincipal Jwt jwt) {
+        return wishlistService.add(userId(jwt), itemId);
     }
 
     @DeleteMapping

@@ -24,8 +24,9 @@ public class WishlistService {
     }
 
     @Transactional
-    public void add(Integer userId, Integer itemId) {
-        if (wishlistRepository.existsByUserIdAndItemId(userId, itemId)) return;
+    public WishlistResponse add(Integer userId, Integer itemId) {
+        var existing = wishlistRepository.findByUserIdAndItemId(userId, itemId);
+        if (existing.isPresent()) return WishlistResponse.from(existing.get());
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다."));
         Item item = itemRepository.findById(itemId)
@@ -34,7 +35,7 @@ public class WishlistService {
         if (item.getUser().getId().equals(userId)) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "본인 물품은 찜할 수 없습니다.");
         }
-        wishlistRepository.save(new Wishlist(user, item));
+        return WishlistResponse.from(wishlistRepository.save(new Wishlist(user, item)));
     }
 
     @Transactional

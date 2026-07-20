@@ -520,9 +520,8 @@ function App() {
               try {
                 if (USE_API) {
                   await createReport({
-                    targetType: 'ITEM',
-                    targetId: selectedItem.id,
-                    itemId: selectedItem.id,
+                    reported_user_id: selectedItem.raw?.user_id,
+                    item_id: selectedItem.id,
                     reason: '부적절한 사용자 또는 물품 신고',
                   }, accessToken)
                 }

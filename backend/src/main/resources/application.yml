@@ -1,4 +1,6 @@
 spring:
+  jackson:
+    property-naming-strategy: SNAKE_CASE
   datasource:
     url: jdbc:h2:mem:save;MODE=MySQL;DB_CLOSE_DELAY=-1
     username: sa
@@ -27,3 +29,11 @@ security:
 
 storage:
   upload-dir: ${UPLOAD_DIR:uploads}
+
+google:
+  oauth:
+    client-id: ${GOOGLE_CLIENT_ID:}
+
+openai:
+  api-key: ${OPENAI_API_KEY:}
+  model: ${OPENAI_MODEL:gpt-4o-mini}

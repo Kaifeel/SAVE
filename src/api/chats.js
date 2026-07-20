@@ -4,7 +4,7 @@ export function createOrGetChatRoom(itemId, accessToken) {
   return apiFetch('/chats/rooms', {
     method: 'POST',
     accessToken,
-    body: JSON.stringify({ itemId }),
+    body: JSON.stringify({ item_id: itemId }),
   })
 }
 
@@ -26,6 +26,6 @@ export function sendChatMessage(roomId, content, accessToken) {
   return apiFetch(`/chats/rooms/${roomId}/messages`, {
     method: 'POST',
     accessToken,
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ message: content }),
   })
 }

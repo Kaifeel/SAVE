@@ -16,9 +16,15 @@ public class ItemController {
     public ItemController(ItemService itemService) { this.itemService = itemService; }
 
     @GetMapping
-    public List<ItemResponse> list(@RequestParam(required = false) String university,
+    public ItemPageResponse list(@RequestParam(required = false) String type,
+                                   @RequestParam(required = false) String query,
+                                   @RequestParam(name = "only_available", defaultValue = "false") boolean onlyAvailable,
+                                   @RequestParam(defaultValue = "latest") String sort,
+                                   @RequestParam(defaultValue = "0") int page,
+                                   @RequestParam(defaultValue = "20") int size,
+                                   @RequestParam(required = false) String university,
                                    @AuthenticationPrincipal Jwt jwt) {
-        return itemService.list(university, userId(jwt));
+        return itemService.list(type, query, onlyAvailable, sort, page, size, university, userId(jwt));
     }
 
     @GetMapping("/{itemId}")

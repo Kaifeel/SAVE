@@ -3,12 +3,11 @@ package com.save.chat.dto;
 import java.time.LocalDateTime;
 
 public record ChatRoomCreateResponse(
-        Integer roomId,
-        Integer itemId,
-        String itemTitle,
+        Integer chatRoomId,
+        ItemSummary item,
         Integer borrowerId,
-        String borrowerName,
         Integer lenderId,
-        String lenderName,
-        LocalDateTime createdAt
-) {}
+        LocalDateTime createdAt) {
+    public record ItemSummary(Integer id, String title, Integer price,
+                              String priceUnit, String status) {}
+}

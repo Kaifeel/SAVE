@@ -49,8 +49,8 @@ public class AuthService {
     }
 
     private AuthResponse response(User user) {
-        return new AuthResponse(jwtTokenService.issue(user), "Bearer",
-                jwtTokenService.getExpirationSeconds(), AuthUserResponse.from(user));
+        return new AuthResponse(jwtTokenService.issue(user), "Bearer", false,
+                AuthUserResponse.from(user));
     }
 
     private String normalizeEmail(String email) {

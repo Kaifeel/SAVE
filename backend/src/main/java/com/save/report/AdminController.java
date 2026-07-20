@@ -30,9 +30,8 @@ public class AdminController {
     public void deleteItem(@PathVariable Integer itemId) { reportService.deleteItem(itemId); }
 
     @PatchMapping("/users/{userId}/sanction")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void sanction(@PathVariable Integer userId,
+    public UserSanctionResponse sanction(@PathVariable Integer userId,
                          @Valid @RequestBody UserSanctionRequest request) {
-        reportService.sanctionUser(userId, request);
+        return reportService.sanctionUser(userId, request);
     }
 }

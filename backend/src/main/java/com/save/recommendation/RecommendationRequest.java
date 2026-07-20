@@ -1,10 +1,14 @@
 package com.save.recommendation;
 
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 
-public record RecommendationRequest(@Size(max = 100) String university,
-                                    @Size(max = 100) String weather,
-                                    @Size(max = 500) String situation,
-                                    @Min(1) @Max(20) Integer limit) {}
+public record RecommendationRequest(
+        @NotBlank @Size(max = 100) String department,
+        @NotEmpty @Size(max = 20) List<@NotBlank @Size(max = 100) String> interestItems,
+        @NotBlank @Size(max = 30) String timePeriod,
+        @NotNull Boolean isExamPeriod,
+        @NotBlank @Size(max = 30) String weatherStatus) {}

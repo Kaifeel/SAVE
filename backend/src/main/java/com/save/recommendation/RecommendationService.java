@@ -6,7 +6,10 @@ import com.save.item.ItemRepository;
 import com.save.item.ItemStatus;
 import com.save.user.User;
 import com.save.user.UserRepository;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,27 +19,36 @@ public class RecommendationService {
     private final RecommendationRepository recommendationRepository;
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
+    private final OpenAiRecommendationClient openAiClient;
 
     public RecommendationService(RecommendationRepository recommendationRepository,
-                                 ItemRepository itemRepository, UserRepository userRepository) {
+                                 ItemRepository itemRepository, UserRepository userRepository,
+                                 OpenAiRecommendationClient openAiClient) {
         this.recommendationRepository = recommendationRepository;
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
+        this.openAiClient = openAiClient;
     }
 
     @Transactional
     public RecommendationResponse recommend(Integer userId, RecommendationRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다."));
-        String university = request.university() == null || request.university().isBlank()
-                ? "부경대학교" : request.university().trim();
-        int limit = request.limit() == null ? 5 : request.limit();
-        List<Item> items = itemRepository
-                .findByUniversityAndStatusNotOrderByCreatedAtDesc(university, ItemStatus.DELETED)
+        List<String> keywords = openAiClient.recommendKeywords(request);
+        List<Item> available = itemRepository.findByStatusNotOrderByCreatedAtDesc(ItemStatus.DELETED)
                 .stream().filter(item -> item.getStatus() == ItemStatus.AVAILABLE)
-                .filter(item -> !item.getUser().getId().equals(userId)).limit(limit).toList();
-        Recommendation saved = recommendationRepository.save(new Recommendation(user, university,
-                trimToNull(request.weather()), trimToNull(request.situation()), items));
+                .filter(item -> !item.getUser().getId().equals(userId)).toList();
+        Set<Item> selected = new LinkedHashSet<>();
+        for (String keyword : keywords) {
+            String normalized = keyword.toLowerCase(Locale.ROOT);
+            available.stream().filter(item -> item.getTitle().toLowerCase(Locale.ROOT).contains(normalized)
+                    || (item.getDescription() != null
+                    && item.getDescription().toLowerCase(Locale.ROOT).contains(normalized)))
+                    .limit(3).forEach(selected::add);
+        }
+        if (selected.isEmpty()) available.stream().limit(5).forEach(selected::add);
+        Recommendation saved = recommendationRepository.save(new Recommendation(user, request,
+                keywords, selected.stream().limit(10).toList()));
         return RecommendationResponse.from(saved);
     }
 
@@ -55,6 +67,4 @@ public class RecommendationService {
         }
         return RecommendationResponse.from(recommendation);
     }
-
-    private String trimToNull(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 }

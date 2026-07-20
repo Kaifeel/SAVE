@@ -1,6 +1,8 @@
 package com.save.rental;
 
 import com.save.common.BusinessException;
+import com.save.chat.domain.ChatRoom;
+import com.save.chat.repository.ChatRoomRepository;
 import com.save.item.Item;
 import com.save.item.ItemRepository;
 import com.save.item.ItemStatus;
@@ -16,12 +18,14 @@ public class RentalService {
     private final RentalRepository rentalRepository;
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
+    private final ChatRoomRepository chatRoomRepository;
 
     public RentalService(RentalRepository rentalRepository, ItemRepository itemRepository,
-                         UserRepository userRepository) {
+                         UserRepository userRepository, ChatRoomRepository chatRoomRepository) {
         this.rentalRepository = rentalRepository;
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
+        this.chatRoomRepository = chatRoomRepository;
     }
 
     @Transactional
@@ -34,7 +38,7 @@ public class RentalService {
         }
         if (item.getStatus() != ItemStatus.AVAILABLE
                 || rentalRepository.existsByItemIdAndStatusIn(item.getId(),
-                List.of(RentalStatus.PENDING, RentalStatus.APPROVED))) {
+                List.of(RentalStatus.REQUESTED, RentalStatus.APPROVED))) {
             throw new BusinessException(HttpStatus.CONFLICT, "현재 대여 신청할 수 없는 물품입니다.");
         }
         if (request.startDate() != null && request.endDate() != null
@@ -43,8 +47,15 @@ public class RentalService {
         }
         User borrower = userRepository.findById(borrowerId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다."));
+        ChatRoom chatRoom = chatRoomRepository.findWithMembersById(request.chatRoomId())
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "채팅방이 존재하지 않습니다."));
+        if (!chatRoom.getItem().getId().equals(item.getId())
+                || !chatRoom.getBorrower().getId().equals(borrowerId)
+                || !chatRoom.getLender().getId().equals(item.getUser().getId())) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "물품과 채팅방 정보가 일치하지 않습니다.");
+        }
         return RentalResponse.from(rentalRepository.save(new Rental(item, borrower, item.getUser(),
-                request.startDate(), request.endDate(), trimToNull(request.message()))));
+                chatRoom, request.startDate(), request.endDate(), request.totalPrice())));
     }
 
     @Transactional(readOnly = true)
@@ -62,7 +73,7 @@ public class RentalService {
     public RentalResponse approve(Integer rentalId, Integer userId) {
         Rental rental = findRental(rentalId);
         requireLender(rental, userId);
-        requireStatus(rental, RentalStatus.PENDING);
+        requireStatus(rental, RentalStatus.REQUESTED);
         rental.changeStatus(RentalStatus.APPROVED);
         rental.getItem().changeStatus(ItemStatus.RESERVED);
         return RentalResponse.from(rental);
@@ -72,7 +83,7 @@ public class RentalService {
     public RentalResponse reject(Integer rentalId, Integer userId) {
         Rental rental = findRental(rentalId);
         requireLender(rental, userId);
-        requireStatus(rental, RentalStatus.PENDING);
+        requireStatus(rental, RentalStatus.REQUESTED);
         rental.changeStatus(RentalStatus.REJECTED);
         return RentalResponse.from(rental);
     }
@@ -83,7 +94,7 @@ public class RentalService {
         if (!rental.getBorrower().getId().equals(userId)) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "대여 신청을 취소할 권한이 없습니다.");
         }
-        if (rental.getStatus() != RentalStatus.PENDING && rental.getStatus() != RentalStatus.APPROVED) {
+        if (rental.getStatus() != RentalStatus.REQUESTED && rental.getStatus() != RentalStatus.APPROVED) {
             throw new BusinessException(HttpStatus.CONFLICT, "현재 상태에서는 대여를 취소할 수 없습니다.");
         }
         if (rental.getStatus() == RentalStatus.APPROVED) rental.getItem().changeStatus(ItemStatus.AVAILABLE);
@@ -128,5 +139,4 @@ public class RentalService {
         }
     }
 
-    private String trimToNull(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 }

@@ -7,8 +7,8 @@ import org.springframework.web.multipart.MultipartFile;
 public class ItemUpsertRequest {
     private String title;
     private Integer price;
-    private String priceType;
-    private String location;
+    private String priceUnit;
+    private String pickupLocation;
     private String type;
     private String university;
     private String description;
@@ -19,10 +19,10 @@ public class ItemUpsertRequest {
     public void setTitle(String title) { this.title = title; }
     public Integer getPrice() { return price; }
     public void setPrice(Integer price) { this.price = price; }
-    public String getPriceType() { return priceType; }
-    public void setPriceType(String priceType) { this.priceType = priceType; }
-    public String getLocation() { return location; }
-    public void setLocation(String location) { this.location = location; }
+    public String getPriceUnit() { return priceUnit; }
+    public void setPriceUnit(String priceUnit) { this.priceUnit = priceUnit; }
+    public String getPickupLocation() { return pickupLocation; }
+    public void setPickupLocation(String pickupLocation) { this.pickupLocation = pickupLocation; }
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
     public String getUniversity() { return university; }

@@ -79,6 +79,6 @@ public class ChatMessageService {
     private ChatMessageResponse toResponse(ChatMessage message) {
         return new ChatMessageResponse(message.getId(), message.getChatRoom().getId(),
                 message.getSender().getId(), message.getSender().getName(), message.getContent(),
-                message.getCreatedAt(), message.isRead());
+                message.isRead(), message.getCreatedAt());
     }
 }

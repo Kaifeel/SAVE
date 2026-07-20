@@ -42,7 +42,7 @@ class AuthIntegrationTest {
         String response = mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.access_token").isNotEmpty())
                 .andExpect(jsonPath("$.user.email").value("student@example.com"))
                 .andReturn().getResponse().getContentAsString();
 
@@ -52,7 +52,7 @@ class AuthIntegrationTest {
 
         JsonNode json = objectMapper.readTree(response);
         mockMvc.perform(get("/api/v1/chats/rooms")
-                        .header("Authorization", "Bearer " + json.get("accessToken").asText()))
+                        .header("Authorization", "Bearer " + json.get("access_token").asText()))
                 .andExpect(status().isOk());
     }
 

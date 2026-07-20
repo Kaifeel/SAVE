@@ -20,7 +20,7 @@ public class ChatWebSocketController {
     public void send(@DestinationVariable Integer roomId,
             Principal principal, ChatMessageSendRequest request) {
         Integer userId = Integer.valueOf(principal.getName());
-        ChatMessageResponse response = service.send(roomId, userId, request.content());
+        ChatMessageResponse response = service.send(roomId, userId, request.message());
         messagingTemplate.convertAndSend("/topic/chats/rooms/" + roomId, response);
     }
 }

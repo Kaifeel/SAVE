@@ -26,7 +26,7 @@ public class ChatMessageController {
     public ChatMessageResponse send(@PathVariable Integer roomId,
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody ChatMessageSendRequest request) {
-        ChatMessageResponse response = service.send(roomId, userId(jwt), request.content());
+        ChatMessageResponse response = service.send(roomId, userId(jwt), request.message());
         messagingTemplate.convertAndSend("/topic/chats/rooms/" + roomId, response);
         return response;
     }

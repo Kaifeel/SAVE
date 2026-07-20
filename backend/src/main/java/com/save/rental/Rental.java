@@ -1,9 +1,9 @@
 package com.save.rental;
 
 import com.save.item.Item;
+import com.save.chat.domain.ChatRoom;
 import com.save.user.User;
 import jakarta.persistence.*;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -24,18 +24,22 @@ public class Rental {
     @JoinColumn(name = "lender_id", nullable = false)
     private User lender;
 
-    @Column(name = "start_date")
-    private LocalDate startDate;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "chat_room_id", nullable = false)
+    private ChatRoom chatRoom;
+
+    @Column(name = "start_date", nullable = false)
+    private LocalDateTime startDate;
 
     @Column(name = "end_date")
-    private LocalDate endDate;
+    private LocalDateTime endDate;
 
-    @Column(columnDefinition = "text")
-    private String message;
+    @Column(name = "total_price", nullable = false)
+    private Integer totalPrice;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private RentalStatus status = RentalStatus.PENDING;
+    private RentalStatus status = RentalStatus.REQUESTED;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -44,14 +48,15 @@ public class Rental {
     private LocalDateTime updatedAt;
 
     protected Rental() {}
-    public Rental(Item item, User borrower, User lender, LocalDate startDate,
-                  LocalDate endDate, String message) {
+    public Rental(Item item, User borrower, User lender, ChatRoom chatRoom,
+                  LocalDateTime startDate, LocalDateTime endDate, Integer totalPrice) {
         this.item = item;
         this.borrower = borrower;
         this.lender = lender;
+        this.chatRoom = chatRoom;
         this.startDate = startDate;
         this.endDate = endDate;
-        this.message = message;
+        this.totalPrice = totalPrice;
     }
 
     @PrePersist void prePersist() { createdAt = LocalDateTime.now(); updatedAt = createdAt; }
@@ -60,9 +65,10 @@ public class Rental {
     public Item getItem() { return item; }
     public User getBorrower() { return borrower; }
     public User getLender() { return lender; }
-    public LocalDate getStartDate() { return startDate; }
-    public LocalDate getEndDate() { return endDate; }
-    public String getMessage() { return message; }
+    public ChatRoom getChatRoom() { return chatRoom; }
+    public LocalDateTime getStartDate() { return startDate; }
+    public LocalDateTime getEndDate() { return endDate; }
+    public Integer getTotalPrice() { return totalPrice; }
     public RentalStatus getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

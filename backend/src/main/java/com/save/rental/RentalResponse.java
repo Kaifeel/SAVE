@@ -1,18 +1,16 @@
 package com.save.rental;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-public record RentalResponse(Integer id, Integer itemId, String itemTitle,
-                             Integer borrowerId, String borrowerName,
-                             Integer lenderId, String lenderName,
-                             LocalDate startDate, LocalDate endDate, String message,
-                             String status, LocalDateTime createdAt, LocalDateTime updatedAt) {
+public record RentalResponse(Integer id, Integer itemId, Integer borrowerId,
+                             Integer lenderId, Integer chatRoomId, String status,
+                             LocalDateTime startDate, LocalDateTime endDate,
+                             Integer totalPrice, LocalDateTime createdAt,
+                             LocalDateTime updatedAt) {
     public static RentalResponse from(Rental rental) {
-        return new RentalResponse(rental.getId(), rental.getItem().getId(), rental.getItem().getTitle(),
-                rental.getBorrower().getId(), rental.getBorrower().getName(),
-                rental.getLender().getId(), rental.getLender().getName(), rental.getStartDate(),
-                rental.getEndDate(), rental.getMessage(), rental.getStatus().name().toLowerCase(),
-                rental.getCreatedAt(), rental.getUpdatedAt());
+        return new RentalResponse(rental.getId(), rental.getItem().getId(),
+                rental.getBorrower().getId(), rental.getLender().getId(),
+                rental.getChatRoom().getId(), rental.getStatus().name(), rental.getStartDate(),
+                rental.getEndDate(), rental.getTotalPrice(), rental.getCreatedAt(), rental.getUpdatedAt());
     }
 }

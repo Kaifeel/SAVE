@@ -30,20 +30,20 @@ class MarketplaceIntegrationTest {
     void frontendMarketplaceFlowUsesImplementedApis() throws Exception {
         JsonNode owner = signUp("owner@example.com", "물품주인");
         JsonNode borrower = signUp("borrower@example.com", "대여학생");
-        String ownerToken = owner.get("accessToken").asText();
-        String borrowerToken = borrower.get("accessToken").asText();
+        String ownerToken = owner.get("access_token").asText();
+        String borrowerToken = borrower.get("access_token").asText();
 
         MvcResult created = mockMvc.perform(post("/api/v1/items")
                         .header("Authorization", bearer(ownerToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"title":"테스트 우산","price":1000,"priceType":"일",
-                                 "location":"대연캠퍼스","type":"rent","university":"부경대학교",
+                                {"title":"테스트 우산","price":1000,"price_unit":"DAY",
+                                 "pickup_location":"대연캠퍼스","type":"LEND","university":"부경대학교",
                                  "description":"깨끗한 우산입니다."}
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.title").value("테스트 우산"))
-                .andExpect(jsonPath("$.ownerName").value("물품주인"))
+                .andExpect(jsonPath("$.owner_name").value("물품주인"))
                 .andReturn();
         int itemId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asInt();
 
@@ -51,11 +51,22 @@ class MarketplaceIntegrationTest {
                         .header("Authorization", bearer(borrowerToken))
                         .param("university", "부경대학교"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(itemId));
+                .andExpect(jsonPath("$.content[0].id").value(itemId));
+
+        MvcResult room = mockMvc.perform(post("/api/v1/chats/rooms")
+                        .header("Authorization", bearer(borrowerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item_id\":" + itemId + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.chat_room_id").isNumber())
+                .andReturn();
+        int chatRoomId = objectMapper.readTree(room.getResponse().getContentAsString())
+                .get("chat_room_id").asInt();
 
         mockMvc.perform(post("/api/v1/items/{itemId}/wishlist", itemId)
                         .header("Authorization", bearer(borrowerToken)))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.item_id").value(itemId));
         mockMvc.perform(get("/api/v1/users/me/wishlist")
                         .header("Authorization", bearer(borrowerToken)))
                 .andExpect(status().isOk())
@@ -64,17 +75,20 @@ class MarketplaceIntegrationTest {
         mockMvc.perform(post("/api/v1/rentals")
                         .header("Authorization", bearer(borrowerToken))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"itemId\":" + itemId + ",\"message\":\"대여하고 싶습니다.\"}"))
+                        .content("{\"item_id\":" + itemId + ",\"chat_room_id\":" + chatRoomId
+                                + ",\"start_date\":\"2026-07-21T10:00:00\","
+                                + "\"end_date\":\"2026-07-22T10:00:00\",\"total_price\":1000}"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("pending"));
+                .andExpect(jsonPath("$.status").value("REQUESTED"));
 
         mockMvc.perform(post("/api/v1/reports")
                         .header("Authorization", bearer(borrowerToken))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"targetType\":\"ITEM\",\"targetId\":" + itemId
-                                + ",\"itemId\":" + itemId + ",\"reason\":\"테스트 신고\"}"))
+                        .content("{\"reported_user_id\":" + owner.get("user").get("id").asInt()
+                                + ",\"item_id\":" + itemId + ",\"chat_room_id\":" + chatRoomId
+                                + ",\"reason\":\"테스트 신고\"}"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("pending"));
+                .andExpect(jsonPath("$.status").value("PENDING"));
 
         mockMvc.perform(put("/api/v1/users/me/profile")
                         .header("Authorization", bearer(borrowerToken))

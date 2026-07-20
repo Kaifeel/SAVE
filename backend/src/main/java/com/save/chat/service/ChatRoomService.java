@@ -72,8 +72,10 @@ public class ChatRoomService {
     }
 
     private ChatRoomCreateResponse toResponse(ChatRoom room) {
-        return new ChatRoomCreateResponse(room.getId(), room.getItem().getId(), room.getItem().getTitle(),
-                room.getBorrower().getId(), room.getBorrower().getName(),
-                room.getLender().getId(), room.getLender().getName(), room.getCreatedAt());
+        Item item = room.getItem();
+        return new ChatRoomCreateResponse(room.getId(), new ChatRoomCreateResponse.ItemSummary(
+                item.getId(), item.getTitle(), item.getPrice(), item.getPriceUnit(),
+                item.getStatus().name()), room.getBorrower().getId(), room.getLender().getId(),
+                room.getCreatedAt());
     }
 }

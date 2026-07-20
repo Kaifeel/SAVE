@@ -37,14 +37,16 @@ public class UserService {
     public List<ItemResponse> getMyItems(Integer userId) {
         findUser(userId);
         return itemRepository.findByUserIdAndStatusNotOrderByCreatedAtDesc(userId, ItemStatus.DELETED)
-                .stream().map(item -> ItemResponse.from(item, false)).toList();
+                .stream().map(item -> ItemResponse.from(item, false,
+                        wishlistRepository.countByItemId(item.getId()))).toList();
     }
 
     @Transactional(readOnly = true)
     public List<ItemResponse> getMyWishlist(Integer userId) {
         findUser(userId);
         return wishlistRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
-                .map(wishlist -> ItemResponse.from(wishlist.getItem(), true)).toList();
+                .map(wishlist -> ItemResponse.from(wishlist.getItem(), true,
+                        wishlistRepository.countByItemId(wishlist.getItem().getId()))).toList();
     }
 
     private User findUser(Integer id) {

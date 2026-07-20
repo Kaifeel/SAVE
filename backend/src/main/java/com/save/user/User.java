@@ -38,6 +38,10 @@ public class User {
     @Column(nullable = false, length = 10)
     private UserRole role = UserRole.USER;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private UserStatus status = UserStatus.ACTIVE;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -95,6 +99,7 @@ public class User {
     public String getOauthProvider() { return oauthProvider; }
     public String getOauthId() { return oauthId; }
     public UserRole getRole() { return role; }
+    public UserStatus getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public LocalDateTime getSanctionedUntil() { return sanctionedUntil; }
@@ -109,7 +114,16 @@ public class User {
     }
 
     public void sanction(LocalDateTime until, String reason) {
+        this.status = UserStatus.SUSPENDED;
         this.sanctionedUntil = until;
         this.sanctionReason = reason;
+    }
+
+    public void linkGoogleAccount(String googleSubject, String profileImageUrl) {
+        this.oauthProvider = "GOOGLE";
+        this.oauthId = googleSubject;
+        if (profileImageUrl != null && !profileImageUrl.isBlank()) {
+            this.profileImageUrl = profileImageUrl;
+        }
     }
 }
