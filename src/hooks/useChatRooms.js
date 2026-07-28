@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   getChatMessages,
   markChatRoomRead,
   sendChatMessage,
 } from '../api/chats'
 import { normalizeChatMessage, normalizeMessagesResponse } from '../api/normalizers'
+import { createChatSocket } from '../chat/stompClient'
 
 const defaultApi = {
   getChatMessages,
@@ -12,10 +13,51 @@ const defaultApi = {
   sendChatMessage,
 }
 
-export function useChatRooms({ api = defaultApi, accessToken, currentUserId }) {
+function defaultSocketUrl() {
+  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL
+  const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'
+  return `${apiUrl.replace(/^http/, 'ws').replace(/\/api\/v1\/?$/, '')}/ws-chat`
+}
+
+export function useChatRooms({
+  api = defaultApi,
+  accessToken,
+  currentUserId,
+  realtime = false,
+  socketFactory = createChatSocket,
+}) {
   const [activeRoom, setActiveRoom] = useState(null)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [messageError, setMessageError] = useState(null)
+  const [socketState, setSocketState] = useState('disconnected')
+  const socketRef = useRef(null)
+
+  useEffect(() => {
+    if (!realtime || !accessToken) return undefined
+    const socket = socketFactory({
+      url: defaultSocketUrl(),
+      accessToken,
+      onStateChange: setSocketState,
+    })
+    socketRef.current = socket
+    socket.connect()
+    return () => {
+      socketRef.current = null
+      socket.disconnect()
+    }
+  }, [accessToken, realtime, socketFactory])
+
+  useEffect(() => {
+    const roomId = activeRoom?.roomId || activeRoom?.id
+    if (!roomId || socketState !== 'connected' || !socketRef.current) return undefined
+    return socketRef.current.subscribe(roomId, response => {
+      const incoming = normalizeChatMessage(response, currentUserId)
+      setActiveRoom(current => {
+        if (!current || current.messages?.some(message => message.id === incoming.id)) return current
+        return { ...current, messages: [...(current.messages || []), incoming] }
+      })
+    })
+  }, [activeRoom?.id, activeRoom?.roomId, currentUserId, socketState])
 
   const selectRoom = useCallback(async room => {
     const roomId = room.roomId || room.id
@@ -95,5 +137,6 @@ export function useChatRooms({ api = defaultApi, accessToken, currentUserId }) {
     retry,
     loadingMessages,
     messageError,
+    socketState,
   }
 }

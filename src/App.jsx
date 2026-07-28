@@ -141,6 +141,7 @@ function App() {
   const chatData = useChatRooms({
     accessToken,
     currentUserId: savedUser?.id,
+    realtime: USE_API,
   })
   const activeChatRoom = chatData.activeRoom
   const setActiveChatRoom = chatData.setActiveRoom
