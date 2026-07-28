@@ -9,6 +9,7 @@ export default function MyPage(props) {
     recommendItems,
     onLogout,
     onOpenRentals,
+    data,
   } = props
 
   return (
@@ -23,10 +24,11 @@ export default function MyPage(props) {
                 </div>
               </div>
 
+              {data?.profile?.error && <p role="alert" className="mb-3 text-xs text-rose-600">프로필을 불러오지 못했습니다.</p>}
               <section className="mb-5">
                 <h3 className="text-[17px] font-black text-slate-800 mb-2">등록 물품</h3>
                 <div className="space-y-3">
-                  {popularItems.slice(0, 2).map((item, index) => {
+                  {(data?.items?.data || popularItems).slice(0, 2).map((item, index) => {
                     const MyItemIcon = item.imageIcon
                     const statusText = index === 1 ? '대여중' : '대여 가능'
                     const statusClass = index === 1
@@ -63,7 +65,7 @@ export default function MyPage(props) {
               <section className="mb-5">
                 <h3 className="text-[17px] font-black text-slate-800 mb-2">찜 목록</h3>
                 <div className="space-y-3">
-                  {recommendItems.slice(0, 2).map((item, index) => {
+                  {(data?.wishlist?.data || recommendItems).slice(0, 2).map((item, index) => {
                     const FavoriteIcon = item.imageIcon
                     const statusText = index === 0 ? '대여 가능' : '대여중'
                     const statusClass = index === 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-500 bg-rose-50'

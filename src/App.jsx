@@ -33,7 +33,9 @@ import { useReferenceData } from './hooks/useReferenceData.js'
 import { useItems } from './hooks/useItems.js'
 import { useChatRooms } from './hooks/useChatRooms.js'
 import { useRentals } from './hooks/useRentals.js'
+import { useMyPageData } from './hooks/useMyPageData.js'
 import RentalRequestForm from './components/RentalRequestForm.jsx'
+import { addWishlist, removeWishlist } from './api/wishlist.js'
 import { useToast } from './components/toast.js'
 import {
   MapPin,
@@ -150,6 +152,10 @@ function App() {
   const rentalData = useRentals({
     accessToken,
     currentUserId: savedUser?.id,
+    enabled: USE_API && isLoggedIn && Boolean(accessToken),
+  })
+  const myPageData = useMyPageData({
+    accessToken,
     enabled: USE_API && isLoggedIn && Boolean(accessToken),
   })
   const activeChatRoom = chatData.activeRoom
@@ -538,11 +544,12 @@ function App() {
             <MyPage
               memberName={memberName}
               memberDepartment={memberDepartment}
-              popularItems={popularItems}
+              popularItems={USE_API ? [] : popularItems}
               setSelectedItem={setSelectedItem}
-              recommendItems={recommendItems}
+              recommendItems={USE_API ? [] : recommendItems}
               onLogout={handleLogout}
               onOpenRentals={() => setActiveTab('rentals')}
+              data={myPageData}
             />
           )}
           {activeTab === 'rentals' && (
@@ -607,6 +614,29 @@ function App() {
                 setSelectedItem(null)
               } catch (error) {
                 toast.error(error.message || '대여 요청을 준비하지 못했습니다.')
+              }
+            }}
+            onToggleWishlist={async item => {
+              const previous = item
+              const optimistic = {
+                ...item,
+                wishlisted: !item.wishlisted,
+                wishlistCount: Math.max(
+                  0,
+                  (item.wishlistCount || 0) + (item.wishlisted ? -1 : 1),
+                ),
+              }
+              setSelectedItem(optimistic)
+              try {
+                if (item.wishlisted) {
+                  await removeWishlist(item.id, accessToken)
+                } else {
+                  await addWishlist(item.id, accessToken)
+                }
+                setItems(current => current.map(entry => entry.id === item.id ? optimistic : entry))
+              } catch (error) {
+                setSelectedItem(previous)
+                toast.error(error.message || '찜 처리에 실패했습니다.')
               }
             }}
             onReport={async () => {

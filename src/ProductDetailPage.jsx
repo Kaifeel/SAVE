@@ -21,6 +21,7 @@ export default function ProductDetailPage({
   onDelete,
   onStatusChange,
   onRental,
+  onToggleWishlist,
 }) {
   const ItemIcon = item.imageIcon
   const ownerName = item.owner?.split(' ')[0] || '대여자'
@@ -51,10 +52,11 @@ export default function ProductDetailPage({
             </button>
             <button
               type="button"
+              onClick={() => onToggleWishlist?.(item)}
               className="w-9 h-9 rounded-full bg-white shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 active:scale-95 transition"
-              aria-label="찜하기"
+              aria-label={item.wishlisted ? '찜 해제' : '찜하기'}
             >
-              <Heart className="w-4 h-4" />
+              <Heart className={`w-4 h-4 ${item.wishlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
             </button>
             <button
               type="button"
