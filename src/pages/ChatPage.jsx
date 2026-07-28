@@ -5,11 +5,15 @@ export default function ChatPage(props) {
     activeChatRoom,
     items,
     setActiveChatRoom,
+    selectChatRoom = setActiveChatRoom,
     setSelectedItem,
     chatInput,
     setChatInput,
     handleSendMessage,
     chats,
+    loadingMessages,
+    messageError,
+    retryMessage,
   } = props
 
   return (
@@ -61,7 +65,9 @@ export default function ChatPage(props) {
                         <div className="text-center text-[10px] text-slate-400 bg-slate-200/60 rounded-full px-4 py-1.5 w-max mx-auto mb-2">
                           2026년 5월 23일
                         </div>
-                        {activeChatRoom.messages.map(msg => {
+                        {loadingMessages && <div role="status" className="text-center text-xs text-slate-400">메시지를 불러오는 중...</div>}
+                        {messageError && <div role="alert" className="text-center text-xs text-rose-600">{messageError.message}</div>}
+                        {(activeChatRoom.messages || []).map(msg => {
                           const isMe = msg.sender === 'me'
                           return (
                             <div key={msg.id} className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
@@ -79,7 +85,17 @@ export default function ChatPage(props) {
                                   {msg.text}
                                 </div>
                                 <span className={`text-[9px] mt-1 ${isMe ? 'text-indigo-300' : 'text-slate-400'}`}>
-                                  {isMe && <span className="mr-1">✓✓</span>}
+                                  {isMe && msg.deliveryStatus === 'sent' && <span className="mr-1">✓✓</span>}
+                                  {msg.deliveryStatus === 'sending' && <span className="mr-1">전송 중</span>}
+                                  {msg.deliveryStatus === 'failed' && (
+                                    <button
+                                      type="button"
+                                      className="mr-1 font-bold text-rose-500"
+                                      onClick={() => retryMessage?.(msg.clientId)}
+                                    >
+                                      재전송
+                                    </button>
+                                  )}
                                   {msg.time}
                                 </span>
                               </div>
@@ -121,7 +137,7 @@ export default function ChatPage(props) {
                       return (
                         <div
                           key={chat.id}
-                          onClick={() => setActiveChatRoom(chat)}
+                          onClick={() => selectChatRoom(chat)}
                           className="bg-white border border-slate-100 rounded-2xl px-3.5 py-3 flex items-center gap-3 cursor-pointer hover:border-indigo-100 hover:shadow-md hover:shadow-indigo-50/50 transition-all"
                         >
                           <div className={`w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm ${linkedItem?.iconColor || 'text-indigo-500 bg-indigo-50'}`}>

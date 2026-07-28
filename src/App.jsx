@@ -18,7 +18,7 @@ import {
   saveAuth,
   signUpWithEmail,
 } from './api/auth.js'
-import { createOrGetChatRoom, getChatRooms, sendChatMessage } from './api/chats.js'
+import { createOrGetChatRoom, getChatRooms } from './api/chats.js'
 import { updateMyProfile } from './api/users.js'
 import { createReport } from './api/reports.js'
 import {
@@ -30,6 +30,7 @@ import { subscribeUnauthorized } from './api/client.js'
 import { USE_API } from './config/runtime.js'
 import { useReferenceData } from './hooks/useReferenceData.js'
 import { useItems } from './hooks/useItems.js'
+import { useChatRooms } from './hooks/useChatRooms.js'
 import { useToast } from './components/toast.js'
 import {
   MapPin,
@@ -136,8 +137,13 @@ function App() {
       ]
     }
   ])
-  const [activeChatRoom, setActiveChatRoom] = useState(null)
   const [chatInput, setChatInput] = useState('')
+  const chatData = useChatRooms({
+    accessToken,
+    currentUserId: savedUser?.id,
+  })
+  const activeChatRoom = chatData.activeRoom
+  const setActiveChatRoom = chatData.setActiveRoom
 
   // Notifications
   const [notifications, setNotifications] = useState([
@@ -316,42 +322,22 @@ function App() {
   const handleSendMessage = async () => {
     if (!chatInput.trim() || !activeChatRoom) return
     const messageText = chatInput.trim()
-
+    setChatInput('')
+    if (USE_API) {
+      await chatData.send(messageText)
+      return
+    }
     const newMessage = {
       id: Date.now(),
       sender: 'me',
       text: messageText,
-      time: '방금 전'
+      time: '방금 전',
+      deliveryStatus: 'sent',
     }
-
-    setChats(prev => prev.map(c => {
-      if (c.id === activeChatRoom.id) {
-        return {
-          ...c,
-          lastMessage: messageText,
-          time: '방금 전',
-          messages: [...c.messages, newMessage]
-        }
-      }
-      return c
+    setActiveChatRoom(current => ({
+      ...current,
+      messages: [...current.messages, newMessage],
     }))
-
-    setActiveChatRoom(prev => ({
-      ...prev,
-      messages: [...prev.messages, newMessage]
-    }))
-
-    setChatInput('')
-
-    if (!USE_API) return
-
-    try {
-      const roomId = activeChatRoom.roomId || activeChatRoom.id
-      await sendChatMessage(roomId, messageText, accessToken)
-    } catch (error) {
-      console.error('채팅 메시지 전송 API 연동 실패', error)
-      alert('메시지 전송 API 호출에 실패했습니다.')
-    }
   }
 
   const handleCompleteProfile = async () => {
@@ -525,11 +511,15 @@ function App() {
               activeChatRoom={activeChatRoom}
               items={items}
               setActiveChatRoom={setActiveChatRoom}
+              selectChatRoom={USE_API ? chatData.selectRoom : setActiveChatRoom}
               setSelectedItem={setSelectedItem}
               chatInput={chatInput}
               setChatInput={setChatInput}
               handleSendMessage={handleSendMessage}
               chats={chats}
+              loadingMessages={chatData.loadingMessages}
+              messageError={chatData.messageError}
+              retryMessage={chatData.retry}
             />
           )}
 
@@ -621,7 +611,7 @@ function App() {
                       ? prev.map(room => room.id === apiRoom.id ? apiRoom : room)
                       : [apiRoom, ...prev]
                   })
-                  setActiveChatRoom(apiRoom)
+                  await chatData.selectRoom(apiRoom)
                   setActiveTab('chat')
                   setSelectedItem(null)
                   return

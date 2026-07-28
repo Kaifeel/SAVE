@@ -56,15 +56,23 @@ export function normalizeItemsResponse(response) {
   return unwrapList(response).map(normalizeItem)
 }
 
-export function normalizeChatMessage(apiMessage) {
+export function normalizeChatMessage(apiMessage, currentUserId) {
   const message = unwrapObject(apiMessage)
   const senderType = message.senderType || message.sender || ''
+  const senderId = message.sender_id ?? message.senderId
 
   return {
     id: message.id || message.message_id || message.messageId || Date.now(),
-    sender: senderType === 'me' || senderType === 'ME' || message.is_mine || message.isMine ? 'me' : 'other',
+    sender: senderId === currentUserId
+      || senderType === 'me'
+      || senderType === 'ME'
+      || message.is_mine
+      || message.isMine
+      ? 'me'
+      : 'other',
     text: message.message || message.text || message.content || '',
     time: message.time || message.created_at || message.createdAt || '',
+    deliveryStatus: message.deliveryStatus || 'sent',
     raw: message,
   }
 }
@@ -93,8 +101,8 @@ export function normalizeChatRoomsResponse(response) {
   return unwrapList(response).map(normalizeChatRoom)
 }
 
-export function normalizeMessagesResponse(response) {
-  return unwrapList(response).map(normalizeChatMessage)
+export function normalizeMessagesResponse(response, currentUserId) {
+  return unwrapList(response).map(message => normalizeChatMessage(message, currentUserId))
 }
 
 export function toCreateItemPayload({
