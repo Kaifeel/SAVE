@@ -4,15 +4,6 @@ function buildItemFormData(data) {
   const formData = new FormData()
   const { photos = [], ...fields } = data
 
-  if (fields.price_unit !== undefined) {
-    fields.priceUnit = fields.price_unit
-    delete fields.price_unit
-  }
-  if (fields.pickup_location !== undefined) {
-    fields.pickupLocation = fields.pickup_location
-    delete fields.pickup_location
-  }
-
   Object.entries(fields).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
       formData.append(key, value)
@@ -32,18 +23,23 @@ function toApiItem(data) {
   return {
     type: data.type,
     title: data.title,
-    price: data.price,
-    price_unit: data.price_unit ?? data.priceType,
-    pickup_location: data.pickup_location ?? data.location,
-    university: data.university,
+    rental_fee: data.rental_fee ?? data.price,
+    rental_unit: data.rental_unit ?? data.price_unit ?? data.priceType,
+    pickup_location_id: data.pickup_location_id ?? data.pickupLocationId,
     description: data.description,
-    precautions: data.precautions,
-    photos: data.photos,
+    precautions: data.precautions ?? '',
+    photos: data.photos ?? [],
   }
 }
 
 function hasPhotoFiles(data) {
   return data?.photos?.some(photo => photo instanceof File)
+}
+
+function withoutPhotos(data) {
+  const request = { ...data }
+  delete request.photos
+  return request
 }
 
 export function getItems(params = {}, accessToken) {
@@ -58,7 +54,7 @@ export function createItem(data, accessToken) {
   const apiData = toApiItem(data)
   const body = hasPhotoFiles(apiData)
     ? buildItemFormData(apiData)
-    : JSON.stringify(apiData)
+    : JSON.stringify(withoutPhotos(apiData))
 
   return apiFetch('/items', {
     method: 'POST',
@@ -78,7 +74,7 @@ export function updateItem(itemId, data, accessToken) {
   const apiData = toApiItem(data)
   const body = hasPhotoFiles(apiData)
     ? buildItemFormData(apiData)
-    : JSON.stringify(apiData)
+    : JSON.stringify(withoutPhotos(apiData))
 
   return apiFetch(`/items/${itemId}`, {
     method: 'PUT',

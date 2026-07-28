@@ -16,10 +16,16 @@ export function loginWithEmail(email, password) {
   })
 }
 
-export function signUpWithEmail({ email, password, name, department }) {
+export function signUpWithEmail({ email, password, name, department, universityId }) {
   return apiFetch('/auth/signup', {
     method: 'POST',
-    body: JSON.stringify({ email, password, name, department }),
+    body: JSON.stringify({
+      email,
+      password,
+      name,
+      department,
+      university_id: universityId,
+    }),
   })
 }
 
