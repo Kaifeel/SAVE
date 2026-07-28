@@ -34,6 +34,7 @@ import { useItems } from './hooks/useItems.js'
 import { useChatRooms } from './hooks/useChatRooms.js'
 import { useRentals } from './hooks/useRentals.js'
 import { useMyPageData } from './hooks/useMyPageData.js'
+import { useRecommendations } from './hooks/useRecommendations.js'
 import RentalRequestForm from './components/RentalRequestForm.jsx'
 import { addWishlist, removeWishlist } from './api/wishlist.js'
 import { useToast } from './components/toast.js'
@@ -158,6 +159,11 @@ function App() {
     accessToken,
     enabled: USE_API && isLoggedIn && Boolean(accessToken),
   })
+  const recommendationData = useRecommendations({
+    accessToken,
+    enabled: USE_API && isLoggedIn && Boolean(accessToken),
+    department: memberDepartment,
+  })
   const activeChatRoom = chatData.activeRoom
   const setActiveChatRoom = chatData.setActiveRoom
 
@@ -236,7 +242,9 @@ function App() {
   // Split into sections
   // TODO: API 연동 후 아래 주석을 해제하고 aiRecommend.items 사용
   // const recommendItems = aiRecommend.items
-  const recommendItems = useMemo(() => campusItems.filter(i => i.section === 'recommend'), [campusItems])
+  const recommendItems = USE_API
+    ? (recommendationData.current?.items || [])
+    : campusItems.filter(i => i.section === 'recommend')
   const popularItems = useMemo(() => campusItems.filter(i => i.section === 'popular'), [campusItems])
   const homePopularItems = useMemo(() => {
     const priority = ['USB C타입 고속 충전기', '공학용 계산기 (TI-84)', '군화', '이산수학 전공책']
@@ -501,6 +509,9 @@ function App() {
               setActiveTab={setActiveTab}
               recentItems={recentItems}
               filteredItems={filteredItems}
+              recommendationHeadline={recommendationData.current?.headline}
+              recommendationError={recommendationData.error}
+              onRefreshRecommendations={recommendationData.refresh}
             />
           )}
 

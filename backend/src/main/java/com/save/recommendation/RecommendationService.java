@@ -8,7 +8,8 @@ import com.save.user.User;
 import com.save.user.UserRepository;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,11 +20,11 @@ public class RecommendationService {
     private final RecommendationRepository recommendationRepository;
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
-    private final OpenAiRecommendationClient openAiClient;
+    private final RecommendationAiPort openAiClient;
 
     public RecommendationService(RecommendationRepository recommendationRepository,
                                  ItemRepository itemRepository, UserRepository userRepository,
-                                 OpenAiRecommendationClient openAiClient) {
+                                 RecommendationAiPort openAiClient) {
         this.recommendationRepository = recommendationRepository;
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
@@ -34,21 +35,33 @@ public class RecommendationService {
     public RecommendationResponse recommend(Integer userId, RecommendationRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다."));
-        List<String> keywords = openAiClient.recommendKeywords(request);
         List<Item> available = itemRepository.findByStatusNotOrderByCreatedAtDesc(ItemStatus.DELETED)
                 .stream().filter(item -> item.getStatus() == ItemStatus.AVAILABLE)
-                .filter(item -> !item.getUser().getId().equals(userId)).toList();
-        Set<Item> selected = new LinkedHashSet<>();
-        for (String keyword : keywords) {
-            String normalized = keyword.toLowerCase(Locale.ROOT);
-            available.stream().filter(item -> item.getTitle().toLowerCase(Locale.ROOT).contains(normalized)
-                    || (item.getDescription() != null
-                    && item.getDescription().toLowerCase(Locale.ROOT).contains(normalized)))
-                    .limit(3).forEach(selected::add);
-        }
-        if (selected.isEmpty()) available.stream().limit(5).forEach(selected::add);
+                .filter(item -> !item.getOwner().getId().equals(userId))
+                .filter(item -> user.getUniversity() != null
+                        && item.getOwner().getUniversity() != null
+                        && item.getOwner().getUniversity().getId().equals(user.getUniversity().getId()))
+                .limit(50).toList();
+        Map<Integer, Item> candidates = available.stream().collect(
+                LinkedHashMap::new, (map, item) -> map.put(item.getId(), item), Map::putAll);
+        RecommendationAiInput input = new RecommendationAiInput(
+                user.getDepartment(), request.interestItems(), request.timePeriod(),
+                request.isExamPeriod(), request.weatherStatus(),
+                available.stream().map(item -> new RecommendationAiInput.CandidateItem(
+                        item.getId(), item.getTitle(), item.getRentalFee(),
+                        item.getRentalUnit().name(),
+                        item.getPickupLocation() == null ? null : item.getPickupLocation().getName(),
+                        item.getDescription())).toList());
+        AiRecommendationResult aiResult = openAiClient.recommend(input);
+        Set<Integer> seen = new LinkedHashSet<>();
+        List<AiRecommendationResult.RecommendedItem> valid = aiResult.recommendations().stream()
+                .filter(result -> candidates.containsKey(result.itemId()))
+                .filter(result -> seen.add(result.itemId()))
+                .limit(3).toList();
+        List<Item> selected = valid.stream().map(result -> candidates.get(result.itemId())).toList();
         Recommendation saved = recommendationRepository.save(new Recommendation(user, request,
-                keywords, selected.stream().limit(10).toList()));
+                aiResult.headline(), valid.stream().map(
+                        AiRecommendationResult.RecommendedItem::reason).toList(), selected));
         return RecommendationResponse.from(saved);
     }
 

@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 @Component
-public class OpenAiRecommendationClient {
+public class OpenAiRecommendationClient implements RecommendationAiPort {
     private final String apiKey;
     private final String model;
     private final ObjectMapper objectMapper;
@@ -25,7 +25,8 @@ public class OpenAiRecommendationClient {
         this.objectMapper = objectMapper;
     }
 
-    public List<String> recommendKeywords(RecommendationRequest request) {
+    @Override
+    public AiRecommendationResult recommend(RecommendationAiInput input) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new BusinessException(HttpStatus.SERVICE_UNAVAILABLE,
                     "OPENAI_API_KEY가 설정되지 않았습니다.");
@@ -33,14 +34,15 @@ public class OpenAiRecommendationClient {
         try {
             RestClient client = RestClient.builder().baseUrl("https://api.openai.com")
                     .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey).build();
-            JsonNode response = client.post().uri("/v1/chat/completions")
-                    .body(requestBody(request)).retrieve().body(JsonNode.class);
-            String content = response.path("choices").path(0).path("message").path("content").asText();
-            JsonNode parsed = objectMapper.readTree(content);
-            List<String> keywords = objectMapper.readerForListOf(String.class)
-                    .readValue(parsed.path("recommended_keywords"));
-            if (keywords.isEmpty()) throw new IllegalStateException("empty recommendation");
-            return keywords.stream().limit(10).toList();
+            JsonNode response = client.post().uri("/v1/responses")
+                    .body(requestBody(input)).retrieve().body(JsonNode.class);
+            JsonNode parsed = structuredOutput(response);
+            String headline = parsed.path("headline").asText();
+            List<AiRecommendationResult.RecommendedItem> items = objectMapper.readerForListOf(
+                    AiRecommendationResult.RecommendedItem.class)
+                    .readValue(parsed.path("recommendations"));
+            if (headline.isBlank() || items.isEmpty()) throw new IllegalStateException("empty recommendation");
+            return new AiRecommendationResult(headline, items.stream().limit(3).toList());
         } catch (BusinessException exception) {
             throw exception;
         } catch (Exception exception) {
@@ -48,26 +50,44 @@ public class OpenAiRecommendationClient {
         }
     }
 
-    private Map<String, Object> requestBody(RecommendationRequest request) {
-        String input = "학과: " + request.department()
-                + "\n관심 물품: " + String.join(", ", request.interestItems())
-                + "\n시간대: " + request.timePeriod()
-                + "\n시험 기간: " + request.isExamPeriod()
-                + "\n날씨: " + request.weatherStatus();
+    private JsonNode structuredOutput(JsonNode response) throws Exception {
+        for (JsonNode output : response.path("output")) {
+            for (JsonNode content : output.path("content")) {
+                if ("refusal".equals(content.path("type").asText())) {
+                    throw new IllegalStateException("model refusal");
+                }
+                if ("output_text".equals(content.path("type").asText())) {
+                    return objectMapper.readTree(content.path("text").asText());
+                }
+            }
+        }
+        throw new IllegalStateException("missing structured output");
+    }
+
+    private Map<String, Object> requestBody(RecommendationAiInput input) {
         Map<String, Object> schema = Map.of(
                 "type", "object",
-                "properties", Map.of("recommended_keywords", Map.of(
-                        "type", "array", "items", Map.of("type", "string"),
-                        "minItems", 1, "maxItems", 10)),
-                "required", List.of("recommended_keywords"),
+                "properties", Map.of(
+                        "headline", Map.of("type", "string"),
+                        "recommendations", Map.of(
+                                "type", "array", "minItems", 1, "maxItems", 3,
+                                "items", Map.of(
+                                        "type", "object",
+                                        "properties", Map.of(
+                                                "item_id", Map.of("type", "integer"),
+                                                "reason", Map.of("type", "string")),
+                                        "required", List.of("item_id", "reason"),
+                                        "additionalProperties", false))),
+                "required", List.of("headline", "recommendations"),
                 "additionalProperties", false);
         return Map.of(
                 "model", model,
-                "messages", List.of(
+                "input", List.of(
                         Map.of("role", "system", "content",
-                                "대학생 교내 물품 대여 서비스의 추천 도우미입니다. 입력 상황에 유용한 물품 검색 키워드를 한국어로 반환하세요."),
-                        Map.of("role", "user", "content", input)),
-                "response_format", Map.of("type", "json_schema", "json_schema", Map.of(
-                        "name", "save_item_recommendation", "strict", true, "schema", schema)));
+                                "SAVE 교내 대여 추천 엔진입니다. 후보 목록에 존재하는 item_id만 최대 3개 추천하세요."),
+                        Map.of("role", "user", "content", objectMapper.valueToTree(input).toString())),
+                "text", Map.of("format", Map.of(
+                        "type", "json_schema", "name", "save_item_recommendation",
+                        "strict", true, "schema", schema)));
     }
 }

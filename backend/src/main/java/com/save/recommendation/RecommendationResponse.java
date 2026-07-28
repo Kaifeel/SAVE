@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record RecommendationResponse(Integer recommendationId,
+                                     String headline,
+                                     List<String> recommendationReasons,
                                      List<String> recommendedKeywords,
                                      List<ItemResponse> recommendedItems,
                                      String department,
@@ -15,6 +17,7 @@ public record RecommendationResponse(Integer recommendationId,
                                      LocalDateTime createdAt) {
     public static RecommendationResponse from(Recommendation recommendation) {
         return new RecommendationResponse(recommendation.getId(),
+                recommendation.getHeadline(), recommendation.getReasons(),
                 recommendation.getRecommendedKeywords(),
                 recommendation.getItems().stream()
                         .map(item -> ItemResponse.from(item, false, 0)).toList(),

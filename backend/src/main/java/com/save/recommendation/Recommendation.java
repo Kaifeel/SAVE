@@ -42,10 +42,22 @@ public class Recommendation {
     @OrderColumn(name = "display_order")
     private List<String> recommendedKeywords = new ArrayList<>();
 
+    @Column(length = 255)
+    private String headline;
+
+    @ElementCollection
+    @CollectionTable(name = "recommendation_reasons",
+            joinColumns = @JoinColumn(name = "recommendation_id"))
+    @Column(name = "reason", nullable = false, length = 1000)
+    @OrderColumn(name = "display_order")
+    private List<String> reasons = new ArrayList<>();
+
     @ManyToMany
     @JoinTable(name = "recommendation_items",
             joinColumns = @JoinColumn(name = "recommendation_id"),
-            inverseJoinColumns = @JoinColumn(name = "item_id"))
+            inverseJoinColumns = @JoinColumn(name = "item_id"),
+            uniqueConstraints = @UniqueConstraint(name = "uk_recommendation_item",
+                    columnNames = {"recommendation_id", "item_id"}))
     @OrderColumn(name = "display_order")
     private List<Item> items = new ArrayList<>();
 
@@ -64,6 +76,12 @@ public class Recommendation {
         this.recommendedKeywords.addAll(keywords);
         this.items.addAll(items);
     }
+    public Recommendation(User user, RecommendationRequest request, String headline,
+                          List<String> reasons, List<Item> items) {
+        this(user, request, List.of(), items);
+        this.headline = headline;
+        this.reasons.addAll(reasons);
+    }
     @PrePersist void prePersist() { createdAt = LocalDateTime.now(); }
     public Integer getId() { return id; }
     public User getUser() { return user; }
@@ -74,5 +92,7 @@ public class Recommendation {
     public String getWeatherStatus() { return weatherStatus; }
     public List<String> getRecommendedKeywords() { return List.copyOf(recommendedKeywords); }
     public List<Item> getItems() { return List.copyOf(items); }
+    public String getHeadline() { return headline; }
+    public List<String> getReasons() { return List.copyOf(reasons); }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

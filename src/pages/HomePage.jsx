@@ -10,6 +10,9 @@ export default function HomePage(props) {
     setActiveTab,
     recentItems,
     filteredItems,
+    recommendationHeadline,
+    recommendationError,
+    onRefreshRecommendations,
   } = props
 
   return (
@@ -47,8 +50,14 @@ export default function HomePage(props) {
                 </div>
 
                 <p className="text-[15px] font-bold text-indigo-900 mb-3">
-                  비 오는 날 우산이 없으신가요?
+                  {recommendationHeadline || '상황에 맞는 물품을 추천받아 보세요.'}
                 </p>
+                {recommendationError && <p role="alert" className="mb-2 text-xs text-rose-600">{recommendationError.message}</p>}
+                {recommendItems.length === 0 && (
+                  <button type="button" onClick={onRefreshRecommendations} className="mb-3 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white">
+                    AI 추천 받기
+                  </button>
+                )}
 
                 <div className="space-y-2.5">
                   {recommendItems.slice(0, 2).map((item) => {
