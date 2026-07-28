@@ -108,7 +108,7 @@ function App() {
   const [newPhotos, setNewPhotos] = useState([])
 
   // Chat tab mock states
-  const [chats, setChats] = useState([
+  const [chats, setChats] = useState(() => USE_API ? [] : [
     {
       id: 1,
       sender: '이영희',
@@ -163,6 +163,7 @@ function App() {
     accessToken,
     enabled: USE_API && isLoggedIn && Boolean(accessToken),
     department: memberDepartment,
+    interestItems: (myPageData.wishlist.data || []).map(item => item.title),
   })
   const activeChatRoom = chatData.activeRoom
   const setActiveChatRoom = chatData.setActiveRoom
@@ -192,7 +193,10 @@ function App() {
         const roomResponse = await getChatRooms(accessToken)
         if (!ignore) setChats(normalizeChatRoomsResponse(roomResponse))
       } catch (error) {
-        console.warn('채팅방 목록 API 연동 실패, 더미 데이터를 유지합니다.', error)
+        if (!ignore) {
+          setChats([])
+          toast.error(error.message || '채팅방 목록을 불러오지 못했습니다.')
+        }
       }
     }
 
@@ -201,7 +205,7 @@ function App() {
     return () => {
       ignore = true
     }
-  }, [accessToken, isLoggedIn])
+  }, [accessToken, isLoggedIn, toast])
 
   // Filter items based on: Location (Univ), Search Query
   const campusItems = useMemo(() => {
@@ -240,23 +244,14 @@ function App() {
   }, [campusItems, activeBoard, availableOnly])
 
   // Split into sections
-  // TODO: API 연동 후 아래 주석을 해제하고 aiRecommend.items 사용
-  // const recommendItems = aiRecommend.items
   const recommendItems = USE_API
     ? (recommendationData.current?.items || [])
     : campusItems.filter(i => i.section === 'recommend')
   const popularItems = useMemo(() => campusItems.filter(i => i.section === 'popular'), [campusItems])
-  const homePopularItems = useMemo(() => {
-    const priority = ['USB C타입 고속 충전기', '공학용 계산기 (TI-84)', '군화', '이산수학 전공책']
-
-    return [...popularItems].sort((a, b) => {
-      const aIndex = priority.indexOf(a.title)
-      const bIndex = priority.indexOf(b.title)
-      const safeAIndex = aIndex === -1 ? priority.length : aIndex
-      const safeBIndex = bIndex === -1 ? priority.length : bIndex
-      return safeAIndex - safeBIndex
-    })
-  }, [popularItems])
+  const homePopularItems = useMemo(
+    () => USE_API ? campusItems.slice(0, 4) : popularItems,
+    [campusItems, popularItems],
+  )
   const recentItems = useMemo(() => campusItems.filter(i => i.section === 'recent'), [campusItems])
 
   const handlePhotoSelect = (e) => {
@@ -373,8 +368,7 @@ function App() {
           university_id: memberUniversityId,
         }, accessToken)
       } catch (error) {
-        console.error('회원 정보 수정 API 연동 실패', error)
-        alert('회원 정보 저장 API 호출에 실패했습니다.')
+        toast.error(error.message || '회원 정보를 저장하지 못했습니다.')
         return
       }
     }
@@ -659,10 +653,9 @@ function App() {
                     reason: '부적절한 사용자 또는 물품 신고',
                   }, accessToken)
                 }
-                alert('신고가 접수되었습니다.')
+                toast.success('신고가 접수되었습니다.')
               } catch (error) {
-                console.error('신고 API 연동 실패', error)
-                alert('신고 접수 API 호출에 실패했습니다.')
+                toast.error(error.message || '신고 접수에 실패했습니다.')
               }
             }}
             onChat={async () => {
@@ -682,7 +675,8 @@ function App() {
                   setSelectedItem(null)
                   return
                 } catch (error) {
-                  console.error('채팅방 생성 API 연동 실패, 더미 채팅방을 생성합니다.', error)
+                  toast.error(error.message || '채팅방을 만들지 못했습니다.')
+                  return
                 }
               }
 

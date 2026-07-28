@@ -1,4 +1,4 @@
-import { ChevronRight, Info, MapPin, Search, Sparkles, X } from 'lucide-react'
+import { ChevronRight, Info, MapPin, Search, X } from 'lucide-react'
 
 export default function HomePage(props) {
   const {
@@ -38,12 +38,7 @@ export default function HomePage(props) {
               </div>
 
 
-              {/* ═══════════════════════════════════════════════════════
-                  SECTION 1: 오늘의 AI 추천 물품
-                  현재 상태: API 연동 준비 중 (UI Placeholder)
-                  연동 예정: 날씨 API (OpenWeatherMap 등) + GPT API
-                  담당자 참고: aiRecommend 상태 및 useEffect 주석 참고
-              ════════════════════════════════════════════════════════ */}
+              {/* SECTION 1: 오늘의 AI 추천 물품 */}
               <div className="mt-4 mx-5 px-4 py-4 bg-indigo-50 border border-indigo-100 rounded-3xl">
                 <div className="flex justify-between items-center mb-2">
                   <h2 className="text-[17px] font-black text-indigo-950">오늘의 AI 추천 물품</h2>
@@ -93,79 +88,6 @@ export default function HomePage(props) {
                       </div>
                     )
                   })}
-                </div>
-                {/* 섹션 헤더 */}
-                <div className="hidden">
-                  <div className="flex items-center space-x-1.5">
-                    <span className="bg-indigo-100 text-indigo-600 text-[10px] font-black tracking-wide px-2 py-0.5 rounded-full uppercase">AI Pick</span>
-                    <h2 className="text-[17px] font-black text-slate-800">오늘의 AI 추천 물품</h2>
-                  </div>
-                  {/* TODO: API 연동 후 '준비 중' 뱃지 제거 */}
-                  <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">준비 중</span>
-                </div>
-
-                {/* Placeholder 카드 — API 연동 전 */}
-                <div className="hidden">
-
-                  {/* 상단 아이콘 + 설명 */}
-                  <div className="flex items-start space-x-3.5 mb-5">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                      <Sparkles className="w-6 h-6 text-indigo-500 animate-pulse" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-700 text-[14px] leading-snug">
-                        AI가 현재 날씨·상황을 분석해
-                      </p>
-                      <p className="font-bold text-indigo-600 text-[14px] leading-snug">
-                        딱 맞는 대여 물품을 추천해 드릴 예정이에요
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1">날씨 API + GPT 연동 후 자동으로 활성화됩니다</p>
-                    </div>
-                  </div>
-
-                  {/* 기능 예시 미리보기 */}
-                  <div className="space-y-2 mb-4">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">연동 후 이런 식으로 표시돼요</p>
-
-                    {/* 스켈레톤 카드 #1 */}
-                    <div className="bg-white rounded-xl p-3 flex items-center space-x-3 opacity-40">
-                      <div className="w-11 h-11 rounded-xl bg-slate-200 animate-pulse flex-shrink-0" />
-                      <div className="flex-1 space-y-1.5">
-                        <div className="h-3 bg-slate-200 rounded-full w-3/4 animate-pulse" />
-                        <div className="h-3 bg-indigo-100 rounded-full w-1/3 animate-pulse" />
-                        <div className="h-2.5 bg-slate-100 rounded-full w-1/2 animate-pulse" />
-                      </div>
-                      <div className="w-8 h-5 bg-rose-100 rounded animate-pulse flex-shrink-0" />
-                    </div>
-
-                    {/* 스켈레톤 카드 #2 */}
-                    <div className="bg-white rounded-xl p-3 flex items-center space-x-3 opacity-25">
-                      <div className="w-11 h-11 rounded-xl bg-slate-200 animate-pulse flex-shrink-0" />
-                      <div className="flex-1 space-y-1.5">
-                        <div className="h-3 bg-slate-200 rounded-full w-2/4 animate-pulse" />
-                        <div className="h-3 bg-indigo-100 rounded-full w-1/4 animate-pulse" />
-                        <div className="h-2.5 bg-slate-100 rounded-full w-2/5 animate-pulse" />
-                      </div>
-                      <div className="w-8 h-5 bg-emerald-100 rounded animate-pulse flex-shrink-0" />
-                    </div>
-                  </div>
-
-                  {/* 연동 예정 기능 설명 */}
-                  <div className="border-t border-indigo-100 pt-3 space-y-1.5">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">연동 예정 기능</p>
-                    <div className="flex items-center space-x-2 text-xs text-slate-500">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
-                      <span>날씨 API — 실시간 날씨·기온 수집</span>
-                    </div>
-                    <div className="flex items-center space-x-2 text-xs text-slate-500">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
-                      <span>GPT API — 상황 분석 후 추천 물품 결정</span>
-                    </div>
-                    <div className="flex items-center space-x-2 text-xs text-slate-500">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
-                      <span>게시판 매칭 — 추천 조건의 실제 대여글 연결</span>
-                    </div>
-                  </div>
                 </div>
               </div>
 

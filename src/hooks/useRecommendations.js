@@ -2,7 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { getMyRecommendationHistory, getRecommendations } from '../api/recommendations'
 import { normalizeItemsResponse } from '../api/normalizers'
 
-export function useRecommendations({ accessToken, enabled, department }) {
+export function useRecommendations({
+  accessToken,
+  enabled,
+  department,
+  interestItems = [],
+}) {
   const [current, setCurrent] = useState(null)
   const [history, setHistory] = useState([])
   const [error, setError] = useState(null)
@@ -11,9 +16,12 @@ export function useRecommendations({ accessToken, enabled, department }) {
     if (!enabled || !department) return
     setError(null)
     try {
+      const interests = interestItems
+        .map(item => item?.trim())
+        .filter(Boolean)
       const result = await getRecommendations({
         department,
-        interest_items: [],
+        interest_items: interests.length > 0 ? interests : [department],
         time_period: new Date().getHours() < 12 ? '오전' : '오후',
         is_exam_period: false,
         weather_status: '알 수 없음',
@@ -25,7 +33,7 @@ export function useRecommendations({ accessToken, enabled, department }) {
     } catch (requestError) {
       setError(requestError)
     }
-  }, [accessToken, department, enabled])
+  }, [accessToken, department, enabled, interestItems])
 
   useEffect(() => {
     if (!enabled) return undefined
