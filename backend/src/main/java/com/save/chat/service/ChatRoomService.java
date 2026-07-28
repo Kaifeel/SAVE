@@ -37,7 +37,7 @@ public class ChatRoomService {
         Item item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "물품이 존재하지 않습니다."));
 
-        Integer lenderId = item.getUser().getId();
+        Integer lenderId = item.getOwner().getId();
         Integer borrowerId = loginUserId;
 
         if (lenderId.equals(borrowerId)) {
@@ -62,6 +62,18 @@ public class ChatRoomService {
                 .stream().map(room -> toListResponse(room, loginUserId)).toList();
     }
 
+    @Transactional(readOnly = true)
+    public void assertParticipant(Integer roomId, Integer userId) {
+        ChatRoom room = chatRoomRepository.findWithMembersById(roomId)
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND, "채팅방이 존재하지 않습니다."));
+        if (!room.getBorrower().getId().equals(userId)
+                && !room.getLender().getId().equals(userId)) {
+            throw new BusinessException(
+                    HttpStatus.FORBIDDEN, "채팅방에 접근할 권한이 없습니다.");
+        }
+    }
+
     private ChatRoomListResponse toListResponse(ChatRoom room, Integer userId) {
         User opponent = room.getBorrower().getId().equals(userId) ? room.getLender() : room.getBorrower();
         ChatMessage last = chatMessageRepository.findFirstByChatRoomIdOrderByCreatedAtDesc(room.getId()).orElse(null);
@@ -74,7 +86,7 @@ public class ChatRoomService {
     private ChatRoomCreateResponse toResponse(ChatRoom room) {
         Item item = room.getItem();
         return new ChatRoomCreateResponse(room.getId(), new ChatRoomCreateResponse.ItemSummary(
-                item.getId(), item.getTitle(), item.getPrice(), item.getPriceUnit(),
+                item.getId(), item.getTitle(), item.getRentalFee(), item.getRentalUnit().name(),
                 item.getStatus().name()), room.getBorrower().getId(), room.getLender().getId(),
                 room.getCreatedAt());
     }

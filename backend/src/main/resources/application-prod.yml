@@ -21,6 +21,9 @@ spring:
 features:
   direct-payment-transition: false
 
+server:
+  forward-headers-strategy: framework
+
 storage:
   s3:
     endpoint: ${S3_ENDPOINT:}

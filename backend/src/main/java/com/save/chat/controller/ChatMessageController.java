@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/chats/rooms/{roomId}")
-@CrossOrigin(origins = "http://localhost:5173")
 public class ChatMessageController {
     private final ChatMessageService service;
     private final SimpMessagingTemplate messagingTemplate;

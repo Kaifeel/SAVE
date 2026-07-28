@@ -1,7 +1,9 @@
 package com.save.security;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
+import com.save.user.UserRepository;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -22,6 +24,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -31,7 +34,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                             JwtAuthenticationConverter jwtConverter) throws Exception {
+                                             JwtAuthenticationConverter jwtConverter,
+                                             UserRepository userRepository) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> {})
@@ -39,9 +43,13 @@ public class SecurityConfig {
                 .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/v1/auth/**", "/h2-console/**", "/ws-chat/**", "/uploads/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/universities/**").permitAll()
+                        .requestMatchers("/api/v1/auth/**", "/h2-console/**", "/ws-chat/**",
+                                "/uploads/**", "/actuator/health", "/actuator/info").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtConverter)))
+                .addFilterAfter(new SuspendedUserFilter(userRepository),
+                        BearerTokenAuthenticationFilter.class)
                 .build();
     }
 
@@ -80,11 +88,21 @@ public class SecurityConfig {
     }
 
     @Bean
-    CorsConfigurationSource corsConfigurationSource() {
+    CorsConfigurationSource corsConfigurationSource(
+            @Value("${security.cors.allowed-origins}") String configuredOrigins) {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("http://localhost:[*]", "http://127.0.0.1:[*]"));
+        List<String> origins = Arrays.stream(configuredOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isBlank())
+                .toList();
+        if (origins.isEmpty() || origins.stream().anyMatch(origin -> origin.contains("*"))) {
+            throw new IllegalArgumentException(
+                    "CORS_ALLOWED_ORIGINS must contain exact origins without wildcards");
+        }
+        config.setAllowedOrigins(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Correlation-ID"));
+        config.setExposedHeaders(List.of("X-Correlation-ID"));
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
