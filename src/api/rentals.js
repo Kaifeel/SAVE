@@ -49,3 +49,17 @@ export function returnRental(rentalId, accessToken) {
     accessToken,
   })
 }
+
+export function markRentalPaid(rentalId, accessToken) {
+  return apiFetch(`/rentals/${rentalId}/paid`, {
+    method: 'PATCH',
+    accessToken,
+  })
+}
+
+export function startRental(rentalId, accessToken) {
+  return apiFetch(`/rentals/${rentalId}/start`, {
+    method: 'PATCH',
+    accessToken,
+  })
+}

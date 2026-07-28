@@ -8,6 +8,7 @@ export default function MyPage(props) {
     setSelectedItem,
     recommendItems,
     onLogout,
+    onOpenRentals,
   } = props
 
   return (
@@ -93,6 +94,10 @@ export default function MyPage(props) {
               </section>
 
               <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+                <button type="button" onClick={onOpenRentals} className="w-full text-left px-4 py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-50 transition-colors flex justify-between items-center">
+                  <span>대여 내역</span>
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                </button>
                 <button className="w-full text-left px-4 py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-50 transition-colors flex justify-between items-center">
                   <span>알림 설정</span>
                   <ChevronRight className="w-4 h-4 text-slate-400" />

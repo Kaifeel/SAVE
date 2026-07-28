@@ -20,6 +20,7 @@ export default function ProductDetailPage({
   onEdit,
   onDelete,
   onStatusChange,
+  onRental,
 }) {
   const ItemIcon = item.imageIcon
   const ownerName = item.owner?.split(' ')[0] || '대여자'
@@ -178,14 +179,19 @@ export default function ProductDetailPage({
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={onChat}
-            className="w-full h-12 rounded-xl border border-indigo-500 text-indigo-600 font-extrabold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition"
-          >
-            <MessageCircle className="w-4 h-4" />
-            채팅하기
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={onChat}
+              className="h-12 rounded-xl border border-indigo-500 text-indigo-600 font-extrabold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition"
+            >
+              <MessageCircle className="w-4 h-4" />
+              채팅하기
+            </button>
+            <button type="button" onClick={onRental} className="h-12 rounded-xl bg-indigo-600 text-sm font-extrabold text-white">
+              대여 요청
+            </button>
+          </div>
         )}
       </div>
     </div>

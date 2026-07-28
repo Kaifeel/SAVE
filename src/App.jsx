@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage.jsx'
 import SearchPage from './pages/SearchPage.jsx'
 import ChatPage from './pages/ChatPage.jsx'
 import MyPage from './pages/MyPage.jsx'
+import RentalsPage from './pages/RentalsPage.jsx'
 import BottomNavigation from './components/BottomNavigation.jsx'
 import ItemRegistrationModal from './components/ItemRegistrationModal.jsx'
 import LoginPage from './pages/LoginPage.jsx'
@@ -31,6 +32,8 @@ import { USE_API } from './config/runtime.js'
 import { useReferenceData } from './hooks/useReferenceData.js'
 import { useItems } from './hooks/useItems.js'
 import { useChatRooms } from './hooks/useChatRooms.js'
+import { useRentals } from './hooks/useRentals.js'
+import RentalRequestForm from './components/RentalRequestForm.jsx'
 import { useToast } from './components/toast.js'
 import {
   MapPin,
@@ -90,6 +93,7 @@ function App() {
   
   const [isSubmittingItem, setIsSubmittingItem] = useState(false)
   const [editingItemId, setEditingItemId] = useState(null)
+  const [rentalRequest, setRentalRequest] = useState(null)
 
   // Write item form states
   const [newTitle, setNewTitle] = useState('')
@@ -142,6 +146,11 @@ function App() {
     accessToken,
     currentUserId: savedUser?.id,
     realtime: USE_API,
+  })
+  const rentalData = useRentals({
+    accessToken,
+    currentUserId: savedUser?.id,
+    enabled: USE_API && isLoggedIn && Boolean(accessToken),
   })
   const activeChatRoom = chatData.activeRoom
   const setActiveChatRoom = chatData.setActiveRoom
@@ -533,7 +542,11 @@ function App() {
               setSelectedItem={setSelectedItem}
               recommendItems={recommendItems}
               onLogout={handleLogout}
+              onOpenRentals={() => setActiveTab('rentals')}
             />
+          )}
+          {activeTab === 'rentals' && (
+            <RentalsPage data={rentalData} onBack={() => setActiveTab('my')} />
           )}
 
         </main>
@@ -583,6 +596,17 @@ function App() {
                 toast.success('물품이 삭제되었습니다.')
               } catch (error) {
                 toast.error(error.message || '물품을 삭제하지 못했습니다.')
+              }
+            }}
+            onRental={async () => {
+              try {
+                const room = normalizeChatRoom(
+                  await createOrGetChatRoom(selectedItem.id, accessToken),
+                )
+                setRentalRequest({ item: selectedItem, chatRoomId: room.roomId || room.id })
+                setSelectedItem(null)
+              } catch (error) {
+                toast.error(error.message || '대여 요청을 준비하지 못했습니다.')
               }
             }}
             onReport={async () => {
@@ -670,6 +694,24 @@ function App() {
           isSubmittingItem={isSubmittingItem}
           editingItemId={editingItemId}
         />
+        {rentalRequest && (
+          <div className="absolute inset-0 z-[60] flex items-end bg-black/50 p-4">
+            <RentalRequestForm
+              item={rentalRequest.item}
+              chatRoomId={rentalRequest.chatRoomId}
+              onClose={() => setRentalRequest(null)}
+              onSubmit={async payload => {
+                try {
+                  await rentalData.create(payload)
+                  setRentalRequest(null)
+                  toast.success('대여 요청을 보냈습니다.')
+                } catch (error) {
+                  toast.error(error.message || '대여 요청에 실패했습니다.')
+                }
+              }}
+            />
+          </div>
+        )}
 
       </div>
     </div>
