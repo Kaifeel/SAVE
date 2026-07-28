@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { LockKeyhole, Mail, UserRound } from 'lucide-react'
 
-export default function LoginPage({ onLogin }) {
+export default function LoginPage({ onLogin, universities = [] }) {
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [department, setDepartment] = useState('')
+  const [universityId, setUniversityId] = useState('')
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -15,7 +16,14 @@ export default function LoginPage({ onLogin }) {
     setError('')
     setIsSubmitting(true)
     try {
-      await onLogin({ mode, email, password, name, department })
+      await onLogin({
+        mode,
+        email,
+        password,
+        name,
+        department,
+        universityId: universityId ? Number(universityId) : undefined,
+      })
     } catch (requestError) {
       setError(requestError.message || '로그인에 실패했습니다.')
     } finally {
@@ -62,6 +70,20 @@ export default function LoginPage({ onLogin }) {
                   <UserRound className="absolute left-3.5 top-3.5 h-5 w-5 text-slate-400" aria-hidden="true" />
                   <input className={inputClass} value={name} onChange={event => setName(event.target.value)} maxLength={50} autoComplete="name" required />
                 </span>
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-bold text-slate-600">대학교</span>
+                <select
+                  className="w-full h-12 px-4 border border-slate-300 rounded-md text-sm outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100"
+                  value={universityId}
+                  onChange={event => setUniversityId(event.target.value)}
+                  required
+                >
+                  <option value="">대학교 선택</option>
+                  {universities.map(university => (
+                    <option key={university.id} value={university.id}>{university.name}</option>
+                  ))}
+                </select>
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-xs font-bold text-slate-600">학과</span>

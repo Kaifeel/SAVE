@@ -11,7 +11,16 @@ import {
   User
 } from 'lucide-react'
 
-export default function ProductDetailPage({ item, onClose, onChat, onReport }) {
+export default function ProductDetailPage({
+  item,
+  onClose,
+  onChat,
+  onReport,
+  isOwner = false,
+  onEdit,
+  onDelete,
+  onStatusChange,
+}) {
   const ItemIcon = item.imageIcon
   const ownerName = item.owner?.split(' ')[0] || '대여자'
   const priceLabel = item.price === 0 ? '무료' : `${item.price.toLocaleString()}원/${item.priceType}`
@@ -144,14 +153,40 @@ export default function ProductDetailPage({ item, onClose, onChat, onReport }) {
       </div>
 
       <div className="absolute left-0 right-0 bottom-0 bg-white border-t border-slate-100 px-3 pt-3 pb-4">
-        <button
-          type="button"
-          onClick={onChat}
-          className="w-full h-12 rounded-xl border border-indigo-500 text-indigo-600 font-extrabold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition"
-        >
-          <MessageCircle className="w-4 h-4" />
-          채팅하기
-        </button>
+        {isOwner ? (
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => onEdit?.(item)}
+              className="h-11 rounded-xl border border-slate-300 text-xs font-bold text-slate-700"
+            >
+              수정
+            </button>
+            <button
+              type="button"
+              onClick={() => onStatusChange?.(item.status === 'available' ? 'RENTED' : 'AVAILABLE')}
+              className="h-11 rounded-xl border border-indigo-500 text-xs font-bold text-indigo-600"
+            >
+              {item.status === 'available' ? '대여 중으로 변경' : '대여 가능으로 변경'}
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete?.(item.id)}
+              className="h-11 rounded-xl bg-rose-600 text-xs font-bold text-white"
+            >
+              삭제
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onChat}
+            className="w-full h-12 rounded-xl border border-indigo-500 text-indigo-600 font-extrabold text-sm flex items-center justify-center gap-1.5 active:scale-95 transition"
+          >
+            <MessageCircle className="w-4 h-4" />
+            채팅하기
+          </button>
+        )}
       </div>
     </div>
   )

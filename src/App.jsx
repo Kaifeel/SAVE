@@ -18,19 +18,19 @@ import {
   saveAuth,
   signUpWithEmail,
 } from './api/auth.js'
-import { getItems, createItem } from './api/items.js'
 import { createOrGetChatRoom, getChatRooms, sendChatMessage } from './api/chats.js'
 import { updateMyProfile } from './api/users.js'
 import { createReport } from './api/reports.js'
 import {
   normalizeChatRoom,
   normalizeChatRoomsResponse,
-  normalizeItem,
-  normalizeItemsResponse,
   toCreateItemPayload,
 } from './api/normalizers.js'
 import { subscribeUnauthorized } from './api/client.js'
 import { USE_API } from './config/runtime.js'
+import { useReferenceData } from './hooks/useReferenceData.js'
+import { useItems } from './hooks/useItems.js'
+import { useToast } from './components/toast.js'
 import {
   MapPin,
   Bell,
@@ -41,7 +41,7 @@ import {
 const DEV_AUTO_LOGIN = import.meta.env.VITE_AUTO_LOGIN === 'true'
 
 function App() {
-  const university = '부경대학교'
+  const toast = useToast()
   const [searchQuery, setSearchQuery] = useState('')
   const [activeBoard, setActiveBoard] = useState('borrow')
   const [availableOnly, setAvailableOnly] = useState(false)
@@ -51,11 +51,36 @@ function App() {
   const savedUser = getAuthUser(auth)
   const [isLoggedIn, setIsLoggedIn] = useState(DEV_AUTO_LOGIN || Boolean(accessToken))
   const [isProfileComplete, setIsProfileComplete] = useState(
-    DEV_AUTO_LOGIN || Boolean(savedUser?.name && savedUser?.department),
+    DEV_AUTO_LOGIN || Boolean(
+      savedUser?.name
+      && savedUser?.department
+      && (savedUser?.university_id ?? savedUser?.universityId),
+    ),
   )
   const [memberName, setMemberName] = useState(savedUser?.name || (DEV_AUTO_LOGIN ? '홍길동' : ''))
   const [memberDepartment, setMemberDepartment] = useState(savedUser?.department || (DEV_AUTO_LOGIN ? '컴퓨터공학과' : ''))
-  const [items, setItems] = useState(INITIAL_ITEMS)
+  const [memberUniversityId, setMemberUniversityId] = useState(
+    savedUser?.university_id ?? savedUser?.universityId ?? (DEV_AUTO_LOGIN ? 1 : null),
+  )
+  const {
+    universities,
+    pickupLocations,
+    error: referenceError,
+  } = useReferenceData({
+    universityId: memberUniversityId,
+    enabled: USE_API,
+  })
+  const university = universities.find(entry => entry.id === memberUniversityId)?.name
+    || savedUser?.university_name
+    || savedUser?.universityName
+    || '부경대학교'
+  const itemData = useItems({
+    universityId: memberUniversityId,
+    accessToken,
+    enabled: USE_API && isLoggedIn,
+    initialItems: USE_API ? [] : INITIAL_ITEMS,
+  })
+  const { items, setItems } = itemData
 
   // Modals & Sheets
   const [selectedItem, setSelectedItem] = useState(null)
@@ -63,12 +88,13 @@ function App() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
   
   const [isSubmittingItem, setIsSubmittingItem] = useState(false)
+  const [editingItemId, setEditingItemId] = useState(null)
 
   // Write item form states
   const [newTitle, setNewTitle] = useState('')
   const [newPrice, setNewPrice] = useState('')
   const [newPriceType, setNewPriceType] = useState('일')
-  const [newLocation, setNewLocation] = useState('')
+  const [newPickupLocationId, setNewPickupLocationId] = useState('')
   const [newType, setNewType] = useState('rent') // rent (빌려줘요) or want (구해요)
   const [newDescription, setNewDescription] = useState('')
   const [newPhotos, setNewPhotos] = useState([])
@@ -134,15 +160,7 @@ function App() {
 
     async function loadApiData() {
       try {
-        const itemResponse = await getItems({ university }, accessToken)
-        if (!ignore) setItems(normalizeItemsResponse(itemResponse))
-      } catch (error) {
-        console.warn('물품 목록 API 연동 실패, 더미 데이터를 유지합니다.', error)
-      }
-
-      if (!accessToken) return
-
-      try {
+        if (!accessToken) return
         const roomResponse = await getChatRooms(accessToken)
         if (!ignore) setChats(normalizeChatRoomsResponse(roomResponse))
       } catch (error) {
@@ -155,13 +173,14 @@ function App() {
     return () => {
       ignore = true
     }
-  }, [accessToken, isLoggedIn, university])
+  }, [accessToken, isLoggedIn])
 
   // Filter items based on: Location (Univ), Search Query
   const campusItems = useMemo(() => {
     return items.filter(item => {
       // Location Check
-      if (item.university !== university) return false
+      if (USE_API && memberUniversityId && item.universityId !== memberUniversityId) return false
+      if (!USE_API && item.university !== university) return false
 
       // Search Query Check
       if (searchQuery.trim() !== '') {
@@ -173,7 +192,7 @@ function App() {
 
       return true
     })
-  }, [items, university, searchQuery])
+  }, [items, memberUniversityId, university, searchQuery])
 
   // Search tab filters: board split and availability
   const filteredItems = useMemo(() => {
@@ -225,9 +244,10 @@ function App() {
   const resetItemForm = () => {
     setNewTitle('')
     setNewPrice('')
-    setNewLocation('')
+    setNewPickupLocationId('')
     setNewDescription('')
     setNewPhotos([])
+    setEditingItemId(null)
   }
 
   // Handle uploading new item
@@ -236,6 +256,7 @@ function App() {
     if (!newTitle || !newPrice) return
 
     setIsSubmittingItem(true)
+    const wasEditing = Boolean(editingItemId)
 
     const SelectedIcon = newType === 'want' ? PenTool : Camera
     const colorClasses = newType === 'want' ? 'text-blue-500 bg-blue-50' : 'text-rose-500 bg-rose-50'
@@ -245,7 +266,7 @@ function App() {
       title: newTitle,
       price: parseInt(newPrice, 10) || 0,
       priceType: newPriceType,
-      location: newLocation || '캠퍼스 내',
+      location: pickupLocations.find(location => location.id === newPickupLocationId)?.name || '캠퍼스 내',
       badge: '신규',
       section: 'recent',
       type: newType,
@@ -266,23 +287,26 @@ function App() {
           title: newTitle,
           price: newPrice,
           priceType: newPriceType,
-          location: newLocation || '캠퍼스 내',
+          pickupLocationId: newPickupLocationId,
           type: newType,
           description: newDescription,
           photos: newPhotos,
         })
-        const createdItem = await createItem(payload, accessToken)
-        setItems(prev => [normalizeItem(createdItem), ...prev])
+        if (editingItemId) {
+          const updated = await itemData.update(editingItemId, payload)
+          setSelectedItem(updated)
+        } else {
+          await itemData.create(payload)
+        }
       } else {
         setItems(prev => [newItem, ...prev])
       }
 
       resetItemForm()
       setIsWriteModalOpen(false)
-      alert('물품이 성공적으로 등록되었습니다!')
+      toast.success(wasEditing ? '물품이 수정되었습니다.' : '물품이 성공적으로 등록되었습니다.')
     } catch (error) {
-      console.error('물품 등록 API 연동 실패', error)
-      alert('물품 등록에 실패했습니다. 백엔드 API 상태를 확인해주세요.')
+      toast.error(error.message || '물품 등록에 실패했습니다.')
     } finally {
       setIsSubmittingItem(false)
     }
@@ -336,6 +360,7 @@ function App() {
         await updateMyProfile({
           name: memberName,
           department: memberDepartment,
+          university_id: memberUniversityId,
         }, accessToken)
       } catch (error) {
         console.error('회원 정보 수정 API 연동 실패', error)
@@ -347,9 +372,9 @@ function App() {
     setIsProfileComplete(true)
   }
 
-  const handleLogin = async ({ mode, email, password, name, department }) => {
+  const handleLogin = async ({ mode, email, password, name, department, universityId }) => {
     const nextAuth = mode === 'signup'
-      ? await signUpWithEmail({ email, password, name, department })
+      ? await signUpWithEmail({ email, password, name, department, universityId })
       : await loginWithEmail(email, password)
     const user = getAuthUser(nextAuth)
 
@@ -357,7 +382,12 @@ function App() {
     setAuth(nextAuth)
     setMemberName(user?.name || '')
     setMemberDepartment(user?.department || '')
-    setIsProfileComplete(Boolean(user?.name && user?.department))
+    setMemberUniversityId(user?.university_id ?? user?.universityId ?? universityId ?? null)
+    setIsProfileComplete(Boolean(
+      user?.name
+      && user?.department
+      && (user?.university_id ?? user?.universityId ?? universityId),
+    ))
     setIsLoggedIn(true)
   }
 
@@ -369,7 +399,9 @@ function App() {
     setActiveTab('home')
   }
 
-  if (!isLoggedIn) return <LoginPage onLogin={handleLogin} />
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} universities={universities} />
+  }
 
   if (!isProfileComplete) {
     return (
@@ -378,6 +410,9 @@ function App() {
         setMemberName={setMemberName}
         memberDepartment={memberDepartment}
         setMemberDepartment={setMemberDepartment}
+        memberUniversityId={memberUniversityId}
+        setMemberUniversityId={setMemberUniversityId}
+        universities={universities}
         onComplete={handleCompleteProfile}
       />
     )
@@ -478,6 +513,9 @@ function App() {
               setAvailableOnly={setAvailableOnly}
               filteredItems={filteredItems}
               setSelectedItem={setSelectedItem}
+              loading={itemData.loading}
+              error={itemData.error || referenceError}
+              onRetry={itemData.error ? itemData.reload : undefined}
             />
           )}
 
@@ -525,6 +563,37 @@ function App() {
           <ProductDetailPage
             item={selectedItem}
             onClose={() => setSelectedItem(null)}
+            isOwner={Boolean(savedUser?.id && selectedItem.ownerId === savedUser.id)}
+            onEdit={(item) => {
+              setEditingItemId(item.id)
+              setNewTitle(item.title)
+              setNewPrice(String(item.price))
+              setNewPriceType(item.priceType)
+              setNewPickupLocationId(item.pickupLocationId || '')
+              setNewType(item.type)
+              setNewDescription(item.description)
+              setNewPhotos([])
+              setSelectedItem(null)
+              setIsWriteModalOpen(true)
+            }}
+            onStatusChange={async status => {
+              try {
+                const updated = await itemData.updateStatus(selectedItem.id, status)
+                setSelectedItem(updated)
+                toast.success('물품 상태가 변경되었습니다.')
+              } catch (error) {
+                toast.error(error.message || '물품 상태를 변경하지 못했습니다.')
+              }
+            }}
+            onDelete={async itemId => {
+              try {
+                await itemData.remove(itemId)
+                setSelectedItem(null)
+                toast.success('물품이 삭제되었습니다.')
+              } catch (error) {
+                toast.error(error.message || '물품을 삭제하지 못했습니다.')
+              }
+            }}
             onReport={async () => {
               try {
                 if (USE_API) {
@@ -602,11 +671,13 @@ function App() {
           setNewPrice={setNewPrice}
           newPriceType={newPriceType}
           setNewPriceType={setNewPriceType}
-          newLocation={newLocation}
-          setNewLocation={setNewLocation}
+          newPickupLocationId={newPickupLocationId}
+          setNewPickupLocationId={setNewPickupLocationId}
+          pickupLocations={pickupLocations}
           newDescription={newDescription}
           setNewDescription={setNewDescription}
           isSubmittingItem={isSubmittingItem}
+          editingItemId={editingItemId}
         />
 
       </div>

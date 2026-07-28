@@ -1,4 +1,5 @@
-import { Info, MapPin, Search } from 'lucide-react'
+import { MapPin, Search } from 'lucide-react'
+import AsyncState from '../components/AsyncState'
 
 export default function SearchPage(props) {
   const {
@@ -10,6 +11,9 @@ export default function SearchPage(props) {
     setAvailableOnly,
     filteredItems,
     setSelectedItem,
+    loading,
+    error,
+    onRetry,
   } = props
 
   return (
@@ -74,6 +78,13 @@ export default function SearchPage(props) {
               </div>
 
               {/* Combined Grid List */}
+              <AsyncState
+                loading={loading}
+                error={error}
+                empty={!loading && !error && filteredItems.length === 0}
+                onRetry={onRetry}
+                emptyMessage="등록된 물품이 없습니다."
+              >
               <div className="space-y-3 mt-2">
                 {filteredItems.map((item) => {
                   const ItemIcon = item.imageIcon
@@ -120,13 +131,8 @@ export default function SearchPage(props) {
                   )
                 })}
 
-                {filteredItems.length === 0 && (
-                  <div className="py-16 text-center">
-                    <Info className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                    <p className="text-sm font-semibold text-slate-500">등록된 물품이 없습니다.</p>
-                  </div>
-                )}
               </div>
+              </AsyncState>
             </div>
   )
 }

@@ -15,11 +15,13 @@ export default function ItemRegistrationModal({
   setNewPrice,
   newPriceType,
   setNewPriceType,
-  newLocation,
-  setNewLocation,
+  newPickupLocationId,
+  setNewPickupLocationId,
+  pickupLocations,
   newDescription,
   setNewDescription,
   isSubmittingItem,
+  editingItemId,
 }) {
   if (!isOpen) return null
 
@@ -39,7 +41,9 @@ export default function ItemRegistrationModal({
                 <X className="w-5 h-5" />
               </button>
 
-              <h3 className="font-extrabold text-slate-800 text-lg mb-5 mt-1">대여 물품 등록</h3>
+              <h3 className="font-extrabold text-slate-800 text-lg mb-5 mt-1">
+                {editingItemId ? '대여 물품 수정' : '대여 물품 등록'}
+              </h3>
 
               {/* Form Content */}
               <div className="space-y-4 text-left">
@@ -165,15 +169,19 @@ export default function ItemRegistrationModal({
 
                 {/* Location */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1.5">거래 선호 위치</label>
-                  <input
-                    type="text"
+                  <label htmlFor="pickup-location" className="block text-xs font-bold text-slate-400 mb-1.5">거래 선호 위치</label>
+                  <select
+                    id="pickup-location"
                     required
-                    placeholder="예: 청운관 1열람실 사물함 앞, 생활관 B동 입구"
-                    value={newLocation}
-                    onChange={(e) => setNewLocation(e.target.value)}
+                    value={newPickupLocationId}
+                    onChange={(e) => setNewPickupLocationId(Number(e.target.value))}
                     className="w-full bg-slate-50 border border-slate-100 focus:border-indigo-500 focus:bg-white rounded-xl px-4 py-3 text-xs outline-none transition-all text-slate-800"
-                  />
+                  >
+                    <option value="">수령 장소 선택</option>
+                    {pickupLocations.map(location => (
+                      <option key={location.id} value={location.id}>{location.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Description */}
@@ -203,7 +211,9 @@ export default function ItemRegistrationModal({
                   disabled={isSubmittingItem}
                   className="flex-2 py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 active:scale-95 text-white font-extrabold text-xs rounded-2xl shadow-lg shadow-indigo-100 transition-all text-center"
                 >
-                  {isSubmittingItem ? '등록 중...' : '등록하기'}
+                  {isSubmittingItem
+                    ? (editingItemId ? '수정 중...' : '등록 중...')
+                    : (editingItemId ? '수정하기' : '등록하기')}
                 </button>
               </div>
             </form>
