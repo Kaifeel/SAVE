@@ -105,16 +105,10 @@ public class SecurityConfig {
         config.setExposedHeaders(List.of("X-Correlation-ID"));
         config.setAllowCredentials(true);
 
-        CorsConfiguration googleRedirectConfig = new CorsConfiguration();
-        googleRedirectConfig.setAllowedOrigins(List.of("https://accounts.google.com"));
-        googleRedirectConfig.setAllowedMethods(List.of("POST"));
-        googleRedirectConfig.setAllowedHeaders(List.of("Content-Type"));
-        googleRedirectConfig.setAllowCredentials(true);
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/v1/auth/google/redirect",
-                googleRedirectConfig);
         source.registerCorsConfiguration("/**", config);
-        return source;
+        return request -> "/api/v1/auth/google/redirect".equals(request.getRequestURI())
+                ? null
+                : source.getCorsConfiguration(request);
     }
 }

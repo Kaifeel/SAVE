@@ -57,18 +57,22 @@ function App() {
   const [auth, setAuth] = useState(() => getSavedAuth())
   const accessToken = getAccessToken(auth)
   const savedUser = getAuthUser(auth)
+  const savedUniversityId = savedUser?.university_id ?? savedUser?.universityId ?? null
+  const savedProfileComplete = Boolean(
+    savedUser?.name && savedUser?.department && savedUniversityId,
+  )
   const [isLoggedIn, setIsLoggedIn] = useState(DEV_AUTO_LOGIN || Boolean(accessToken))
   const [isProfileComplete, setIsProfileComplete] = useState(
-    DEV_AUTO_LOGIN || Boolean(
-      savedUser?.name
-      && savedUser?.department
-      && (savedUser?.university_id ?? savedUser?.universityId),
-    ),
+    DEV_AUTO_LOGIN || savedProfileComplete,
   )
-  const [memberName, setMemberName] = useState(savedUser?.name || (DEV_AUTO_LOGIN ? '홍길동' : ''))
+  const [memberName, setMemberName] = useState(
+    savedProfileComplete
+      ? savedUser.name
+      : (accessToken ? '테스트' : (DEV_AUTO_LOGIN ? '홍길동' : '')),
+  )
   const [memberDepartment, setMemberDepartment] = useState(savedUser?.department || (DEV_AUTO_LOGIN ? '컴퓨터공학과' : ''))
   const [memberUniversityId, setMemberUniversityId] = useState(
-    savedUser?.university_id ?? savedUser?.universityId ?? (DEV_AUTO_LOGIN ? 1 : null),
+    savedUniversityId ?? (DEV_AUTO_LOGIN ? 1 : null),
   )
   const {
     universities,
@@ -379,19 +383,20 @@ function App() {
 
   const applyAuth = useCallback((nextAuth, fallbackUniversityId = null) => {
     const user = getAuthUser(nextAuth)
+    const profileUniversityId = user?.university_id
+      ?? user?.universityId
+      ?? fallbackUniversityId
+      ?? null
+    const hasCompletedProfile = Boolean(
+      user?.name && user?.department && profileUniversityId,
+    )
 
     saveAuth(nextAuth)
     setAuth(nextAuth)
-    setMemberName(user?.name || '')
+    setMemberName(hasCompletedProfile ? user.name : '테스트')
     setMemberDepartment(user?.department || '')
-    setMemberUniversityId(
-      user?.university_id ?? user?.universityId ?? fallbackUniversityId ?? null,
-    )
-    setIsProfileComplete(Boolean(
-      user?.name
-      && user?.department
-      && (user?.university_id ?? user?.universityId ?? fallbackUniversityId),
-    ))
+    setMemberUniversityId(profileUniversityId)
+    setIsProfileComplete(hasCompletedProfile)
     setIsLoggedIn(true)
   }, [])
 
@@ -406,17 +411,12 @@ function App() {
       document.title,
       `${window.location.pathname}${window.location.search}`,
     )
-    let active = true
     exchangeGoogleLogin(code)
-      .then(nextAuth => {
-        if (active) applyAuth(nextAuth)
-      })
+      .then(applyAuth)
       .catch(error => {
-        if (active) toast.error(error.message || 'Google 로그인에 실패했습니다.')
+        toast.error(error.message || 'Google 로그인에 실패했습니다.')
       })
-    return () => {
-      active = false
-    }
+    return undefined
   }, [applyAuth, toast])
 
   const handleLogin = async ({ mode, email, password, name, department, universityId }) => {

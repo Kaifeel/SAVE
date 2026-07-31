@@ -48,11 +48,22 @@ class SecurityBoundaryIntegrationTest {
                         .header("Origin", "https://accounts.google.com")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                         .param("credential", "invalid-token")
+                .param("g_csrf_token", "request-token")
+                        .cookie(new Cookie("g_csrf_token", "different-cookie")))
+                .andExpect(status().isBadRequest())
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
+    }
+
+    @Test
+    void googleRedirectAcceptsNavigationPostWithOpaqueOrigin() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/google/redirect")
+                        .header("Origin", "null")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("credential", "invalid-token")
                         .param("g_csrf_token", "request-token")
                         .cookie(new Cookie("g_csrf_token", "different-cookie")))
                 .andExpect(status().isBadRequest())
-                .andExpect(header().string("Access-Control-Allow-Origin",
-                        "https://accounts.google.com"));
+                .andExpect(header().doesNotExist("Access-Control-Allow-Origin"));
     }
 
     @Test
