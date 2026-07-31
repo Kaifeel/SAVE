@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import ProductDetailPage from './ProductDetailPage.jsx'
 import HomePage from './pages/HomePage.jsx'
 import SearchPage from './pages/SearchPage.jsx'
@@ -12,6 +12,7 @@ import ProfileSetupPage from './pages/ProfileSetupPage.jsx'
 import { INITIAL_ITEMS } from './data/items.js'
 import {
   clearSavedAuth,
+  exchangeGoogleLogin,
   getAccessToken,
   getAuthUser,
   getSavedAuth,
@@ -376,23 +377,53 @@ function App() {
     setIsProfileComplete(true)
   }
 
-  const handleLogin = async ({ mode, email, password, name, department, universityId }) => {
-    const nextAuth = mode === 'signup'
-      ? await signUpWithEmail({ email, password, name, department, universityId })
-      : await loginWithEmail(email, password)
+  const applyAuth = useCallback((nextAuth, fallbackUniversityId = null) => {
     const user = getAuthUser(nextAuth)
 
     saveAuth(nextAuth)
     setAuth(nextAuth)
     setMemberName(user?.name || '')
     setMemberDepartment(user?.department || '')
-    setMemberUniversityId(user?.university_id ?? user?.universityId ?? universityId ?? null)
+    setMemberUniversityId(
+      user?.university_id ?? user?.universityId ?? fallbackUniversityId ?? null,
+    )
     setIsProfileComplete(Boolean(
       user?.name
       && user?.department
-      && (user?.university_id ?? user?.universityId ?? universityId),
+      && (user?.university_id ?? user?.universityId ?? fallbackUniversityId),
     ))
     setIsLoggedIn(true)
+  }, [])
+
+  useEffect(() => {
+    if (!USE_API || !window.location.hash.startsWith('#')) return undefined
+    const params = new URLSearchParams(window.location.hash.slice(1))
+    const code = params.get('google_login_code')
+    if (!code) return undefined
+
+    window.history.replaceState(
+      null,
+      document.title,
+      `${window.location.pathname}${window.location.search}`,
+    )
+    let active = true
+    exchangeGoogleLogin(code)
+      .then(nextAuth => {
+        if (active) applyAuth(nextAuth)
+      })
+      .catch(error => {
+        if (active) toast.error(error.message || 'Google 로그인에 실패했습니다.')
+      })
+    return () => {
+      active = false
+    }
+  }, [applyAuth, toast])
+
+  const handleLogin = async ({ mode, email, password, name, department, universityId }) => {
+    const nextAuth = mode === 'signup'
+      ? await signUpWithEmail({ email, password, name, department, universityId })
+      : await loginWithEmail(email, password)
+    applyAuth(nextAuth, universityId)
   }
 
   const handleLogout = () => {

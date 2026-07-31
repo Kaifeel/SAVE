@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { signUpWithEmail } from './auth'
+import { exchangeGoogleLogin, signUpWithEmail } from './auth'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -23,5 +23,20 @@ it('includes university_id in the signup contract', async () => {
 
   expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({
     university_id: 1,
+  })
+})
+
+it('exchanges a one-time Google redirect code', async () => {
+  const fetchMock = vi.fn().mockResolvedValue(new Response(
+    JSON.stringify({ access_token: 'save-jwt' }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } },
+  ))
+  vi.stubGlobal('fetch', fetchMock)
+
+  await exchangeGoogleLogin('one-time-code')
+
+  expect(fetchMock.mock.calls[0][0]).toMatch(/\/auth\/google\/exchange$/)
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+    code: 'one-time-code',
   })
 })

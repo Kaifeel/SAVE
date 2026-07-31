@@ -1,7 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { LockKeyhole, Mail, UserRound } from 'lucide-react'
 
-export default function LoginPage({ onLogin, universities = [] }) {
+const GOOGLE_IDENTITY_SCRIPT_ID = 'google-identity-services'
+const GOOGLE_IDENTITY_SCRIPT_SRC = 'https://accounts.google.com/gsi/client'
+
+export default function LoginPage({
+  onLogin,
+  universities = [],
+  googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID,
+  googleLoginUri = import.meta.env.VITE_GOOGLE_LOGIN_URI
+    || 'http://localhost:8080/api/v1/auth/google/redirect',
+}) {
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -10,6 +19,57 @@ export default function LoginPage({ onLogin, universities = [] }) {
   const [universityId, setUniversityId] = useState('')
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const googleButtonRef = useRef(null)
+
+  useEffect(() => {
+    if (!googleClientId) return undefined
+
+    let disposed = false
+    let script = document.getElementById(GOOGLE_IDENTITY_SCRIPT_ID)
+    const renderGoogleButton = () => {
+      if (disposed || !googleButtonRef.current || !window.google?.accounts?.id) return
+      googleButtonRef.current.replaceChildren()
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        ux_mode: 'redirect',
+        login_uri: googleLoginUri,
+      })
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        type: 'standard',
+        theme: 'outline',
+        size: 'large',
+        text: 'continue_with',
+        shape: 'rectangular',
+        logo_alignment: 'left',
+        width: 320,
+        locale: 'ko',
+      })
+    }
+    const handleScriptError = () => {
+      if (!disposed) setError('Google 로그인 모듈을 불러오지 못했습니다.')
+    }
+
+    if (!script) {
+      script = document.createElement('script')
+      script.id = GOOGLE_IDENTITY_SCRIPT_ID
+      script.src = GOOGLE_IDENTITY_SCRIPT_SRC
+      script.async = true
+      document.head.appendChild(script)
+    }
+
+    if (window.google?.accounts?.id) {
+      renderGoogleButton()
+    } else {
+      script.addEventListener('load', renderGoogleButton)
+      script.addEventListener('error', handleScriptError)
+    }
+
+    return () => {
+      disposed = true
+      script?.removeEventListener('load', renderGoogleButton)
+      script?.removeEventListener('error', handleScriptError)
+    }
+  }, [googleClientId, googleLoginUri])
 
   const handleSubmit = async event => {
     event.preventDefault()
@@ -60,6 +120,17 @@ export default function LoginPage({ onLogin, universities = [] }) {
             </button>
           ))}
         </div>
+
+        {googleClientId && (
+          <div className="mb-6">
+            <div ref={googleButtonRef} className="flex min-h-10 justify-center" />
+            <div className="my-5 flex items-center gap-3 text-xs font-semibold text-slate-400">
+              <span className="h-px flex-1 bg-slate-200" />
+              <span>또는 이메일로 계속</span>
+              <span className="h-px flex-1 bg-slate-200" />
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === 'signup' && (

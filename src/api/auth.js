@@ -9,6 +9,13 @@ export function loginWithGoogle(idToken) {
   })
 }
 
+export function exchangeGoogleLogin(code) {
+  return apiFetch('/auth/google/exchange', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  })
+}
+
 export function loginWithEmail(email, password) {
   return apiFetch('/auth/login', {
     method: 'POST',
