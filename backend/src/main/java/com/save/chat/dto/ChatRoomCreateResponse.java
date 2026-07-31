@@ -8,6 +8,6 @@ public record ChatRoomCreateResponse(
         Integer borrowerId,
         Integer lenderId,
         LocalDateTime createdAt) {
-    public record ItemSummary(Integer id, String title, Integer price,
-                              String priceUnit, String status) {}
+    public record ItemSummary(Integer id, String title, Integer rentalFee,
+                              String rentalUnit, String status) {}
 }

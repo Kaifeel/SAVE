@@ -17,12 +17,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class GoogleOAuthService {
     private final UserRepository userRepository;
     private final JwtTokenService jwtTokenService;
+    private final PknuEmailPolicy emailPolicy;
     private final String clientId;
 
     public GoogleOAuthService(UserRepository userRepository, JwtTokenService jwtTokenService,
+                              PknuEmailPolicy emailPolicy,
                               @Value("${google.oauth.client-id:}") String clientId) {
         this.userRepository = userRepository;
         this.jwtTokenService = jwtTokenService;
+        this.emailPolicy = emailPolicy;
         this.clientId = clientId;
     }
 
@@ -37,7 +40,7 @@ public class GoogleOAuthService {
             throw new BusinessException(HttpStatus.UNAUTHORIZED, "인증되지 않은 Google 이메일입니다.");
         }
         String subject = payload.getSubject();
-        String email = payload.getEmail().trim().toLowerCase();
+        String email = emailPolicy.requireAllowed(payload.getEmail(), HttpStatus.UNAUTHORIZED);
         String name = stringClaim(payload, "name", email.substring(0, email.indexOf('@')));
         String picture = stringClaim(payload, "picture", null);
 

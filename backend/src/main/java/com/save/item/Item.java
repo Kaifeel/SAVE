@@ -9,12 +9,13 @@ import java.util.List;
 @Entity
 @Table(name = "items")
 public class Item {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @JoinColumn(name = "owner_id", nullable = false)
+    private User owner;
 
     @Column(nullable = false, length = 10)
     private String type;
@@ -22,17 +23,16 @@ public class Item {
     @Column(nullable = false, length = 100)
     private String title;
 
-    @Column(nullable = false)
-    private Integer price;
+    @Column(name = "rental_fee", nullable = false)
+    private Integer rentalFee;
 
-    @Column(name = "price_unit", nullable = false, length = 10)
-    private String priceUnit;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rental_unit", nullable = false, length = 10)
+    private RentalUnit rentalUnit;
 
-    @Column(name = "pickup_location", length = 150)
-    private String pickupLocation;
-
-    @Column(nullable = false, length = 100)
-    private String university = "부경대학교";
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pickup_location_id")
+    private PickupLocation pickupLocation;
 
     @Column(columnDefinition = "text")
     private String description;
@@ -53,36 +53,34 @@ public class Item {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @ElementCollection
-    @CollectionTable(name = "item_photos", joinColumns = @JoinColumn(name = "item_id"))
-    @Column(name = "photo_url", nullable = false, length = 500)
-    @OrderColumn(name = "display_order")
-    private List<String> photoUrls = new ArrayList<>();
+    @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sortOrder ASC")
+    private List<ItemImage> images = new ArrayList<>();
 
     protected Item() {}
-    public Item(User user, String type, String title, Integer price, String priceUnit,
-                String pickupLocation, String description, String precautions) {
-        this.user = user;
+
+    public Item(User owner, String type, String title, Integer rentalFee, RentalUnit rentalUnit,
+                PickupLocation pickupLocation, String description, String precautions) {
+        this.owner = owner;
         this.type = type;
         this.title = title;
-        this.price = price;
-        this.priceUnit = priceUnit;
+        this.rentalFee = rentalFee;
+        this.rentalUnit = rentalUnit;
         this.pickupLocation = pickupLocation;
         this.description = description;
         this.precautions = precautions;
     }
 
-    public Item(User user, String type, String title, Integer price, String priceUnit,
-                String pickupLocation, String university, String description,
-                String precautions, List<String> photoUrls) {
-        this(user, type, title, price, priceUnit, pickupLocation, description, precautions);
-        if (university != null && !university.isBlank()) this.university = university.trim();
-        if (photoUrls != null) this.photoUrls.addAll(photoUrls);
+    public Item(User owner, String type, String title, Integer rentalFee, RentalUnit rentalUnit,
+                PickupLocation pickupLocation, String description, String precautions,
+                List<String> photoUrls) {
+        this(owner, type, title, rentalFee, rentalUnit, pickupLocation, description, precautions);
+        replaceImages(photoUrls);
     }
 
     /** 개발 데이터와 단위 테스트를 위한 편의 생성자 */
-    public Item(String title, User user) {
-        this(user, "LEND", title, 0, "DAY", null, null, null);
+    public Item(String title, User owner) {
+        this(owner, "LEND", title, 0, RentalUnit.DAY, null, null, null);
     }
 
     @PrePersist
@@ -96,35 +94,40 @@ public class Item {
     void preUpdate() { updatedAt = LocalDateTime.now(); }
 
     public Integer getId() { return id; }
-    public String getTitle() { return title; }
-    public User getUser() { return user; }
+    public User getOwner() { return owner; }
     public String getType() { return type; }
-    public Integer getPrice() { return price; }
-    public String getPriceUnit() { return priceUnit; }
-    public String getPickupLocation() { return pickupLocation; }
-    public String getUniversity() { return university; }
+    public String getTitle() { return title; }
+    public Integer getRentalFee() { return rentalFee; }
+    public RentalUnit getRentalUnit() { return rentalUnit; }
+    public PickupLocation getPickupLocation() { return pickupLocation; }
     public String getDescription() { return description; }
     public String getPrecautions() { return precautions; }
     public ItemStatus getStatus() { return status; }
     public Integer getViewCount() { return viewCount; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public List<String> getPhotoUrls() { return List.copyOf(photoUrls); }
+    public List<String> getPhotoUrls() {
+        return images.stream().map(ItemImage::getImageUrl).toList();
+    }
 
-    public void update(String type, String title, Integer price, String priceUnit,
-                       String pickupLocation, String university, String description,
-                       String precautions, List<String> newPhotoUrls) {
+    public void update(String type, String title, Integer rentalFee, RentalUnit rentalUnit,
+                       PickupLocation pickupLocation, String description, String precautions,
+                       List<String> newPhotoUrls) {
         this.type = type;
         this.title = title;
-        this.price = price;
-        this.priceUnit = priceUnit;
+        this.rentalFee = rentalFee;
+        this.rentalUnit = rentalUnit;
         this.pickupLocation = pickupLocation;
-        if (university != null && !university.isBlank()) this.university = university.trim();
         this.description = description;
         this.precautions = precautions;
-        if (newPhotoUrls != null && !newPhotoUrls.isEmpty()) {
-            this.photoUrls.clear();
-            this.photoUrls.addAll(newPhotoUrls);
+        if (newPhotoUrls != null && !newPhotoUrls.isEmpty()) replaceImages(newPhotoUrls);
+    }
+
+    private void replaceImages(List<String> photoUrls) {
+        images.clear();
+        if (photoUrls == null) return;
+        for (int index = 0; index < photoUrls.size(); index++) {
+            images.add(new ItemImage(this, photoUrls.get(index), index));
         }
     }
 

@@ -7,8 +7,13 @@ spring:
     username: ${DB_USERNAME:sa}
     password: ${DB_PASSWORD:}
   jpa:
+    defer-datasource-initialization: true
     hibernate:
       ddl-auto: update
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:data-dev.sql
   flyway:
     enabled: false
   h2:

@@ -5,6 +5,8 @@ import com.save.item.ItemRepository;
 import com.save.item.ItemResponse;
 import com.save.item.ItemStatus;
 import com.save.wishlist.WishlistRepository;
+import com.save.university.University;
+import com.save.university.UniversityRepository;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -15,12 +17,15 @@ public class UserService {
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;
     private final WishlistRepository wishlistRepository;
+    private final UniversityRepository universityRepository;
 
     public UserService(UserRepository userRepository, ItemRepository itemRepository,
-                       WishlistRepository wishlistRepository) {
+                       WishlistRepository wishlistRepository,
+                       UniversityRepository universityRepository) {
         this.userRepository = userRepository;
         this.itemRepository = itemRepository;
         this.wishlistRepository = wishlistRepository;
+        this.universityRepository = universityRepository;
     }
 
     @Transactional(readOnly = true)
@@ -29,14 +34,20 @@ public class UserService {
     @Transactional
     public UserResponse updateProfile(Integer userId, UserProfileUpdateRequest request) {
         User user = findUser(userId);
-        user.updateProfile(request.name(), request.department(), request.profileImageUrl());
+        University university = request.universityId() == null ? null
+                : universityRepository.findById(request.universityId())
+                .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST,
+                        "등록되지 않은 대학입니다."));
+        user.updateProfile(request.name(), request.department(), university,
+                request.profileImageUrl());
         return UserResponse.from(user);
     }
 
     @Transactional(readOnly = true)
     public List<ItemResponse> getMyItems(Integer userId) {
         findUser(userId);
-        return itemRepository.findByUserIdAndStatusNotOrderByCreatedAtDesc(userId, ItemStatus.DELETED)
+        return itemRepository.findByOwnerIdAndStatusNotOrderByCreatedAtDesc(
+                        userId, ItemStatus.DELETED)
                 .stream().map(item -> ItemResponse.from(item, false,
                         wishlistRepository.countByItemId(item.getId()))).toList();
     }

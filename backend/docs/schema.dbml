@@ -1,0 +1,217 @@
+Enum user_role {
+  USER
+  ADMIN
+}
+
+Enum user_status {
+  ACTIVE
+  SUSPENDED
+}
+
+Enum item_status {
+  AVAILABLE
+  RESERVED
+  RENTED
+  DELETED
+}
+
+Enum rental_unit {
+  HOUR
+  DAY
+  WEEK
+  MONTH
+}
+
+Enum rental_status {
+  REQUESTED
+  APPROVED
+  PAID
+  RENTING
+  RETURNED
+  REJECTED
+  CANCELED
+}
+
+Enum report_status {
+  PENDING
+  REVIEWING
+  RESOLVED
+  REJECTED
+}
+
+Table universities {
+  id integer [pk, increment]
+  name varchar(100) [not null, unique]
+}
+
+Table pickup_locations {
+  id integer [pk, increment]
+  university_id integer [not null]
+  name varchar(100) [not null]
+
+  indexes {
+    (university_id, name) [unique]
+  }
+}
+
+Table users {
+  id integer [pk, increment]
+  university_id integer
+  email varchar(100) [not null, unique]
+  name varchar(50) [not null]
+  department varchar(100)
+  profile_image_url varchar(255)
+  password_hash varchar(60)
+  oauth_provider varchar(20) [not null]
+  oauth_id varchar(100) [not null]
+  role user_role [not null, default: 'USER']
+  status user_status [not null, default: 'ACTIVE']
+  sanctioned_until timestamp
+  sanction_reason varchar(500)
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+
+  indexes {
+    (oauth_provider, oauth_id) [unique]
+  }
+}
+
+Table items {
+  id integer [pk, increment]
+  owner_id integer [not null]
+  pickup_location_id integer
+  type varchar(10) [not null]
+  title varchar(100) [not null]
+  rental_fee integer [not null]
+  rental_unit rental_unit [not null]
+  description text
+  precautions text
+  status item_status [not null, default: 'AVAILABLE']
+  view_count integer [not null, default: 0]
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table item_images {
+  id integer [pk, increment]
+  item_id integer [not null]
+  image_url varchar(500) [not null]
+  sort_order integer [not null, default: 0]
+  created_at timestamp [not null]
+}
+
+Table wishlists {
+  id integer [pk, increment]
+  user_id integer [not null]
+  item_id integer [not null]
+  created_at timestamp [not null]
+
+  indexes {
+    (user_id, item_id) [unique]
+  }
+}
+
+Table chat_rooms {
+  id integer [pk, increment]
+  item_id integer [not null]
+  borrower_id integer [not null]
+  lender_id integer [not null]
+  created_at timestamp [not null]
+
+  indexes {
+    (item_id, borrower_id, lender_id) [unique]
+  }
+}
+
+Table chat_messages {
+  id integer [pk, increment]
+  chat_room_id integer [not null]
+  sender_id integer [not null]
+  message text [not null]
+  is_read boolean [not null, default: false]
+  created_at timestamp [not null]
+}
+
+Table rentals {
+  id integer [pk, increment]
+  item_id integer [not null]
+  borrower_id integer [not null]
+  lender_id integer [not null]
+  chat_room_id integer [not null]
+  start_date timestamp [not null]
+  end_date timestamp
+  total_price integer [not null]
+  status rental_status [not null, default: 'REQUESTED']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+}
+
+Table reports {
+  id integer [pk, increment]
+  reporter_id integer [not null]
+  reported_user_id integer
+  item_id integer
+  chat_room_id integer
+  reason varchar(1000) [not null]
+  status report_status [not null, default: 'PENDING']
+  created_at timestamp [not null]
+  updated_at timestamp [not null]
+  handled_at timestamp
+}
+
+Table recommendations {
+  id integer [pk, increment]
+  user_id integer [not null]
+  department varchar(100)
+  time_period varchar(30) [not null]
+  is_exam_period boolean [not null]
+  weather_status varchar(30) [not null]
+  created_at timestamp [not null]
+}
+
+Table recommendation_interests {
+  recommendation_id integer [not null]
+  interest_item varchar(100)
+}
+
+Table recommendation_keywords {
+  recommendation_id integer [not null]
+  keyword varchar(100) [not null]
+  display_order integer [not null]
+}
+
+Table recommendation_items {
+  recommendation_id integer [not null]
+  item_id integer [not null]
+  display_order integer [not null]
+
+  indexes {
+    (recommendation_id, item_id) [unique]
+  }
+}
+
+Ref: universities.id < pickup_locations.university_id
+Ref: universities.id < users.university_id
+Ref: users.id < items.owner_id
+Ref: pickup_locations.id < items.pickup_location_id
+Ref: items.id < item_images.item_id
+Ref: users.id < wishlists.user_id
+Ref: items.id < wishlists.item_id
+Ref: items.id < chat_rooms.item_id
+Ref: users.id < chat_rooms.borrower_id
+Ref: users.id < chat_rooms.lender_id
+Ref: chat_rooms.id < chat_messages.chat_room_id
+Ref: users.id < chat_messages.sender_id
+Ref: items.id < rentals.item_id
+Ref: users.id < rentals.borrower_id
+Ref: users.id < rentals.lender_id
+Ref: chat_rooms.id < rentals.chat_room_id
+Ref: users.id < reports.reporter_id
+Ref: users.id < reports.reported_user_id
+Ref: items.id < reports.item_id
+Ref: chat_rooms.id < reports.chat_room_id
+Ref: users.id < recommendations.user_id
+Ref: recommendations.id < recommendation_interests.recommendation_id
+Ref: recommendations.id < recommendation_keywords.recommendation_id
+Ref: recommendations.id < recommendation_items.recommendation_id
+Ref: items.id < recommendation_items.item_id

@@ -8,5 +8,6 @@ public record SignUpRequest(
         @NotBlank @Email @Size(max = 100) String email,
         @NotBlank @Size(min = 8, max = 72) String password,
         @NotBlank @Size(max = 50) String name,
-        @Size(max = 100) String department
+        @Size(max = 100) String department,
+        Integer universityId
 ) {}

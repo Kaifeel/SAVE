@@ -16,7 +16,7 @@ firebase:
 
 security:
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174}
   jwt:
     # Local development default only. Set JWT_SECRET to a long random value in production.
     secret: ${JWT_SECRET:save-local-development-jwt-secret-change-me-2026}

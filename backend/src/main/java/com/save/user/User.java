@@ -1,5 +1,6 @@
 package com.save.user;
 
+import com.save.university.University;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -21,6 +22,10 @@ public class User {
 
     @Column(length = 100)
     private String department;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "university_id")
+    private University university;
 
     @Column(name = "profile_image_url", length = 255)
     private String profileImageUrl;
@@ -94,6 +99,7 @@ public class User {
     public String getEmail() { return email; }
     public String getName() { return name; }
     public String getDepartment() { return department; }
+    public University getUniversity() { return university; }
     public String getProfileImageUrl() { return profileImageUrl; }
     public String getPasswordHash() { return passwordHash; }
     public String getOauthProvider() { return oauthProvider; }
@@ -105,9 +111,11 @@ public class User {
     public LocalDateTime getSanctionedUntil() { return sanctionedUntil; }
     public String getSanctionReason() { return sanctionReason; }
 
-    public void updateProfile(String name, String department, String profileImageUrl) {
+    public void updateProfile(String name, String department, University university,
+                              String profileImageUrl) {
         if (name != null && !name.isBlank()) this.name = name.trim();
         this.department = department == null || department.isBlank() ? null : department.trim();
+        this.university = university;
         if (profileImageUrl != null) {
             this.profileImageUrl = profileImageUrl.isBlank() ? null : profileImageUrl.trim();
         }

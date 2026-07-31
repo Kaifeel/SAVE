@@ -18,23 +18,27 @@ public class ItemService {
     private final UserRepository userRepository;
     private final WishlistRepository wishlistRepository;
     private final PhotoStorageService photoStorageService;
+    private final PickupLocationRepository pickupLocationRepository;
 
     public ItemService(ItemRepository itemRepository, UserRepository userRepository,
-                       WishlistRepository wishlistRepository, PhotoStorageService photoStorageService) {
+                       WishlistRepository wishlistRepository, PhotoStorageService photoStorageService,
+                       PickupLocationRepository pickupLocationRepository) {
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
         this.wishlistRepository = wishlistRepository;
         this.photoStorageService = photoStorageService;
+        this.pickupLocationRepository = pickupLocationRepository;
     }
 
     @Transactional(readOnly = true)
     public ItemPageResponse list(String type, String query, boolean onlyAvailable, String sort,
-                                 int page, int size, String university, Integer userId) {
+                                 int page, int size, Integer universityId, Integer userId) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 100);
-        List<Item> items = university == null || university.isBlank()
+        List<Item> items = universityId == null
                 ? itemRepository.findByStatusNotOrderByCreatedAtDesc(ItemStatus.DELETED)
-                : itemRepository.findByUniversityAndStatusNotOrderByCreatedAtDesc(university.trim(), ItemStatus.DELETED);
+                : itemRepository.findByOwnerUniversityIdAndStatusNotOrderByCreatedAtDesc(
+                        universityId, ItemStatus.DELETED);
         Stream<Item> filtered = items.stream();
         if (type != null && !type.isBlank()) {
             String normalizedType = normalizeType(type);
@@ -70,10 +74,11 @@ public class ItemService {
         validate(request);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다."));
+        PickupLocation pickupLocation = findPickupLocation(request.getPickupLocationId(), user);
         List<String> photoUrls = photoStorageService.store(request.getPhotos());
         Item item = new Item(user, normalizeType(request.getType()), request.getTitle().trim(),
-                request.getPrice(), normalizePriceUnit(request.getPriceUnit()), trimToNull(request.getPickupLocation()),
-                defaultUniversity(request.getUniversity()), trimToNull(request.getDescription()),
+                request.getRentalFee(), normalizeRentalUnit(request.getRentalUnit()), pickupLocation,
+                trimToNull(request.getDescription()),
                 trimToNull(request.getPrecautions()), photoUrls);
         return response(itemRepository.save(item), userId);
     }
@@ -82,10 +87,12 @@ public class ItemService {
     public ItemResponse update(Integer itemId, Integer userId, ItemUpsertRequest request) {
         validate(request);
         Item item = findOwned(itemId, userId);
+        PickupLocation pickupLocation = findPickupLocation(
+                request.getPickupLocationId(), item.getOwner());
         List<String> photoUrls = photoStorageService.store(request.getPhotos());
-        item.update(normalizeType(request.getType()), request.getTitle().trim(), request.getPrice(),
-                normalizePriceUnit(request.getPriceUnit()), trimToNull(request.getPickupLocation()),
-                defaultUniversity(request.getUniversity()), trimToNull(request.getDescription()),
+        item.update(normalizeType(request.getType()), request.getTitle().trim(),
+                request.getRentalFee(), normalizeRentalUnit(request.getRentalUnit()), pickupLocation,
+                trimToNull(request.getDescription()),
                 trimToNull(request.getPrecautions()), photoUrls);
         return response(item, userId);
     }
@@ -124,7 +131,7 @@ public class ItemService {
 
     private Item findOwned(Integer id, Integer userId) {
         Item item = findVisible(id);
-        if (!item.getUser().getId().equals(userId)) {
+        if (!item.getOwner().getId().equals(userId)) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "물품을 수정할 권한이 없습니다.");
         }
         return item;
@@ -134,8 +141,8 @@ public class ItemService {
         if (request.getTitle() == null || request.getTitle().isBlank() || request.getTitle().length() > 100) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "물품명은 1자 이상 100자 이하여야 합니다.");
         }
-        if (request.getPrice() == null || request.getPrice() < 0) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "가격은 0 이상의 숫자여야 합니다.");
+        if (request.getRentalFee() == null || request.getRentalFee() < 0) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "대여료는 0 이상의 숫자여야 합니다.");
         }
     }
 
@@ -147,16 +154,32 @@ public class ItemService {
         throw new BusinessException(HttpStatus.BAD_REQUEST, "지원하지 않는 게시글 유형입니다.");
     }
 
-    private String normalizePriceUnit(String priceUnit) {
-        if (priceUnit == null || priceUnit.isBlank()) return "DAY";
-        String normalized = priceUnit.trim().toUpperCase(Locale.ROOT);
-        if (normalized.equals("일")) return "DAY";
-        if (normalized.equals("시간")) return "HOUR";
-        return normalized;
+    private RentalUnit normalizeRentalUnit(String rentalUnit) {
+        if (rentalUnit == null || rentalUnit.isBlank()) return RentalUnit.DAY;
+        String normalized = rentalUnit.trim().toUpperCase(Locale.ROOT);
+        if (normalized.equals("일")) normalized = "DAY";
+        if (normalized.equals("시간")) normalized = "HOUR";
+        if (normalized.equals("주")) normalized = "WEEK";
+        if (normalized.equals("월")) normalized = "MONTH";
+        try {
+            return RentalUnit.valueOf(normalized);
+        } catch (IllegalArgumentException exception) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST,
+                    "대여 단위는 HOUR, DAY, WEEK, MONTH 중 하나여야 합니다.");
+        }
     }
 
-    private String defaultUniversity(String university) {
-        return university == null || university.isBlank() ? "부경대학교" : university.trim();
+    private PickupLocation findPickupLocation(Integer locationId, User owner) {
+        if (locationId == null) return null;
+        PickupLocation location = pickupLocationRepository.findById(locationId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST,
+                        "등록되지 않은 수령 장소입니다."));
+        if (owner.getUniversity() == null
+                || !location.getUniversity().getId().equals(owner.getUniversity().getId())) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST,
+                    "소속 대학에 등록된 수령 장소만 선택할 수 있습니다.");
+        }
+        return location;
     }
 
     private String trimToNull(String value) {

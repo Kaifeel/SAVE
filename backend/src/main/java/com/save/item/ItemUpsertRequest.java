@@ -6,27 +6,26 @@ import org.springframework.web.multipart.MultipartFile;
 
 public class ItemUpsertRequest {
     private String title;
-    private Integer price;
-    private String priceUnit;
-    private String pickupLocation;
+    private Integer rentalFee;
+    private String rentalUnit;
+    private Integer pickupLocationId;
     private String type;
-    private String university;
     private String description;
     private String precautions;
     private List<MultipartFile> photos = new ArrayList<>();
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
-    public Integer getPrice() { return price; }
-    public void setPrice(Integer price) { this.price = price; }
-    public String getPriceUnit() { return priceUnit; }
-    public void setPriceUnit(String priceUnit) { this.priceUnit = priceUnit; }
-    public String getPickupLocation() { return pickupLocation; }
-    public void setPickupLocation(String pickupLocation) { this.pickupLocation = pickupLocation; }
+    public Integer getRentalFee() { return rentalFee; }
+    public void setRentalFee(Integer rentalFee) { this.rentalFee = rentalFee; }
+    public String getRentalUnit() { return rentalUnit; }
+    public void setRentalUnit(String rentalUnit) { this.rentalUnit = rentalUnit; }
+    public Integer getPickupLocationId() { return pickupLocationId; }
+    public void setPickupLocationId(Integer pickupLocationId) {
+        this.pickupLocationId = pickupLocationId;
+    }
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
-    public String getUniversity() { return university; }
-    public void setUniversity(String university) { this.university = university; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
     public String getPrecautions() { return precautions; }

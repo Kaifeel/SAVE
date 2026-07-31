@@ -32,7 +32,7 @@ public class WishlistService {
         Item item = itemRepository.findById(itemId)
                 .filter(value -> value.getStatus() != ItemStatus.DELETED)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "물품이 존재하지 않습니다."));
-        if (item.getUser().getId().equals(userId)) {
+        if (item.getOwner().getId().equals(userId)) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "본인 물품은 찜할 수 없습니다.");
         }
         return WishlistResponse.from(wishlistRepository.save(new Wishlist(user, item)));

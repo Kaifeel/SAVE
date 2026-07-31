@@ -1,5 +1,6 @@
 package com.save.report;
 
+import com.save.chat.domain.ChatRoom;
 import com.save.chat.repository.ChatRoomRepository;
 import com.save.common.BusinessException;
 import com.save.item.Item;
@@ -32,17 +33,19 @@ public class ReportService {
     public ReportResponse create(Integer reporterId, ReportCreateRequest request) {
         User reporter = userRepository.findById(reporterId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다."));
-        if (request.itemId() != null && !itemRepository.existsById(request.itemId())) {
-            throw new BusinessException(HttpStatus.NOT_FOUND, "신고할 물품이 존재하지 않습니다.");
-        }
-        if (request.reportedUserId() != null && !userRepository.existsById(request.reportedUserId())) {
-            throw new BusinessException(HttpStatus.NOT_FOUND, "신고할 사용자가 존재하지 않습니다.");
-        }
-        if (request.chatRoomId() != null && !chatRoomRepository.existsById(request.chatRoomId())) {
-            throw new BusinessException(HttpStatus.NOT_FOUND, "신고할 채팅방이 존재하지 않습니다.");
-        }
-        return ReportResponse.from(reportRepository.save(new Report(reporter, request.reportedUserId(),
-                request.itemId(), request.chatRoomId(), request.reason().trim())));
+        Item item = request.itemId() == null ? null : itemRepository.findById(request.itemId())
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
+                        "신고할 물품이 존재하지 않습니다."));
+        User reportedUser = request.reportedUserId() == null ? null
+                : userRepository.findById(request.reportedUserId())
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
+                        "신고할 사용자가 존재하지 않습니다."));
+        ChatRoom chatRoom = request.chatRoomId() == null ? null
+                : chatRoomRepository.findById(request.chatRoomId())
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
+                        "신고할 채팅방이 존재하지 않습니다."));
+        return ReportResponse.from(reportRepository.save(new Report(reporter, reportedUser,
+                item, chatRoom, request.reason().trim())));
     }
 
     @Transactional(readOnly = true)
