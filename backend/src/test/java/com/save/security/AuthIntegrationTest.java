@@ -35,7 +35,7 @@ class AuthIntegrationTest {
     @Test
     void signUpHashesPasswordAndReturnsUsableToken() throws Exception {
         String body = """
-                {"email":"Student@PKNU.AC.KR","password":"password123",
+                {"email":"Student@PUKYONG.AC.KR","password":"password123",
                  "name":"학생","department":"컴퓨터공학과"}
                 """;
 
@@ -43,10 +43,10 @@ class AuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.access_token").isNotEmpty())
-                .andExpect(jsonPath("$.user.email").value("student@pknu.ac.kr"))
+                .andExpect(jsonPath("$.user.email").value("student@pukyong.ac.kr"))
                 .andReturn().getResponse().getContentAsString();
 
-        User saved = userRepository.findByEmailIgnoreCase("student@pknu.ac.kr").orElseThrow();
+        User saved = userRepository.findByEmailIgnoreCase("student@pukyong.ac.kr").orElseThrow();
         assertThat(saved.getPasswordHash()).isNotEqualTo("password123");
         assertThat(passwordEncoder.matches("password123", saved.getPasswordHash())).isTrue();
 
@@ -58,20 +58,20 @@ class AuthIntegrationTest {
 
     @Test
     void loginRejectsWrongPassword() throws Exception {
-        userRepository.save(User.local("student@pknu.ac.kr",
+        userRepository.save(User.local("student@pukyong.ac.kr",
                 passwordEncoder.encode("password123"), "학생", null));
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"student@pknu.ac.kr","password":"wrong-password"}
+                                {"email":"student@pukyong.ac.kr","password":"wrong-password"}
                                 """))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("이메일 또는 비밀번호가 올바르지 않습니다."));
     }
 
     @Test
-    void signUpRejectsNonPknuAndLookalikeDomains() throws Exception {
+    void signUpRejectsNonPukyongAndLookalikeDomains() throws Exception {
         mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -80,12 +80,12 @@ class AuthIntegrationTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message")
-                        .value("부경대학교 이메일(@pknu.ac.kr)만 사용할 수 있습니다."));
+                        .value("부경대학교 이메일(@pukyong.ac.kr)만 사용할 수 있습니다."));
 
         mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"student@fakepknu.ac.kr","password":"password123",
+                                {"email":"student@fakepukyong.ac.kr","password":"password123",
                                  "name":"학생","department":"컴퓨터공학과"}
                                 """))
                 .andExpect(status().isBadRequest());
@@ -94,7 +94,7 @@ class AuthIntegrationTest {
     }
 
     @Test
-    void loginRejectsNonPknuEmailBeforeAuthentication() throws Exception {
+    void loginRejectsNonPukyongEmailBeforeAuthentication() throws Exception {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -102,6 +102,6 @@ class AuthIntegrationTest {
                                 """))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message")
-                        .value("부경대학교 이메일(@pknu.ac.kr)만 사용할 수 있습니다."));
+                        .value("부경대학교 이메일(@pukyong.ac.kr)만 사용할 수 있습니다."));
     }
 }

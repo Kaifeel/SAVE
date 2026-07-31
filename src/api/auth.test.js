@@ -14,7 +14,7 @@ it('includes university_id in the signup contract', async () => {
   vi.stubGlobal('fetch', fetchMock)
 
   await signUpWithEmail({
-    email: 'student@pknu.ac.kr',
+    email: 'student@pukyong.ac.kr',
     password: 'password123',
     name: '학생',
     department: '컴퓨터공학과',

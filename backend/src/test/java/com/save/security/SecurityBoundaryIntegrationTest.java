@@ -6,6 +6,7 @@ import com.save.user.User;
 import com.save.user.UserRepository;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -42,8 +43,21 @@ class SecurityBoundaryIntegrationTest {
     }
 
     @Test
+    void googleRedirectAcceptsCredentialPostFromGoogleOrigin() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/google/redirect")
+                        .header("Origin", "https://accounts.google.com")
+                        .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                        .param("credential", "invalid-token")
+                        .param("g_csrf_token", "request-token")
+                        .cookie(new Cookie("g_csrf_token", "different-cookie")))
+                .andExpect(status().isBadRequest())
+                .andExpect(header().string("Access-Control-Allow-Origin",
+                        "https://accounts.google.com"));
+    }
+
+    @Test
     void suspendedUserCannotAccessAuthenticatedApi() throws Exception {
-        String email = "suspended-" + UUID.randomUUID() + "@pknu.ac.kr";
+        String email = "suspended-" + UUID.randomUUID() + "@pukyong.ac.kr";
         String response = mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""

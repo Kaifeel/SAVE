@@ -47,8 +47,8 @@ class MarketplaceIntegrationTest {
 
     @Test
     void frontendMarketplaceFlowUsesImplementedApis() throws Exception {
-        JsonNode owner = signUp("owner@pknu.ac.kr", "물품주인");
-        JsonNode borrower = signUp("borrower@pknu.ac.kr", "대여학생");
+        JsonNode owner = signUp("owner@pukyong.ac.kr", "물품주인");
+        JsonNode borrower = signUp("borrower@pukyong.ac.kr", "대여학생");
         String ownerToken = owner.get("access_token").asText();
         String borrowerToken = borrower.get("access_token").asText();
 

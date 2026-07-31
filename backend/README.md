@@ -23,14 +23,14 @@ REST API Base URL은 `/api/v1`입니다.
 ### 회원가입과 로그인
 
 비밀번호는 BCrypt 해시로만 저장되며 로그인 성공 시 1시간 유효한 JWT를 반환합니다.
-회원가입, 일반 로그인 및 Google 로그인은 정확히 `@pknu.ac.kr` 도메인인
+회원가입, 일반 로그인 및 Google 로그인은 정확히 `@pukyong.ac.kr` 도메인인
 부경대학교 이메일만 허용합니다.
 
 ```http
 POST /api/v1/auth/signup
 Content-Type: application/json
 
-{"email":"student@pknu.ac.kr","password":"password123","name":"홍길동",
+{"email":"student@pukyong.ac.kr","password":"password123","name":"홍길동",
  "department":"컴퓨터공학과","university_id":1}
 ```
 
@@ -38,7 +38,7 @@ Content-Type: application/json
 POST /api/v1/auth/login
 Content-Type: application/json
 
-{"email":"student@pknu.ac.kr","password":"password123"}
+{"email":"student@pukyong.ac.kr","password":"password123"}
 ```
 
 보호된 API에는 로그인 응답의 `access_token`을 전달합니다.
