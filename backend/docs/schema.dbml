@@ -10,9 +10,16 @@ Enum user_status {
 
 Enum item_status {
   AVAILABLE
+  REQUEST_PENDING
   RESERVED
   RENTED
   DELETED
+}
+
+Enum notification_type {
+  RENTAL_REQUESTED
+  RENTAL_APPROVED
+  RENTAL_REJECTED
 }
 
 Enum rental_unit {
@@ -146,6 +153,23 @@ Table rentals {
   updated_at timestamp [not null]
 }
 
+Table notifications {
+  id integer [pk, increment]
+  user_id integer [not null]
+  rental_id integer [not null]
+  type notification_type [not null]
+  title varchar(100) [not null]
+  content varchar(500) [not null]
+  is_read boolean [not null, default: false]
+  created_at timestamp [not null]
+  read_at timestamp
+
+  indexes {
+    (user_id, created_at) [name: 'idx_notifications_user_created']
+    (user_id, is_read) [name: 'idx_notifications_user_read']
+  }
+}
+
 Table reports {
   id integer [pk, increment]
   reporter_id integer [not null]
@@ -206,6 +230,8 @@ Ref: items.id < rentals.item_id
 Ref: users.id < rentals.borrower_id
 Ref: users.id < rentals.lender_id
 Ref: chat_rooms.id < rentals.chat_room_id
+Ref: users.id < notifications.user_id
+Ref: rentals.id < notifications.rental_id
 Ref: users.id < reports.reporter_id
 Ref: users.id < reports.reported_user_id
 Ref: items.id < reports.item_id

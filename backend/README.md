@@ -81,7 +81,13 @@ Content-Type: application/json
  "pickup_location_id":1,"description":"깨끗한 우산입니다."}
 ```
 
-대여 상태는 `REQUESTED → APPROVED → PAID → RENTING → RETURNED` 순서로 진행됩니다.
+첫 대여 요청은 물품 행을 잠근 뒤 물품을 `AVAILABLE → REQUEST_PENDING`으로 바꿉니다.
+따라서 같은 물품에는 먼저 들어온 하나의 활성 요청만 생성됩니다. 게시물 주인이 승인하면
+물품은 `RESERVED`, 거절하거나 요청자가 승인 전에 취소하면 다시 `AVAILABLE`이 됩니다.
+
+대여 기록 상태는 `REQUESTED → APPROVED → PAID → RENTING → RETURNED` 순서로 진행되고,
+물품 상태는 대여 시작 시 `RENTED`, 반납 완료 시 `AVAILABLE`로 바뀝니다. 게시물 상세의
+일반 상태 변경 API로 이 흐름을 우회할 수 없습니다.
 실서비스에서 `PAID` 처리는 사용자 직접 호출 대신 결제사 웹훅 검증으로 교체해야 합니다.
 
 ## 실행 및 테스트
@@ -140,6 +146,23 @@ WebSocket STOMP 연결 주소는 `/ws-chat`입니다.
 - STOMP `CONNECT` 헤더: `Authorization: Bearer {accessToken}`
 
 REST와 WebSocket 모두 JWT로 사용자를 식별하며, 채팅방 참여자만 메시지에 접근할 수 있습니다.
+
+## 앱 안 대여 알림 API
+
+대여 요청, 승인, 거절 알림은 데이터베이스에 저장됩니다. 로그인한 사용자는 자신의 최근
+알림만 조회하거나 읽음 처리할 수 있습니다.
+
+```http
+GET /api/v1/notifications
+GET /api/v1/notifications/unread-count
+PATCH /api/v1/notifications/{notificationId}/read
+PATCH /api/v1/notifications/read-all
+```
+
+새 알림은 데이터베이스 트랜잭션이 커밋된 뒤 개인 STOMP 목적지
+`/user/queue/notifications`로 전달됩니다. 현재 앱 안 알림 유형은
+`RENTAL_REQUESTED`, `RENTAL_APPROVED`, `RENTAL_REJECTED`입니다. Firebase 앱 밖
+푸시 알림과는 별개이며, 대여 상태 앱 밖 푸시는 아직 이 흐름에 연결하지 않았습니다.
 
 ## Firebase Cloud Messaging 설정
 

@@ -43,7 +43,7 @@ erDiagram
         varchar rental_unit "NOT NULL, HOUR DAY WEEK MONTH"
         text description "NULL 허용"
         text precautions "NULL 허용"
-        varchar status "NOT NULL, AVAILABLE RESERVED RENTED DELETED"
+        varchar status "NOT NULL, AVAILABLE REQUEST_PENDING RESERVED RENTED DELETED"
         integer view_count "NOT NULL, 기본값 0"
         timestamp created_at "NOT NULL"
         timestamp updated_at "NOT NULL"
@@ -93,6 +93,18 @@ erDiagram
         varchar status "NOT NULL, RentalStatus"
         timestamp created_at "NOT NULL"
         timestamp updated_at "NOT NULL"
+    }
+
+    NOTIFICATIONS {
+        integer id PK
+        integer user_id FK "NOT NULL"
+        integer rental_id FK "NOT NULL"
+        varchar type "NOT NULL, RENTAL_REQUESTED RENTAL_APPROVED RENTAL_REJECTED"
+        varchar title "NOT NULL, varchar(100)"
+        varchar content "NOT NULL, varchar(500)"
+        boolean is_read "NOT NULL, 기본값 false"
+        timestamp created_at "NOT NULL"
+        timestamp read_at "NULL 허용"
     }
 
     REPORTS {
@@ -165,6 +177,9 @@ erDiagram
     USERS ||--o{ RENTALS : "대여 제공자"
     CHAT_ROOMS ||--o{ RENTALS : "대여 협의"
 
+    USERS ||--o{ NOTIFICATIONS : "앱 안 알림 수신"
+    RENTALS ||--o{ NOTIFICATIONS : "대여 상태 알림"
+
     USERS ||--o{ REPORTS : "신고 작성"
     USERS o|--o{ REPORTS : "사용자 신고 대상"
     ITEMS o|--o{ REPORTS : "물품 신고 대상"
@@ -188,6 +203,21 @@ erDiagram
 - `recommendation_items (recommendation_id, item_id)`
 
 ## 상태 값
+
+물품은 첫 대여 요청과 동시에 `REQUEST_PENDING`으로 잠깁니다. 요청 승인 시
+`RESERVED`, 거절 또는 승인 전 취소 시 `AVAILABLE`로 바뀝니다.
+
+```mermaid
+stateDiagram-v2
+    [*] --> AVAILABLE
+    AVAILABLE --> REQUEST_PENDING: 첫 대여 요청
+    REQUEST_PENDING --> RESERVED: 게시물 주인 승인
+    REQUEST_PENDING --> AVAILABLE: 거절 또는 승인 전 취소
+    RESERVED --> AVAILABLE: 승인 후 취소
+    RESERVED --> RENTED: 결제 후 대여 시작
+    RENTED --> AVAILABLE: 반납 완료
+    AVAILABLE --> DELETED: 게시물 삭제
+```
 
 ```mermaid
 stateDiagram-v2
