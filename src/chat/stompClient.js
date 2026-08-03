@@ -8,6 +8,7 @@ export function createChatSocket({
 }) {
   const seenMessageIds = new Set()
   const subscriptions = new Map()
+  const chatListSubscriptionKey = 'chat-list'
   let reconnectAttempt = 0
 
   const client = clientFactory({
@@ -43,6 +44,17 @@ export function createChatSocket({
       return () => {
         subscription.unsubscribe()
         subscriptions.delete(roomId)
+      }
+    },
+    subscribeToChatList(handler) {
+      subscriptions.get(chatListSubscriptionKey)?.unsubscribe()
+      const subscription = client.subscribe('/user/queue/chat-list', frame => {
+        handler(JSON.parse(frame.body))
+      })
+      subscriptions.set(chatListSubscriptionKey, subscription)
+      return () => {
+        subscription.unsubscribe()
+        subscriptions.delete(chatListSubscriptionKey)
       }
     },
     publish(roomId, message) {

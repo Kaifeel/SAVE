@@ -23,6 +23,7 @@ import org.springframework.stereotype.Component;
 public class WebSocketAuthorizationInterceptor implements ChannelInterceptor {
     private static final Pattern ROOM_DESTINATION = Pattern.compile(
             "^/(?:app|topic)/chats/rooms/(\\d+)(?:/messages)?$");
+    private static final String CHAT_LIST_DESTINATION = "/user/queue/chat-list";
 
     private final JwtDecoder jwtDecoder;
     private final UserRepository userRepository;
@@ -44,6 +45,9 @@ public class WebSocketAuthorizationInterceptor implements ChannelInterceptor {
 
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             authenticate(accessor);
+        } else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())
+                && CHAT_LIST_DESTINATION.equals(accessor.getDestination())) {
+            requireAuthenticated(accessor);
         } else if (StompCommand.SEND.equals(accessor.getCommand())
                 || StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
             authorizeRoom(accessor);
@@ -76,9 +80,7 @@ public class WebSocketAuthorizationInterceptor implements ChannelInterceptor {
     }
 
     private void authorizeRoom(StompHeaderAccessor accessor) {
-        if (accessor.getUser() == null) {
-            throw new IllegalArgumentException("Authenticated WebSocket session is required");
-        }
+        requireAuthenticated(accessor);
         Matcher matcher = ROOM_DESTINATION.matcher(
                 accessor.getDestination() == null ? "" : accessor.getDestination());
         if (!matcher.matches()) {
@@ -87,5 +89,11 @@ public class WebSocketAuthorizationInterceptor implements ChannelInterceptor {
         Integer roomId = Integer.valueOf(matcher.group(1));
         Integer userId = Integer.valueOf(accessor.getUser().getName());
         chatRoomService.assertParticipant(roomId, userId);
+    }
+
+    private void requireAuthenticated(StompHeaderAccessor accessor) {
+        if (accessor.getUser() == null) {
+            throw new IllegalArgumentException("Authenticated WebSocket session is required");
+        }
     }
 }

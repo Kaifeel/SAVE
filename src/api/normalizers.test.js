@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeItem, toCreateItemPayload } from './normalizers'
+import {
+  mergeChatListUpdate,
+  mergeChatRoomSnapshot,
+  normalizeChatRoom,
+  normalizeItem,
+  toCreateItemPayload,
+} from './normalizers'
 
 describe('item API normalization', () => {
   it('maps the canonical Spring item response without fallback values', () => {
@@ -56,5 +62,81 @@ describe('item API normalization', () => {
       precautions: '',
       photos: [],
     })
+  })
+})
+
+describe('chat room API normalization', () => {
+  it('keeps room metadata when a creation response contains an item summary', () => {
+    expect(normalizeChatRoom({
+      chat_room_id: 15,
+      item: {
+        id: 7,
+        title: 'Camera',
+        rental_fee: 2000,
+        rental_unit: 'DAY',
+        status: 'AVAILABLE',
+      },
+      borrower_id: 3,
+      lender_id: 9,
+      created_at: '2026-08-02T01:00:00',
+    })).toMatchObject({
+      id: 15,
+      roomId: 15,
+      itemId: 7,
+      itemTitle: 'Camera',
+    })
+  })
+
+  it('moves a realtime room update to the top and resets unread for the active room', () => {
+    const rooms = [
+      { id: 1, lastMessage: '이전 메시지', unreadCount: 2, messages: [{ id: 10 }] },
+      { id: 2, lastMessage: '다른 방', unreadCount: 0, messages: [] },
+    ]
+
+    expect(mergeChatListUpdate(rooms, {
+      chat_room_id: 1,
+      item_id: 7,
+      item_title: '우산',
+      opponent_name: '김학생',
+      last_message: '방금 온 메시지',
+      last_message_at: '2026-08-03T13:20:00',
+      unread_count: 3,
+    }, 1)).toEqual([
+      expect.objectContaining({
+        id: 1,
+        lastMessage: '방금 온 메시지',
+        unreadCount: 0,
+        unread: false,
+        messages: [{ id: 10 }],
+      }),
+      rooms[1],
+    ])
+  })
+
+  it('keeps a newer realtime update when an older REST snapshot resolves later', () => {
+    const currentRooms = [{
+      id: 1,
+      roomId: 1,
+      lastMessage: '실시간 새 메시지',
+      time: '2026-08-03T13:30:00',
+      unreadCount: 2,
+      messages: [{ id: 21 }],
+    }]
+
+    expect(mergeChatRoomSnapshot(currentRooms, [{
+      chat_room_id: 1,
+      item_id: 7,
+      item_title: '우산',
+      last_message: 'REST의 이전 메시지',
+      last_message_at: '2026-08-03T13:20:00',
+      unread_count: 1,
+    }])).toEqual([
+      expect.objectContaining({
+        id: 1,
+        lastMessage: '실시간 새 메시지',
+        unreadCount: 2,
+        messages: [{ id: 21 }],
+      }),
+    ])
   })
 })

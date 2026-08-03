@@ -16,6 +16,11 @@ function fakeClient() {
         body: JSON.stringify(body),
       })
     },
+    emitChatList(body) {
+      subscriptions.get('/user/queue/chat-list')?.({
+        body: JSON.stringify(body),
+      })
+    },
   }
 }
 
@@ -35,6 +40,22 @@ it('authenticates STOMP and deduplicates subscribed messages by id', () => {
   client.emit(3, { id: 8, message: '한 번' })
 
   expect(handler).toHaveBeenCalledTimes(1)
+})
+
+it('subscribes to personal chat-list updates', () => {
+  const client = fakeClient()
+  const socket = createChatSocket({
+    url: 'ws://localhost:8080/ws-chat',
+    accessToken: 'jwt',
+    clientFactory: options => Object.assign(client, options),
+  })
+  const handler = vi.fn()
+
+  socket.subscribeToChatList(handler)
+  client.emitChatList({ chat_room_id: 3, last_message: '새 메시지' })
+
+  expect(client.subscribe).toHaveBeenCalledWith('/user/queue/chat-list', expect.any(Function))
+  expect(handler).toHaveBeenCalledWith({ chat_room_id: 3, last_message: '새 메시지' })
 })
 
 it('publishes the backend message contract', () => {

@@ -126,9 +126,19 @@ class MarketplaceIntegrationTest {
                         .header("Authorization", bearer(borrowerToken))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reported_user_id\":" + owner.get("user").get("id").asInt()
+                                + ",\"item_id\":" + itemId + ",\"reason\":\"         짧음\"}"))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post("/api/v1/reports")
+                        .header("Authorization", bearer(borrowerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reported_user_id\":" + owner.get("user").get("id").asInt()
                                 + ",\"item_id\":" + itemId + ",\"chat_room_id\":" + chatRoomId
-                                + ",\"reason\":\"테스트 신고\"}"))
+                                + ",\"reason\":\"테스트 신고 상세 사유입니다\"}"))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.reporter_name").value("대여학생"))
+                .andExpect(jsonPath("$.reported_user_name").value("물품주인"))
+                .andExpect(jsonPath("$.item_title").value("테스트 우산"))
                 .andExpect(jsonPath("$.status").value("PENDING"));
 
         mockMvc.perform(put("/api/v1/users/me/profile")

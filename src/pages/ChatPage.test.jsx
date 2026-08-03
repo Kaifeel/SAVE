@@ -1,0 +1,144 @@
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import { expect, it, vi } from 'vitest'
+import ChatPage from './ChatPage'
+
+it('links the active chat header to the item ID instead of a duplicate title', () => {
+  const firstItem = {
+    id: 1,
+    title: 'Same title',
+    price: 1000,
+    priceType: 'DAY',
+    location: 'First location',
+  }
+  const linkedItem = {
+    id: 2,
+    title: 'Same title',
+    price: 2000,
+    priceType: 'DAY',
+    location: 'Second location',
+  }
+  const setSelectedItem = vi.fn()
+
+  render(<ChatPage
+    activeChatRoom={{
+      id: 9,
+      roomId: 9,
+      itemId: 2,
+      itemTitle: 'Same title',
+      sender: 'Other user',
+      messages: [],
+    }}
+    items={[firstItem, linkedItem]}
+    setActiveChatRoom={vi.fn()}
+    setSelectedItem={setSelectedItem}
+    chatInput=""
+    setChatInput={vi.fn()}
+    handleSendMessage={vi.fn()}
+    chats={[]}
+    loadingMessages={false}
+  />)
+
+  fireEvent.click(screen.getByText('Same title'))
+
+  expect(setSelectedItem).toHaveBeenCalledWith(linkedItem)
+  expect(screen.getByText(/2,000/)).toHaveTextContent('Second location')
+  expect(screen.queryByText(/1,000/)).not.toBeInTheDocument()
+})
+
+it('formats a message timestamp only when it is rendered', () => {
+  render(<ChatPage
+    activeChatRoom={{
+      id: 9,
+      roomId: 9,
+      itemId: 2,
+      itemTitle: 'Camera',
+      sender: 'Other user',
+      messages: [{
+        id: 42,
+        sender: 'me',
+        text: 'hello',
+        time: '2026-08-02T12:51:07.314055',
+        deliveryStatus: 'sent',
+      }],
+    }}
+    items={[{
+      id: 2,
+      title: 'Camera',
+      price: 2000,
+      priceType: 'DAY',
+      location: 'Second location',
+    }]}
+    setActiveChatRoom={vi.fn()}
+    setSelectedItem={vi.fn()}
+    chatInput=""
+    setChatInput={vi.fn()}
+    handleSendMessage={vi.fn()}
+    chats={[]}
+    loadingMessages={false}
+  />)
+
+  expect(screen.getByText('12:51')).toBeInTheDocument()
+  expect(screen.queryByText('2026-08-02T12:51:07.314055')).not.toBeInTheDocument()
+})
+
+it('formats the last-message timestamp in the chat room list', () => {
+  const { container } = render(<ChatPage
+    activeChatRoom={null}
+    items={[]}
+    setActiveChatRoom={vi.fn()}
+    setSelectedItem={vi.fn()}
+    chatInput=""
+    setChatInput={vi.fn()}
+    handleSendMessage={vi.fn()}
+    chats={[{
+      id: 9,
+      roomId: 9,
+      itemId: 2,
+      itemTitle: 'Camera',
+      sender: 'Other user',
+      lastMessage: 'hello',
+      time: '2026-08-02T12:51:07.314055',
+      unreadCount: 0,
+    }]}
+    loadingMessages={false}
+  />)
+
+  expect(container).toHaveTextContent('12:51')
+  expect(container).not.toHaveTextContent('2026-08-02T12:51:07.314055')
+})
+
+it('shows a date separator only for the first message and date changes', () => {
+  const { container } = render(<ChatPage
+    activeChatRoom={{
+      id: 9,
+      roomId: 9,
+      itemId: 2,
+      itemTitle: 'Camera',
+      sender: 'Other user',
+      messages: [
+        { id: 1, sender: 'other', text: 'first', time: '2026-08-02T09:00:00' },
+        { id: 2, sender: 'me', text: 'same day', time: '2026-08-02T23:00:00' },
+        { id: 3, sender: 'other', text: 'next day', time: '2026-08-03T00:10:00' },
+      ],
+    }}
+    items={[{
+      id: 2,
+      title: 'Camera',
+      price: 2000,
+      priceType: 'DAY',
+      location: 'Second location',
+    }]}
+    setActiveChatRoom={vi.fn()}
+    setSelectedItem={vi.fn()}
+    chatInput=""
+    setChatInput={vi.fn()}
+    handleSendMessage={vi.fn()}
+    chats={[]}
+    loadingMessages={false}
+  />)
+
+  const view = within(container)
+  expect(view.getAllByText('2026년 8월 2일')).toHaveLength(1)
+  expect(view.getAllByText('2026년 8월 3일')).toHaveLength(1)
+  expect(view.queryByText('2026년 5월 23일')).not.toBeInTheDocument()
+})

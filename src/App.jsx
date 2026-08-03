@@ -9,6 +9,7 @@ import BottomNavigation from './components/BottomNavigation.jsx'
 import ItemRegistrationModal from './components/ItemRegistrationModal.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import ProfileSetupPage from './pages/ProfileSetupPage.jsx'
+import AdminPage, { AdminAccessDenied } from './pages/AdminPage.jsx'
 import { INITIAL_ITEMS } from './data/items.js'
 import {
   clearSavedAuth,
@@ -25,7 +26,8 @@ import { updateMyProfile } from './api/users.js'
 import { createReport } from './api/reports.js'
 import {
   normalizeChatRoom,
-  normalizeChatRoomsResponse,
+  mergeChatListUpdate,
+  mergeChatRoomSnapshot,
   toCreateItemPayload,
 } from './api/normalizers.js'
 import { subscribeUnauthorized } from './api/client.js'
@@ -37,6 +39,7 @@ import { useRentals } from './hooks/useRentals.js'
 import { useMyPageData } from './hooks/useMyPageData.js'
 import { useRecommendations } from './hooks/useRecommendations.js'
 import RentalRequestForm from './components/RentalRequestForm.jsx'
+import ReportModal from './components/ReportModal.jsx'
 import { addWishlist, removeWishlist } from './api/wishlist.js'
 import { useToast } from './components/toast.js'
 import {
@@ -50,6 +53,8 @@ const DEV_AUTO_LOGIN = import.meta.env.VITE_AUTO_LOGIN === 'true'
 
 function App() {
   const toast = useToast()
+  const isAdminPath = window.location.pathname === '/admin'
+    || window.location.pathname.startsWith('/admin/')
   const [searchQuery, setSearchQuery] = useState('')
   const [activeBoard, setActiveBoard] = useState('borrow')
   const [availableOnly, setAvailableOnly] = useState(false)
@@ -89,13 +94,16 @@ function App() {
   const itemData = useItems({
     universityId: memberUniversityId,
     accessToken,
-    enabled: USE_API && isLoggedIn,
+    enabled: USE_API && isLoggedIn && !isAdminPath,
     initialItems: USE_API ? [] : INITIAL_ITEMS,
   })
   const { items, setItems } = itemData
 
   // Modals & Sheets
   const [selectedItem, setSelectedItem] = useState(null)
+  const [reportTarget, setReportTarget] = useState(null)
+  const [reportReason, setReportReason] = useState('')
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false)
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false)
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
   
@@ -150,23 +158,33 @@ function App() {
     }
   ])
   const [chatInput, setChatInput] = useState('')
+  const handleChatListUpdate = useCallback((response, activeRoomId) => {
+    setChats(current => mergeChatListUpdate(current, response, activeRoomId))
+  }, [])
+  const handleChatRoomRead = useCallback(roomId => {
+    setChats(current => current.map(room => String(room.id) === String(roomId)
+      ? { ...room, unreadCount: 0, unread: false }
+      : room))
+  }, [])
   const chatData = useChatRooms({
     accessToken,
     currentUserId: savedUser?.id,
-    realtime: USE_API,
+    realtime: USE_API && !isAdminPath,
+    onChatListUpdate: handleChatListUpdate,
+    onRoomRead: handleChatRoomRead,
   })
   const rentalData = useRentals({
     accessToken,
     currentUserId: savedUser?.id,
-    enabled: USE_API && isLoggedIn && Boolean(accessToken),
+    enabled: USE_API && isLoggedIn && Boolean(accessToken) && !isAdminPath,
   })
   const myPageData = useMyPageData({
     accessToken,
-    enabled: USE_API && isLoggedIn && Boolean(accessToken),
+    enabled: USE_API && isLoggedIn && Boolean(accessToken) && !isAdminPath,
   })
   const recommendationData = useRecommendations({
     accessToken,
-    enabled: USE_API && isLoggedIn && Boolean(accessToken),
+    enabled: USE_API && isLoggedIn && Boolean(accessToken) && !isAdminPath,
     department: memberDepartment,
     interestItems: (myPageData.wishlist.data || []).map(item => item.title),
   })
@@ -182,13 +200,15 @@ function App() {
   useEffect(() => subscribeUnauthorized(() => {
     clearSavedAuth()
     setAuth(null)
+    setChats([])
+    setActiveChatRoom(null)
     setIsLoggedIn(false)
     setIsProfileComplete(false)
     setActiveTab('home')
-  }), [])
+  }), [setActiveChatRoom])
 
   useEffect(() => {
-    if (!USE_API || !isLoggedIn) return
+    if (!USE_API || !isLoggedIn || isAdminPath) return
 
     let ignore = false
 
@@ -196,10 +216,9 @@ function App() {
       try {
         if (!accessToken) return
         const roomResponse = await getChatRooms(accessToken)
-        if (!ignore) setChats(normalizeChatRoomsResponse(roomResponse))
+        if (!ignore) setChats(current => mergeChatRoomSnapshot(current, roomResponse))
       } catch (error) {
         if (!ignore) {
-          setChats([])
           toast.error(error.message || '채팅방 목록을 불러오지 못했습니다.')
         }
       }
@@ -210,7 +229,7 @@ function App() {
     return () => {
       ignore = true
     }
-  }, [accessToken, isLoggedIn, toast])
+  }, [accessToken, isAdminPath, isLoggedIn, toast])
 
   // Filter items based on: Location (Univ), Search Query
   const campusItems = useMemo(() => {
@@ -392,13 +411,15 @@ function App() {
     )
 
     saveAuth(nextAuth)
+    setChats([])
+    setActiveChatRoom(null)
     setAuth(nextAuth)
     setMemberName(hasCompletedProfile ? user.name : '테스트')
     setMemberDepartment(user?.department || '')
     setMemberUniversityId(profileUniversityId)
     setIsProfileComplete(hasCompletedProfile)
     setIsLoggedIn(true)
-  }, [])
+  }, [setActiveChatRoom])
 
   useEffect(() => {
     if (!USE_API || !window.location.hash.startsWith('#')) return undefined
@@ -429,6 +450,8 @@ function App() {
   const handleLogout = () => {
     clearSavedAuth()
     setAuth(null)
+    setChats([])
+    setActiveChatRoom(null)
     setIsLoggedIn(false)
     setIsProfileComplete(false)
     setActiveTab('home')
@@ -436,6 +459,12 @@ function App() {
 
   if (!isLoggedIn) {
     return <LoginPage onLogin={handleLogin} universities={universities} />
+  }
+
+  if (isAdminPath) {
+    return savedUser?.role === 'ADMIN'
+      ? <AdminPage accessToken={accessToken} user={savedUser} onLogout={handleLogout} />
+      : <AdminAccessDenied onLogout={handleLogout} />
   }
 
   if (!isProfileComplete) {
@@ -675,19 +704,9 @@ function App() {
                 toast.error(error.message || '찜 처리에 실패했습니다.')
               }
             }}
-            onReport={async () => {
-              try {
-                if (USE_API) {
-                  await createReport({
-                    reported_user_id: selectedItem.raw?.user_id,
-                    item_id: selectedItem.id,
-                    reason: '부적절한 사용자 또는 물품 신고',
-                  }, accessToken)
-                }
-                toast.success('신고가 접수되었습니다.')
-              } catch (error) {
-                toast.error(error.message || '신고 접수에 실패했습니다.')
-              }
+            onReport={item => {
+              setReportTarget(item)
+              setReportReason('')
             }}
             onChat={async () => {
               if (USE_API && selectedItem.id) {
@@ -736,6 +755,42 @@ function App() {
             }}
           />
         )}
+
+        <ReportModal
+          isOpen={Boolean(reportTarget)}
+          item={reportTarget}
+          reason={reportReason}
+          setReason={setReportReason}
+          isSubmitting={isSubmittingReport}
+          onClose={() => {
+            if (isSubmittingReport) return
+            setReportTarget(null)
+            setReportReason('')
+          }}
+          onSubmit={async event => {
+            event.preventDefault()
+            const reason = reportReason.trim()
+            if (!reportTarget || reason.length < 10 || isSubmittingReport) return
+
+            setIsSubmittingReport(true)
+            try {
+              if (USE_API) {
+                await createReport({
+                  reported_user_id: reportTarget.ownerId,
+                  item_id: reportTarget.id,
+                  reason,
+                }, accessToken)
+              }
+              setReportTarget(null)
+              setReportReason('')
+              toast.success('신고가 접수되었습니다.')
+            } catch (error) {
+              toast.error(error.message || '신고 접수에 실패했습니다.')
+            } finally {
+              setIsSubmittingReport(false)
+            }
+          }}
+        />
         {/* 3. WRITE MODAL (SLIDE UP) */}
         <ItemRegistrationModal
           isOpen={isWriteModalOpen}

@@ -3,6 +3,7 @@ import { expect, it, vi } from 'vitest'
 import { useChatRooms } from './useChatRooms'
 
 it('loads room messages and marks them read when selected', async () => {
+  const onRoomRead = vi.fn()
   const api = {
     getChatMessages: vi.fn().mockResolvedValue([
       { id: 5, sender_id: 2, message: '안녕하세요', created_at: '2026-07-29T01:00:00' },
@@ -14,12 +15,14 @@ it('loads room messages and marks them read when selected', async () => {
     api,
     accessToken: 'jwt',
     currentUserId: 1,
+    onRoomRead,
   }))
 
   await act(() => result.current.selectRoom({ roomId: 9, messages: [] }))
 
   expect(api.getChatMessages).toHaveBeenCalledWith(9, 'jwt', { size: 50 })
   expect(api.markChatRoomRead).toHaveBeenCalledWith(9, 'jwt')
+  expect(onRoomRead).toHaveBeenCalledWith(9)
   expect(result.current.activeRoom.messages[0]).toMatchObject({
     id: 5,
     sender: 'other',

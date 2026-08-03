@@ -57,10 +57,15 @@ public class Report {
     @PreUpdate void preUpdate() { updatedAt = LocalDateTime.now(); }
     public Integer getId() { return id; }
     public User getReporter() { return reporter; }
+    public String getReporterName() { return reporter.getName(); }
     public Integer getReportedUserId() {
         return reportedUser == null ? null : reportedUser.getId();
     }
+    public String getReportedUserName() {
+        return reportedUser == null ? null : reportedUser.getName();
+    }
     public Integer getItemId() { return item == null ? null : item.getId(); }
+    public String getItemTitle() { return item == null ? null : item.getTitle(); }
     public Integer getChatRoomId() { return chatRoom == null ? null : chatRoom.getId(); }
     public String getReason() { return reason; }
     public ReportStatus getStatus() { return status; }

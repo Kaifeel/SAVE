@@ -60,7 +60,7 @@ export default function ProductDetailPage({
             </button>
             <button
               type="button"
-              onClick={onReport}
+              onClick={() => onReport?.(item)}
               className="w-9 h-9 rounded-full bg-white shadow-sm border border-slate-100 flex items-center justify-center text-rose-500 active:scale-95 transition"
               aria-label="악성 유저 신고하기"
             >

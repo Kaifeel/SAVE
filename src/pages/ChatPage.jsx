@@ -1,4 +1,55 @@
+import { Fragment } from 'react'
 import { ArrowLeft, Camera, Send } from 'lucide-react'
+
+const CHAT_TIME_FORMATTER = new Intl.DateTimeFormat('ko-KR', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+})
+
+const CHAT_DATE_FORMATTER = new Intl.DateTimeFormat('ko-KR', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+})
+
+function parseChatDate(value) {
+  if (!value) return null
+
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function getChatDateKey(value) {
+  const date = parseChatDate(value)
+  if (!date) return null
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function formatChatDate(value) {
+  const date = parseChatDate(value)
+  return date ? CHAT_DATE_FORMATTER.format(date) : ''
+}
+
+function formatChatTime(value) {
+  if (!value) return ''
+
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : CHAT_TIME_FORMATTER.format(date)
+}
+
+function findLinkedItem(items, room) {
+  const itemId = room?.itemId ?? room?.raw?.item_id ?? room?.raw?.item?.id
+  if (itemId != null) {
+    return items.find(item => String(item.id) === String(itemId))
+  }
+
+  return items.find(item => item.title === room?.itemTitle)
+}
 
 export default function ChatPage(props) {
   const {
@@ -21,7 +72,7 @@ export default function ChatPage(props) {
               {activeChatRoom ? (
                 /* Active Chat Room View */
                 (() => {
-                  const linkedItem = items.find(item => item.title === activeChatRoom.itemTitle)
+                  const linkedItem = findLinkedItem(items, activeChatRoom)
                   const ActiveItemIcon = linkedItem?.imageIcon || Camera
                   const priceLabel = linkedItem
                     ? `${linkedItem.price.toLocaleString()}원/${linkedItem.priceType}`
@@ -62,44 +113,55 @@ export default function ChatPage(props) {
 
                       {/* Messages Area */}
                       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3">
-                        <div className="text-center text-[10px] text-slate-400 bg-slate-200/60 rounded-full px-4 py-1.5 w-max mx-auto mb-2">
-                          2026년 5월 23일
-                        </div>
                         {loadingMessages && <div role="status" className="text-center text-xs text-slate-400">메시지를 불러오는 중...</div>}
                         {messageError && <div role="alert" className="text-center text-xs text-rose-600">{messageError.message}</div>}
-                        {(activeChatRoom.messages || []).map(msg => {
+                        {(activeChatRoom.messages || []).map((msg, index, messages) => {
                           const isMe = msg.sender === 'me'
+                          const currentDateKey = getChatDateKey(msg.time)
+                          const previousDateKey = index > 0
+                            ? getChatDateKey(messages[index - 1].time)
+                            : null
+                          const showDateSeparator = Boolean(
+                            currentDateKey && currentDateKey !== previousDateKey,
+                          )
                           return (
-                            <div key={msg.id} className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                              {!isMe && (
-                                <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${linkedItem?.iconColor || 'text-indigo-500 bg-indigo-50'}`}>
-                                  <ActiveItemIcon className="w-4 h-4" />
+                            <Fragment key={msg.id}>
+                              {showDateSeparator && (
+                                <div className="text-center text-[10px] text-slate-400 bg-slate-200/60 rounded-full px-4 py-1.5 w-max mx-auto mb-2">
+                                  {formatChatDate(msg.time)}
                                 </div>
                               )}
-                              <div className={`max-w-[72%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                <div className={`px-3.5 py-2.5 rounded-2xl text-[13px] leading-5 shadow-sm ${
-                                  isMe
-                                    ? 'bg-indigo-600 text-white rounded-br-md'
-                                    : 'bg-white text-slate-800 border border-slate-100 rounded-bl-md'
-                                }`}>
-                                  {msg.text}
+                              <div className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                {!isMe && (
+                                  <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${linkedItem?.iconColor || 'text-indigo-500 bg-indigo-50'}`}>
+                                    <ActiveItemIcon className="w-4 h-4" />
+                                  </div>
+                                )}
+                                <div className={`max-w-[72%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                  <div className={`px-3.5 py-2.5 rounded-2xl text-[13px] leading-5 shadow-sm ${
+                                    isMe
+                                      ? 'bg-indigo-600 text-white rounded-br-md'
+                                      : 'bg-white text-slate-800 border border-slate-100 rounded-bl-md'
+                                  }`}>
+                                    {msg.text}
+                                  </div>
+                                  <span className={`text-[9px] mt-1 ${isMe ? 'text-indigo-300' : 'text-slate-400'}`}>
+                                    {isMe && msg.deliveryStatus === 'sent' && <span className="mr-1">✓✓</span>}
+                                    {msg.deliveryStatus === 'sending' && <span className="mr-1">전송 중</span>}
+                                    {msg.deliveryStatus === 'failed' && (
+                                      <button
+                                        type="button"
+                                        className="mr-1 font-bold text-rose-500"
+                                        onClick={() => retryMessage?.(msg.clientId)}
+                                      >
+                                        재전송
+                                      </button>
+                                    )}
+                                    {formatChatTime(msg.time)}
+                                  </span>
                                 </div>
-                                <span className={`text-[9px] mt-1 ${isMe ? 'text-indigo-300' : 'text-slate-400'}`}>
-                                  {isMe && msg.deliveryStatus === 'sent' && <span className="mr-1">✓✓</span>}
-                                  {msg.deliveryStatus === 'sending' && <span className="mr-1">전송 중</span>}
-                                  {msg.deliveryStatus === 'failed' && (
-                                    <button
-                                      type="button"
-                                      className="mr-1 font-bold text-rose-500"
-                                      onClick={() => retryMessage?.(msg.clientId)}
-                                    >
-                                      재전송
-                                    </button>
-                                  )}
-                                  {msg.time}
-                                </span>
                               </div>
-                            </div>
+                            </Fragment>
                           )
                         })}
                       </div>
@@ -130,7 +192,7 @@ export default function ChatPage(props) {
                   <h2 className="text-xl font-black text-slate-800 mb-4">채팅 목록</h2>
                   <div className="space-y-3">
                     {chats.map(chat => {
-                      const linkedItem = items.find(item => item.title === chat.itemTitle)
+                      const linkedItem = findLinkedItem(items, chat)
                       const ChatItemIcon = linkedItem?.imageIcon || Camera
                       const unreadCount = chat.unreadCount ?? (chat.unread ? 1 : 0)
 
@@ -158,7 +220,7 @@ export default function ChatPage(props) {
 
                           <div className="w-16 flex-shrink-0 flex flex-col items-center gap-2">
                             <div className="text-[10px] font-bold text-slate-400 text-center">
-                              {chat.time}
+                              {formatChatTime(chat.time)}
                             </div>
                             <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black ${
                               unreadCount > 0

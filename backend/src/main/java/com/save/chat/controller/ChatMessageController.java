@@ -3,10 +3,10 @@ package com.save.chat.controller;
 import com.save.chat.dto.ChatMessageResponse;
 import com.save.chat.dto.ChatMessageSendRequest;
 import com.save.chat.service.ChatMessageService;
+import com.save.chat.service.ChatRealtimePublisher;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Map;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -15,10 +15,10 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/chats/rooms/{roomId}")
 public class ChatMessageController {
     private final ChatMessageService service;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final ChatRealtimePublisher realtimePublisher;
 
-    public ChatMessageController(ChatMessageService service, SimpMessagingTemplate messagingTemplate) {
-        this.service = service; this.messagingTemplate = messagingTemplate;
+    public ChatMessageController(ChatMessageService service, ChatRealtimePublisher realtimePublisher) {
+        this.service = service; this.realtimePublisher = realtimePublisher;
     }
 
     @PostMapping("/messages")
@@ -26,7 +26,7 @@ public class ChatMessageController {
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody ChatMessageSendRequest request) {
         ChatMessageResponse response = service.send(roomId, userId(jwt), request.message());
-        messagingTemplate.convertAndSend("/topic/chats/rooms/" + roomId, response);
+        realtimePublisher.publishMessage(roomId, response);
         return response;
     }
 
@@ -40,7 +40,9 @@ public class ChatMessageController {
     @PatchMapping("/read")
     public Map<String, Integer> read(@PathVariable Integer roomId,
             @AuthenticationPrincipal Jwt jwt) {
-        return Map.of("readCount", service.markAsRead(roomId, userId(jwt)));
+        int readCount = service.markAsRead(roomId, userId(jwt));
+        realtimePublisher.publishChatList(roomId);
+        return Map.of("readCount", readCount);
     }
 
     private Integer userId(Jwt jwt) { return Integer.valueOf(jwt.getSubject()); }

@@ -1,8 +1,10 @@
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Camera } from 'lucide-react'
-import { expect, it, vi } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import ProductDetailPage from './ProductDetailPage'
+
+afterEach(cleanup)
 
 const item = {
   id: 7,
@@ -41,4 +43,18 @@ it('exposes update, availability, and delete actions only to the owner', async (
   expect(onEdit).toHaveBeenCalledWith(item)
   expect(onStatusChange).toHaveBeenCalledWith('RENTED')
   expect(onDelete).toHaveBeenCalledWith(7)
+})
+
+it('passes the displayed item to the report handler', async () => {
+  const user = userEvent.setup()
+  const onReport = vi.fn()
+  render(<ProductDetailPage
+    item={item}
+    onClose={vi.fn()}
+    onReport={onReport}
+  />)
+
+  await user.click(screen.getByRole('button', { name: '악성 유저 신고하기' }))
+
+  expect(onReport).toHaveBeenCalledWith(item)
 })

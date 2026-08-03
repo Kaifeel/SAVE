@@ -78,7 +78,10 @@ export function normalizeChatMessage(apiMessage, currentUserId) {
 }
 
 export function normalizeChatRoom(apiRoom) {
-  const room = unwrapObject(apiRoom)
+  // A chat-room creation response contains an `item` summary as one of its
+  // fields. Do not pass it through unwrapObject(), which would mistake that
+  // summary for an API response wrapper and discard the room metadata.
+  const room = apiRoom?.data || apiRoom?.chatRoom || apiRoom
   const messages = unwrapList(room.messages).map(normalizeChatMessage)
 
   return {
@@ -99,6 +102,60 @@ export function normalizeChatRoom(apiRoom) {
 
 export function normalizeChatRoomsResponse(response) {
   return unwrapList(response).map(normalizeChatRoom)
+}
+
+function chatRoomTimestamp(room) {
+  const timestamp = new Date(room?.time || '').getTime()
+  return Number.isNaN(timestamp) ? null : timestamp
+}
+
+export function mergeChatRoomSnapshot(currentRooms, response) {
+  const snapshot = normalizeChatRoomsResponse(response)
+  const currentById = new Map(currentRooms.map(room => [String(room.id), room]))
+  const snapshotIds = new Set(snapshot.map(room => String(room.id)))
+
+  const merged = snapshot.map(room => {
+    const current = currentById.get(String(room.id))
+    if (!current) return room
+
+    const currentTime = chatRoomTimestamp(current)
+    const snapshotTime = chatRoomTimestamp(room)
+    const currentIsNewer = currentTime != null
+      && (snapshotTime == null || currentTime >= snapshotTime)
+
+    return currentIsNewer
+      ? { ...room, ...current, messages: current.messages || room.messages }
+      : { ...current, ...room, messages: current.messages || room.messages }
+  })
+
+  const realtimeOnly = currentRooms.filter(room => !snapshotIds.has(String(room.id)))
+  return [...merged, ...realtimeOnly].sort((left, right) => {
+    const leftTime = chatRoomTimestamp(left)
+    const rightTime = chatRoomTimestamp(right)
+    if (leftTime == null || rightTime == null) return 0
+    return rightTime - leftTime
+  })
+}
+
+export function mergeChatListUpdate(currentRooms, response, activeRoomId = null) {
+  const incoming = normalizeChatRoom(response)
+  if (incoming.id == null) return currentRooms
+
+  const existing = currentRooms.find(room => String(room.id) === String(incoming.id))
+  const isActive = activeRoomId != null && String(activeRoomId) === String(incoming.id)
+  const unreadCount = isActive ? 0 : incoming.unreadCount
+  const updated = {
+    ...existing,
+    ...incoming,
+    messages: existing?.messages || [],
+    unreadCount,
+    unread: unreadCount > 0,
+  }
+
+  return [
+    updated,
+    ...currentRooms.filter(room => String(room.id) !== String(incoming.id)),
+  ]
 }
 
 export function normalizeMessagesResponse(response, currentUserId) {

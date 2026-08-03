@@ -12,6 +12,8 @@ import com.save.item.ItemRepository;
 import com.save.user.User;
 import com.save.user.UserRepository;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,6 +74,17 @@ public class ChatRoomService {
             throw new BusinessException(
                     HttpStatus.FORBIDDEN, "채팅방에 접근할 권한이 없습니다.");
         }
+    }
+
+    @Transactional(readOnly = true)
+    public Map<Integer, ChatRoomListResponse> getParticipantSummaries(Integer roomId) {
+        ChatRoom room = chatRoomRepository.findWithMembersById(roomId)
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND, "채팅방이 존재하지 않습니다."));
+        Map<Integer, ChatRoomListResponse> summaries = new LinkedHashMap<>();
+        summaries.put(room.getBorrower().getId(), toListResponse(room, room.getBorrower().getId()));
+        summaries.put(room.getLender().getId(), toListResponse(room, room.getLender().getId()));
+        return summaries;
     }
 
     private ChatRoomListResponse toListResponse(ChatRoom room, Integer userId) {

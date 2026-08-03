@@ -25,12 +25,19 @@ export function useChatRooms({
   currentUserId,
   realtime = false,
   socketFactory = createChatSocket,
+  onChatListUpdate,
+  onRoomRead,
 }) {
   const [activeRoom, setActiveRoom] = useState(null)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [messageError, setMessageError] = useState(null)
   const [socketState, setSocketState] = useState('disconnected')
   const socketRef = useRef(null)
+  const activeRoomRef = useRef(null)
+
+  useEffect(() => {
+    activeRoomRef.current = activeRoom
+  }, [activeRoom])
 
   useEffect(() => {
     if (!realtime || !accessToken) return undefined
@@ -48,6 +55,17 @@ export function useChatRooms({
   }, [accessToken, realtime, socketFactory])
 
   useEffect(() => {
+    if (socketState !== 'connected'
+        || !socketRef.current
+        || typeof socketRef.current.subscribeToChatList !== 'function') return undefined
+
+    return socketRef.current.subscribeToChatList(response => {
+      const activeRoomId = activeRoomRef.current?.roomId || activeRoomRef.current?.id || null
+      onChatListUpdate?.(response, activeRoomId)
+    })
+  }, [onChatListUpdate, socketState])
+
+  useEffect(() => {
     const roomId = activeRoom?.roomId || activeRoom?.id
     if (!roomId || socketState !== 'connected' || !socketRef.current) return undefined
     return socketRef.current.subscribe(roomId, response => {
@@ -56,8 +74,11 @@ export function useChatRooms({
         if (!current || current.messages?.some(message => message.id === incoming.id)) return current
         return { ...current, messages: [...(current.messages || []), incoming] }
       })
+      if (incoming.sender !== 'me') {
+        api.markChatRoomRead(roomId, accessToken).catch(() => {})
+      }
     })
-  }, [activeRoom?.id, activeRoom?.roomId, currentUserId, socketState])
+  }, [accessToken, activeRoom?.id, activeRoom?.roomId, api, currentUserId, socketState])
 
   const selectRoom = useCallback(async room => {
     const roomId = room.roomId || room.id
@@ -70,12 +91,13 @@ export function useChatRooms({
         ? { ...current, messages: normalizeMessagesResponse(response, currentUserId), unreadCount: 0 }
         : current)
       await api.markChatRoomRead(roomId, accessToken)
+      onRoomRead?.(roomId)
     } catch (error) {
       setMessageError(error)
     } finally {
       setLoadingMessages(false)
     }
-  }, [accessToken, api, currentUserId])
+  }, [accessToken, api, currentUserId, onRoomRead])
 
   const deliver = useCallback(async optimistic => {
     try {
@@ -85,11 +107,22 @@ export function useChatRooms({
         accessToken,
       )
       const saved = normalizeChatMessage(response, currentUserId)
-      setActiveRoom(current => ({
-        ...current,
-        messages: current.messages.map(message =>
-          message.clientId === optimistic.clientId ? saved : message),
-      }))
+      setActiveRoom(current => {
+        const replaced = (current.messages || []).map(message =>
+          message.clientId === optimistic.clientId ? saved : message)
+        const seenIds = new Set()
+        const deduplicated = replaced.filter(message => {
+          if (message.id == null) return true
+
+          const messageId = String(message.id)
+          if (seenIds.has(messageId)) return false
+
+          seenIds.add(messageId)
+          return true
+        })
+
+        return { ...current, messages: deduplicated }
+      })
     } catch {
       setActiveRoom(current => ({
         ...current,
