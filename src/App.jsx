@@ -22,6 +22,11 @@ import {
   signUpWithEmail,
 } from './api/auth.js'
 import { createOrGetChatRoom, getChatRooms } from './api/chats.js'
+import {
+  getNotifications,
+  markAllNotificationsRead,
+  normalizeNotification,
+} from './api/notifications.js'
 import { updateMyProfile } from './api/users.js'
 import { createReport } from './api/reports.js'
 import {
@@ -106,6 +111,10 @@ function App() {
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false)
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
+  const [notifications, setNotifications] = useState(() => USE_API ? [] : [
+    { id: 1, title: '대여 수락 알림', text: '이영희님이 우산 대여를 수락하셨습니다.', time: '5분 전', read: false },
+    { id: 2, title: '채팅 메시지', text: '정수민: 대여료 1000원 계좌이체...', time: '어제', read: true },
+  ])
   
   const [isSubmittingItem, setIsSubmittingItem] = useState(false)
   const [editingItemId, setEditingItemId] = useState(null)
@@ -166,12 +175,19 @@ function App() {
       ? { ...room, unreadCount: 0, unread: false }
       : room))
   }, [])
+  const handleNotification = useCallback(response => {
+    const incoming = normalizeNotification(response)
+    setNotifications(current => current.some(entry => entry.id === incoming.id)
+      ? current
+      : [incoming, ...current])
+  }, [])
   const chatData = useChatRooms({
     accessToken,
     currentUserId: savedUser?.id,
     realtime: USE_API && !isAdminPath,
     onChatListUpdate: handleChatListUpdate,
     onRoomRead: handleChatRoomRead,
+    onNotification: handleNotification,
   })
   const rentalData = useRentals({
     accessToken,
@@ -191,16 +207,11 @@ function App() {
   const activeChatRoom = chatData.activeRoom
   const setActiveChatRoom = chatData.setActiveRoom
 
-  // Notifications
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: '대여 수락 알림', text: '이영희님이 우산 대여를 수락하셨습니다.', time: '5분 전', read: false },
-    { id: 2, title: '채팅 메시지', text: '정수민: 대여료 1000원 계좌이체...', time: '어제', read: true }
-  ])
-
   useEffect(() => subscribeUnauthorized(() => {
     clearSavedAuth()
     setAuth(null)
     setChats([])
+    setNotifications([])
     setActiveChatRoom(null)
     setIsLoggedIn(false)
     setIsProfileComplete(false)
@@ -230,6 +241,26 @@ function App() {
       ignore = true
     }
   }, [accessToken, isAdminPath, isLoggedIn, toast])
+
+  useEffect(() => {
+    if (!USE_API || !isLoggedIn || !isProfileComplete || !accessToken || isAdminPath) return
+
+    let ignore = false
+
+    getNotifications(accessToken)
+      .then(response => {
+        if (!ignore) setNotifications(response)
+      })
+      .catch(error => {
+        if (!ignore) {
+          toast.error(error.message || '알림 목록을 불러오지 못했습니다.')
+        }
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [accessToken, isAdminPath, isLoggedIn, isProfileComplete, toast])
 
   // Filter items based on: Location (Univ), Search Query
   const campusItems = useMemo(() => {
@@ -412,6 +443,7 @@ function App() {
 
     saveAuth(nextAuth)
     setChats([])
+    setNotifications([])
     setActiveChatRoom(null)
     setAuth(nextAuth)
     setMemberName(hasCompletedProfile ? user.name : '테스트')
@@ -451,6 +483,8 @@ function App() {
     clearSavedAuth()
     setAuth(null)
     setChats([])
+    setNotifications([])
+    setIsNotificationOpen(false)
     setActiveChatRoom(null)
     setIsLoggedIn(false)
     setIsProfileComplete(false)
@@ -497,7 +531,7 @@ function App() {
         </div>
 
         {/* HEADER AREA */}
-        <header className="px-5 py-3.5 bg-white border-b border-slate-100 flex justify-between items-center z-10">
+        <header className="relative z-30 overflow-visible px-5 py-3.5 bg-white border-b border-slate-100 flex justify-between items-center">
           {/* University Display */}
           <div className="flex items-center space-x-1 px-2 py-1.5 rounded-lg">
             <MapPin className="w-5 h-5 text-indigo-600 fill-indigo-100/60" />
@@ -509,22 +543,32 @@ function App() {
             <span className="text-xs font-black tracking-widest text-indigo-600 bg-indigo-50 px-2 py-1 rounded">SAVE 대여</span>
             <div className="relative">
               <button 
+                type="button"
                 onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                aria-label="알림 열기"
+                aria-expanded={isNotificationOpen}
                 className="p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors relative"
               >
                 <Bell className="w-6 h-6" />
                 {notifications.some(n => !n.read) && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white"></span>
+                  <span aria-label="읽지 않은 알림 있음" className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white"></span>
                 )}
               </button>
 
               {/* Notifications Dropdown */}
               {isNotificationOpen && (
-                <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-100 rounded-2xl shadow-xl py-3 z-50 max-h-96 overflow-y-auto">
+                <div role="dialog" aria-label="알림 목록" className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-100 rounded-2xl shadow-xl py-3 z-[100] max-h-96 overflow-y-auto">
                   <div className="px-4 pb-2 border-b border-slate-100 flex justify-between items-center">
                     <span className="font-bold text-slate-800 text-sm">알림</span>
                     <button 
-                      onClick={() => setNotifications(prev => prev.map(n => ({...n, read: true})))}
+                      onClick={async () => {
+                        try {
+                          if (USE_API) await markAllNotificationsRead(accessToken)
+                          setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+                        } catch (error) {
+                          toast.error(error.message || '알림 읽음 처리에 실패했습니다.')
+                        }
+                      }}
                       className="text-xs text-indigo-600 hover:underline"
                     >
                       모두 읽음
@@ -651,15 +695,6 @@ function App() {
               setNewPhotos([])
               setSelectedItem(null)
               setIsWriteModalOpen(true)
-            }}
-            onStatusChange={async status => {
-              try {
-                const updated = await itemData.updateStatus(selectedItem.id, status)
-                setSelectedItem(updated)
-                toast.success('물품 상태가 변경되었습니다.')
-              } catch (error) {
-                toast.error(error.message || '물품 상태를 변경하지 못했습니다.')
-              }
             }}
             onDelete={async itemId => {
               try {

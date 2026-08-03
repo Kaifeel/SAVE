@@ -22,27 +22,25 @@ const item = {
   iconColor: 'text-rose-500 bg-rose-50',
 }
 
-it('exposes update, availability, and delete actions only to the owner', async () => {
+it('exposes update and delete actions without a manual rental-state toggle', async () => {
   const user = userEvent.setup()
   const onEdit = vi.fn()
   const onDelete = vi.fn()
-  const onStatusChange = vi.fn()
   render(<ProductDetailPage
     item={item}
     isOwner
     onClose={vi.fn()}
     onEdit={onEdit}
     onDelete={onDelete}
-    onStatusChange={onStatusChange}
   />)
 
   await user.click(screen.getByRole('button', { name: '수정' }))
-  await user.click(screen.getByRole('button', { name: '대여 중으로 변경' }))
   await user.click(screen.getByRole('button', { name: '삭제' }))
 
   expect(onEdit).toHaveBeenCalledWith(item)
-  expect(onStatusChange).toHaveBeenCalledWith('RENTED')
   expect(onDelete).toHaveBeenCalledWith(7)
+  expect(screen.queryByRole('button', { name: /대여 (중|가능)으로 변경/ }))
+    .not.toBeInTheDocument()
 })
 
 it('passes the displayed item to the report handler', async () => {

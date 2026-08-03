@@ -19,7 +19,6 @@ export default function ProductDetailPage({
   isOwner = false,
   onEdit,
   onDelete,
-  onStatusChange,
   onRental,
   onToggleWishlist,
 }) {
@@ -157,20 +156,13 @@ export default function ProductDetailPage({
 
       <div className="absolute left-0 right-0 bottom-0 bg-white border-t border-slate-100 px-3 pt-3 pb-4">
         {isOwner ? (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => onEdit?.(item)}
               className="h-11 rounded-xl border border-slate-300 text-xs font-bold text-slate-700"
             >
               수정
-            </button>
-            <button
-              type="button"
-              onClick={() => onStatusChange?.(item.status === 'available' ? 'RENTED' : 'AVAILABLE')}
-              className="h-11 rounded-xl border border-indigo-500 text-xs font-bold text-indigo-600"
-            >
-              {item.status === 'available' ? '대여 중으로 변경' : '대여 가능으로 변경'}
             </button>
             <button
               type="button"
