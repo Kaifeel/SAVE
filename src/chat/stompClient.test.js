@@ -21,6 +21,11 @@ function fakeClient() {
         body: JSON.stringify(body),
       })
     },
+    emitNotification(body) {
+      subscriptions.get('/user/queue/notifications')?.({
+        body: JSON.stringify(body),
+      })
+    },
   }
 }
 
@@ -56,6 +61,22 @@ it('subscribes to personal chat-list updates', () => {
 
   expect(client.subscribe).toHaveBeenCalledWith('/user/queue/chat-list', expect.any(Function))
   expect(handler).toHaveBeenCalledWith({ chat_room_id: 3, last_message: '새 메시지' })
+})
+
+it('subscribes to personal rental notifications', () => {
+  const client = fakeClient()
+  const socket = createChatSocket({
+    url: 'ws://localhost:8080/ws-chat',
+    accessToken: 'jwt',
+    clientFactory: options => Object.assign(client, options),
+  })
+  const handler = vi.fn()
+
+  socket.subscribeToNotifications(handler)
+  client.emitNotification({ id: 3, type: 'RENTAL_REQUESTED' })
+
+  expect(client.subscribe).toHaveBeenCalledWith('/user/queue/notifications', expect.any(Function))
+  expect(handler).toHaveBeenCalledWith({ id: 3, type: 'RENTAL_REQUESTED' })
 })
 
 it('publishes the backend message contract', () => {

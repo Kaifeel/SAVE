@@ -26,6 +26,7 @@ export function useChatRooms({
   realtime = false,
   socketFactory = createChatSocket,
   onChatListUpdate,
+  onNotification,
   onRoomRead,
 }) {
   const [activeRoom, setActiveRoom] = useState(null)
@@ -64,6 +65,16 @@ export function useChatRooms({
       onChatListUpdate?.(response, activeRoomId)
     })
   }, [onChatListUpdate, socketState])
+
+  useEffect(() => {
+    if (socketState !== 'connected'
+        || !socketRef.current
+        || typeof socketRef.current.subscribeToNotifications !== 'function') return undefined
+
+    return socketRef.current.subscribeToNotifications(response => {
+      onNotification?.(response)
+    })
+  }, [onNotification, socketState])
 
   useEffect(() => {
     const roomId = activeRoom?.roomId || activeRoom?.id
