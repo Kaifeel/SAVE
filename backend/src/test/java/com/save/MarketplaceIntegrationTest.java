@@ -109,6 +109,11 @@ class MarketplaceIntegrationTest {
                         .header("Authorization", bearer(borrowerToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("REQUEST_PENDING"));
+        mockMvc.perform(get("/api/v1/notifications")
+                        .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].type").value("RENTAL_REQUESTED"))
+                .andExpect(jsonPath("$[0].item_id").value(itemId));
 
         JsonNode secondBorrower = signUp("second@pukyong.ac.kr", "두번째학생");
         String secondBorrowerToken = secondBorrower.get("access_token").asText();
@@ -136,6 +141,10 @@ class MarketplaceIntegrationTest {
                         .header("Authorization", bearer(borrowerToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("RESERVED"));
+        mockMvc.perform(get("/api/v1/notifications")
+                        .header("Authorization", bearer(borrowerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].type").value("RENTAL_APPROVED"));
         mockMvc.perform(patch("/api/v1/rentals/{rentalId}/paid", rentalId)
                         .header("Authorization", bearer(borrowerToken)))
                 .andExpect(status().isOk())
@@ -156,7 +165,6 @@ class MarketplaceIntegrationTest {
                         .header("Authorization", bearer(borrowerToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("AVAILABLE"));
-
         mockMvc.perform(post("/api/v1/reports")
                         .header("Authorization", bearer(borrowerToken))
                         .contentType(MediaType.APPLICATION_JSON)
@@ -213,6 +221,10 @@ class MarketplaceIntegrationTest {
                         .header("Authorization", bearer(borrowerToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("AVAILABLE"));
+        mockMvc.perform(get("/api/v1/notifications")
+                        .header("Authorization", bearer(borrowerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].type").value("RENTAL_REJECTED"));
     }
 
     private int createItem(String ownerToken, String title) throws Exception {

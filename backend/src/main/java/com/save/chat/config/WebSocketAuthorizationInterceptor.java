@@ -24,6 +24,7 @@ public class WebSocketAuthorizationInterceptor implements ChannelInterceptor {
     private static final Pattern ROOM_DESTINATION = Pattern.compile(
             "^/(?:app|topic)/chats/rooms/(\\d+)(?:/messages)?$");
     private static final String CHAT_LIST_DESTINATION = "/user/queue/chat-list";
+    private static final String NOTIFICATION_DESTINATION = "/user/queue/notifications";
 
     private final JwtDecoder jwtDecoder;
     private final UserRepository userRepository;
@@ -46,7 +47,8 @@ public class WebSocketAuthorizationInterceptor implements ChannelInterceptor {
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             authenticate(accessor);
         } else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())
-                && CHAT_LIST_DESTINATION.equals(accessor.getDestination())) {
+                && (CHAT_LIST_DESTINATION.equals(accessor.getDestination())
+                || NOTIFICATION_DESTINATION.equals(accessor.getDestination()))) {
             requireAuthenticated(accessor);
         } else if (StompCommand.SEND.equals(accessor.getCommand())
                 || StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {

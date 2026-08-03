@@ -38,4 +38,31 @@ class WebSocketSecurityIntegrationTest {
 
         assertThatCode(() -> interceptor.preSend(message, null)).doesNotThrowAnyException();
     }
+
+    @Test
+    void authenticatedUserCanSubscribeToPersonalNotifications() {
+        WebSocketAuthorizationInterceptor interceptor =
+                new WebSocketAuthorizationInterceptor(null, null, null);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination("/user/queue/notifications");
+        accessor.setUser((Principal) () -> "7");
+        Message<byte[]> message = MessageBuilder.createMessage(
+                new byte[0], accessor.getMessageHeaders());
+
+        assertThatCode(() -> interceptor.preSend(message, null)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void unauthenticatedUserCannotSubscribeToPersonalNotifications() {
+        WebSocketAuthorizationInterceptor interceptor =
+                new WebSocketAuthorizationInterceptor(null, null, null);
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination("/user/queue/notifications");
+        Message<byte[]> message = MessageBuilder.createMessage(
+                new byte[0], accessor.getMessageHeaders());
+
+        assertThatThrownBy(() -> interceptor.preSend(message, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Authenticated");
+    }
 }

@@ -6,6 +6,7 @@ import com.save.chat.repository.ChatRoomRepository;
 import com.save.item.Item;
 import com.save.item.ItemRepository;
 import com.save.item.ItemStatus;
+import com.save.notification.InAppNotificationService;
 import com.save.user.User;
 import com.save.user.UserRepository;
 import java.util.List;
@@ -21,15 +22,18 @@ public class RentalService {
     private final UserRepository userRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final PaymentTransitionPolicy paymentTransitionPolicy;
+    private final InAppNotificationService notificationService;
 
     public RentalService(RentalRepository rentalRepository, ItemRepository itemRepository,
                          UserRepository userRepository, ChatRoomRepository chatRoomRepository,
-                         PaymentTransitionPolicy paymentTransitionPolicy) {
+                         PaymentTransitionPolicy paymentTransitionPolicy,
+                         InAppNotificationService notificationService) {
         this.rentalRepository = rentalRepository;
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
         this.chatRoomRepository = chatRoomRepository;
         this.paymentTransitionPolicy = paymentTransitionPolicy;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -66,6 +70,7 @@ public class RentalService {
         Rental rental = rentalRepository.save(new Rental(item, borrower, item.getOwner(),
                 chatRoom, request.startDate(), request.endDate(), request.totalPrice()));
         item.changeStatus(ItemStatus.REQUEST_PENDING);
+        notificationService.rentalRequested(rental);
         return RentalResponse.from(rental);
     }
 
@@ -88,6 +93,7 @@ public class RentalService {
         requireItemStatus(rental, ItemStatus.REQUEST_PENDING);
         rental.changeStatus(RentalStatus.APPROVED);
         rental.getItem().changeStatus(ItemStatus.RESERVED);
+        notificationService.rentalApproved(rental);
         return RentalResponse.from(rental);
     }
 
@@ -99,6 +105,7 @@ public class RentalService {
         requireItemStatus(rental, ItemStatus.REQUEST_PENDING);
         rental.changeStatus(RentalStatus.REJECTED);
         rental.getItem().changeStatus(ItemStatus.AVAILABLE);
+        notificationService.rentalRejected(rental);
         return RentalResponse.from(rental);
     }
 
