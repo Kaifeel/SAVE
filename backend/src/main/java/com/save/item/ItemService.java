@@ -99,17 +99,9 @@ public class ItemService {
 
     @Transactional
     public ItemResponse changeStatus(Integer itemId, Integer userId, String rawStatus) {
-        Item item = findOwned(itemId, userId);
-        try {
-            ItemStatus status = ItemStatus.valueOf(rawStatus.trim().toUpperCase(Locale.ROOT));
-            if (status == ItemStatus.DELETED) {
-                throw new IllegalArgumentException();
-            }
-            item.changeStatus(status);
-            return response(item, userId);
-        } catch (IllegalArgumentException exception) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "지원하지 않는 물품 상태입니다.");
-        }
+        findOwned(itemId, userId);
+        throw new BusinessException(HttpStatus.CONFLICT,
+                "대여 상태는 대여 절차에서만 변경할 수 있습니다.");
     }
 
     @Transactional

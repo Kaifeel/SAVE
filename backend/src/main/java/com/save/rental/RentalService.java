@@ -34,7 +34,7 @@ public class RentalService {
 
     @Transactional
     public RentalResponse create(Integer borrowerId, RentalCreateRequest request) {
-        Item item = itemRepository.findById(request.itemId())
+        Item item = itemRepository.findByIdForUpdate(request.itemId())
                 .filter(value -> value.getStatus() != ItemStatus.DELETED)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "물품이 존재하지 않습니다."));
         if (item.getOwner().getId().equals(borrowerId)) {
@@ -63,8 +63,10 @@ public class RentalService {
                 || !chatRoom.getLender().getId().equals(item.getOwner().getId())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "물품과 채팅방 정보가 일치하지 않습니다.");
         }
-        return RentalResponse.from(rentalRepository.save(new Rental(item, borrower, item.getOwner(),
-                chatRoom, request.startDate(), request.endDate(), request.totalPrice())));
+        Rental rental = rentalRepository.save(new Rental(item, borrower, item.getOwner(),
+                chatRoom, request.startDate(), request.endDate(), request.totalPrice()));
+        item.changeStatus(ItemStatus.REQUEST_PENDING);
+        return RentalResponse.from(rental);
     }
 
     @Transactional(readOnly = true)
@@ -83,6 +85,7 @@ public class RentalService {
         Rental rental = findRental(rentalId);
         requireLender(rental, userId);
         requireStatus(rental, RentalStatus.REQUESTED);
+        requireItemStatus(rental, ItemStatus.REQUEST_PENDING);
         rental.changeStatus(RentalStatus.APPROVED);
         rental.getItem().changeStatus(ItemStatus.RESERVED);
         return RentalResponse.from(rental);
@@ -93,7 +96,9 @@ public class RentalService {
         Rental rental = findRental(rentalId);
         requireLender(rental, userId);
         requireStatus(rental, RentalStatus.REQUESTED);
+        requireItemStatus(rental, ItemStatus.REQUEST_PENDING);
         rental.changeStatus(RentalStatus.REJECTED);
+        rental.getItem().changeStatus(ItemStatus.AVAILABLE);
         return RentalResponse.from(rental);
     }
 
@@ -106,7 +111,9 @@ public class RentalService {
         if (rental.getStatus() != RentalStatus.REQUESTED && rental.getStatus() != RentalStatus.APPROVED) {
             throw new BusinessException(HttpStatus.CONFLICT, "현재 상태에서는 대여를 취소할 수 없습니다.");
         }
-        if (rental.getStatus() == RentalStatus.APPROVED) rental.getItem().changeStatus(ItemStatus.AVAILABLE);
+        requireItemStatus(rental, rental.getStatus() == RentalStatus.REQUESTED
+                ? ItemStatus.REQUEST_PENDING : ItemStatus.RESERVED);
+        rental.getItem().changeStatus(ItemStatus.AVAILABLE);
         rental.changeStatus(RentalStatus.CANCELED);
         return RentalResponse.from(rental);
     }
@@ -119,6 +126,7 @@ public class RentalService {
             throw new BusinessException(HttpStatus.FORBIDDEN, "결제 처리 권한이 없습니다.");
         }
         requireStatus(rental, RentalStatus.APPROVED);
+        requireItemStatus(rental, ItemStatus.RESERVED);
         rental.changeStatus(RentalStatus.PAID);
         return RentalResponse.from(rental);
     }
@@ -128,6 +136,7 @@ public class RentalService {
         Rental rental = findRental(rentalId);
         requireLender(rental, userId);
         requireStatus(rental, RentalStatus.PAID);
+        requireItemStatus(rental, ItemStatus.RESERVED);
         rental.changeStatus(RentalStatus.RENTING);
         rental.getItem().changeStatus(ItemStatus.RENTED);
         return RentalResponse.from(rental);
@@ -140,6 +149,7 @@ public class RentalService {
             throw new BusinessException(HttpStatus.FORBIDDEN, "반납 처리 권한이 없습니다.");
         }
         requireStatus(rental, RentalStatus.RENTING);
+        requireItemStatus(rental, ItemStatus.RENTED);
         rental.changeStatus(RentalStatus.RETURNED);
         rental.getItem().changeStatus(ItemStatus.AVAILABLE);
         return RentalResponse.from(rental);
@@ -167,6 +177,13 @@ public class RentalService {
     private void requireStatus(Rental rental, RentalStatus expected) {
         if (rental.getStatus() != expected) {
             throw new BusinessException(HttpStatus.CONFLICT, "현재 대여 상태에서는 처리할 수 없습니다.");
+        }
+    }
+
+    private void requireItemStatus(Rental rental, ItemStatus expected) {
+        if (rental.getItem().getStatus() != expected) {
+            throw new BusinessException(HttpStatus.CONFLICT,
+                    "게시물과 대여 상태가 일치하지 않습니다.");
         }
     }
 

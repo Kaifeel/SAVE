@@ -1,5 +1,5 @@
 package com.save.item;
 
 public enum ItemStatus {
-    AVAILABLE, RESERVED, RENTED, DELETED
+    AVAILABLE, REQUEST_PENDING, RESERVED, RENTED, DELETED
 }

@@ -105,10 +105,37 @@ class MarketplaceIntegrationTest {
         int rentalId = objectMapper.readTree(rentalResult.getResponse().getContentAsString())
                 .get("id").asInt();
 
+        mockMvc.perform(get("/api/v1/items/{itemId}", itemId)
+                        .header("Authorization", bearer(borrowerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REQUEST_PENDING"));
+
+        JsonNode secondBorrower = signUp("second@pukyong.ac.kr", "두번째학생");
+        String secondBorrowerToken = secondBorrower.get("access_token").asText();
+        MvcResult secondRoom = mockMvc.perform(post("/api/v1/chats/rooms")
+                        .header("Authorization", bearer(secondBorrowerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item_id\":" + itemId + "}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        int secondChatRoomId = objectMapper.readTree(secondRoom.getResponse().getContentAsString())
+                .get("chat_room_id").asInt();
+        mockMvc.perform(post("/api/v1/rentals")
+                        .header("Authorization", bearer(secondBorrowerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item_id\":" + itemId + ",\"chat_room_id\":" + secondChatRoomId
+                                + ",\"start_date\":\"2026-07-21T10:00:00\","
+                                + "\"end_date\":\"2026-07-22T10:00:00\",\"total_price\":1000}"))
+                .andExpect(status().isConflict());
+
         mockMvc.perform(patch("/api/v1/rentals/{rentalId}/approve", rentalId)
                         .header("Authorization", bearer(ownerToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APPROVED"));
+        mockMvc.perform(get("/api/v1/items/{itemId}", itemId)
+                        .header("Authorization", bearer(borrowerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RESERVED"));
         mockMvc.perform(patch("/api/v1/rentals/{rentalId}/paid", rentalId)
                         .header("Authorization", bearer(borrowerToken)))
                 .andExpect(status().isOk())
@@ -117,10 +144,18 @@ class MarketplaceIntegrationTest {
                         .header("Authorization", bearer(ownerToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("RENTING"));
+        mockMvc.perform(get("/api/v1/items/{itemId}", itemId)
+                        .header("Authorization", bearer(borrowerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RENTED"));
         mockMvc.perform(patch("/api/v1/rentals/{rentalId}/return", rentalId)
                         .header("Authorization", bearer(borrowerToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("RETURNED"));
+        mockMvc.perform(get("/api/v1/items/{itemId}", itemId)
+                        .header("Authorization", bearer(borrowerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("AVAILABLE"));
 
         mockMvc.perform(post("/api/v1/reports")
                         .header("Authorization", bearer(borrowerToken))
@@ -148,6 +183,71 @@ class MarketplaceIntegrationTest {
                                 + "\"university_id\":" + universityId + "}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("수정된학생"));
+    }
+
+    @Test
+    void cancelAndRejectReleaseThePendingItem() throws Exception {
+        JsonNode owner = signUp("release-owner@pukyong.ac.kr", "반납주인");
+        JsonNode borrower = signUp("release-borrower@pukyong.ac.kr", "신청학생");
+        String ownerToken = owner.get("access_token").asText();
+        String borrowerToken = borrower.get("access_token").asText();
+        int itemId = createItem(ownerToken, "잠금 테스트 우산");
+        int chatRoomId = createRoom(borrowerToken, itemId);
+
+        int canceledRentalId = requestRental(borrowerToken, itemId, chatRoomId);
+        mockMvc.perform(patch("/api/v1/rentals/{rentalId}/cancel", canceledRentalId)
+                        .header("Authorization", bearer(borrowerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELED"));
+        mockMvc.perform(get("/api/v1/items/{itemId}", itemId)
+                        .header("Authorization", bearer(borrowerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("AVAILABLE"));
+
+        int rejectedRentalId = requestRental(borrowerToken, itemId, chatRoomId);
+        mockMvc.perform(patch("/api/v1/rentals/{rentalId}/reject", rejectedRentalId)
+                        .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("REJECTED"));
+        mockMvc.perform(get("/api/v1/items/{itemId}", itemId)
+                        .header("Authorization", bearer(borrowerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("AVAILABLE"));
+    }
+
+    private int createItem(String ownerToken, String title) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/items")
+                        .header("Authorization", bearer(ownerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"" + title + "\",\"rental_fee\":1000,"
+                                + "\"rental_unit\":\"DAY\",\"pickup_location_id\":"
+                                + pickupLocationId + ",\"type\":\"LEND\"}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asInt();
+    }
+
+    private int createRoom(String borrowerToken, int itemId) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/chats/rooms")
+                        .header("Authorization", bearer(borrowerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item_id\":" + itemId + "}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString())
+                .get("chat_room_id").asInt();
+    }
+
+    private int requestRental(String borrowerToken, int itemId, int chatRoomId) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/rentals")
+                        .header("Authorization", bearer(borrowerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item_id\":" + itemId + ",\"chat_room_id\":" + chatRoomId
+                                + ",\"start_date\":\"2026-07-21T10:00:00\","
+                                + "\"end_date\":\"2026-07-22T10:00:00\",\"total_price\":1000}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asInt();
     }
 
     private JsonNode signUp(String email, String name) throws Exception {
