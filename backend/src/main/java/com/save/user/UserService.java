@@ -4,6 +4,8 @@ import com.save.common.BusinessException;
 import com.save.item.ItemRepository;
 import com.save.item.ItemResponse;
 import com.save.item.ItemStatus;
+import com.save.rental.RentalRepository;
+import com.save.rental.RentalStatus;
 import com.save.wishlist.WishlistRepository;
 import com.save.university.University;
 import com.save.university.UniversityRepository;
@@ -18,14 +20,17 @@ public class UserService {
     private final ItemRepository itemRepository;
     private final WishlistRepository wishlistRepository;
     private final UniversityRepository universityRepository;
+    private final RentalRepository rentalRepository;
 
     public UserService(UserRepository userRepository, ItemRepository itemRepository,
                        WishlistRepository wishlistRepository,
-                       UniversityRepository universityRepository) {
+                       UniversityRepository universityRepository,
+                       RentalRepository rentalRepository) {
         this.userRepository = userRepository;
         this.itemRepository = itemRepository;
         this.wishlistRepository = wishlistRepository;
         this.universityRepository = universityRepository;
+        this.rentalRepository = rentalRepository;
     }
 
     @Transactional(readOnly = true)
@@ -58,6 +63,28 @@ public class UserService {
         return wishlistRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                 .map(wishlist -> ItemResponse.from(wishlist.getItem(), true,
                         wishlistRepository.countByItemId(wishlist.getItem().getId()))).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PublicUserProfileResponse getPublicProfile(Integer userId) {
+        User user = findUser(userId);
+        long completedTradeCount = rentalRepository.countByLenderIdAndStatus(
+                userId, RentalStatus.RETURNED);
+        return PublicUserProfileResponse.from(user, completedTradeCount);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ItemResponse> getPublicItems(Integer userId, Integer viewerId) {
+        findUser(userId);
+        return itemRepository.findByOwnerIdAndStatusNotOrderByCreatedAtDesc(
+                        userId, ItemStatus.DELETED)
+                .stream()
+                .map(item -> ItemResponse.from(
+                        item,
+                        viewerId != null && wishlistRepository.existsByUserIdAndItemId(
+                                viewerId, item.getId()),
+                        wishlistRepository.countByItemId(item.getId())))
+                .toList();
     }
 
     private User findUser(Integer id) {
