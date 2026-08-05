@@ -24,9 +24,9 @@ public class InAppNotificationService {
                 "새 대여 요청", rental.getItem().getTitle() + " 대여 요청이 도착했습니다.");
     }
 
-    public void rentalApproved(Rental rental) {
+    public void rentalStarted(Rental rental) {
         create(rental, rental.getBorrower().getId(), InAppNotificationType.RENTAL_APPROVED,
-                "대여 요청 승인", rental.getItem().getTitle() + " 대여 요청이 승인되었습니다.");
+                "거래 시작", rental.getItem().getTitle() + " 거래가 시작되었습니다.");
     }
 
     public void rentalRejected(Rental rental) {

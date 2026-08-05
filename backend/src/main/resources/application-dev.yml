@@ -20,9 +20,6 @@ spring:
     console:
       enabled: true
 
-features:
-  direct-payment-transition: true
-
 storage:
   local-root: ${UPLOAD_DIR:uploads}
   public-base-url: ${UPLOAD_PUBLIC_BASE_URL:/uploads}

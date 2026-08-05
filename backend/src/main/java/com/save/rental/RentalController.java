@@ -30,11 +30,6 @@ public class RentalController {
         return rentalService.detail(rentalId, userId(jwt));
     }
 
-    @PatchMapping("/{rentalId}/approve")
-    public RentalResponse approve(@PathVariable Integer rentalId, @AuthenticationPrincipal Jwt jwt) {
-        return rentalService.approve(rentalId, userId(jwt));
-    }
-
     @PatchMapping("/{rentalId}/reject")
     public RentalResponse reject(@PathVariable Integer rentalId, @AuthenticationPrincipal Jwt jwt) {
         return rentalService.reject(rentalId, userId(jwt));
@@ -43,11 +38,6 @@ public class RentalController {
     @PatchMapping("/{rentalId}/cancel")
     public RentalResponse cancel(@PathVariable Integer rentalId, @AuthenticationPrincipal Jwt jwt) {
         return rentalService.cancel(rentalId, userId(jwt));
-    }
-
-    @PatchMapping("/{rentalId}/paid")
-    public RentalResponse markPaid(@PathVariable Integer rentalId, @AuthenticationPrincipal Jwt jwt) {
-        return rentalService.markPaid(rentalId, userId(jwt));
     }
 
     @PatchMapping("/{rentalId}/start")

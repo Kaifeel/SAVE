@@ -135,20 +135,10 @@ class MarketplaceIntegrationTest {
 
         mockMvc.perform(patch("/api/v1/rentals/{rentalId}/approve", rentalId)
                         .header("Authorization", bearer(ownerToken)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("APPROVED"));
-        mockMvc.perform(get("/api/v1/items/{itemId}", itemId)
-                        .header("Authorization", bearer(borrowerToken)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("RESERVED"));
-        mockMvc.perform(get("/api/v1/notifications")
-                        .header("Authorization", bearer(borrowerToken)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].type").value("RENTAL_APPROVED"));
+                .andExpect(status().isNotFound());
         mockMvc.perform(patch("/api/v1/rentals/{rentalId}/paid", rentalId)
                         .header("Authorization", bearer(borrowerToken)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PAID"));
+                .andExpect(status().isNotFound());
         mockMvc.perform(patch("/api/v1/rentals/{rentalId}/start", rentalId)
                         .header("Authorization", bearer(ownerToken)))
                 .andExpect(status().isOk())
@@ -159,12 +149,28 @@ class MarketplaceIntegrationTest {
                 .andExpect(jsonPath("$.status").value("RENTED"));
         mockMvc.perform(patch("/api/v1/rentals/{rentalId}/return", rentalId)
                         .header("Authorization", bearer(borrowerToken)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(patch("/api/v1/rentals/{rentalId}/return", rentalId)
+                        .header("Authorization", bearer(ownerToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("RETURNED"));
         mockMvc.perform(get("/api/v1/items/{itemId}", itemId)
                         .header("Authorization", bearer(borrowerToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("AVAILABLE"));
+        mockMvc.perform(get("/api/v1/users/{userId}/profile",
+                        owner.get("user").get("id").asInt())
+                        .header("Authorization", bearer(borrowerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completed_trade_count").value(1));
+        mockMvc.perform(post("/api/v1/rentals")
+                        .header("Authorization", bearer(borrowerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item_id\":" + itemId + ",\"chat_room_id\":" + chatRoomId
+                                + ",\"start_date\":\"2026-07-23T10:00:00\","
+                                + "\"end_date\":\"2026-07-24T10:00:00\",\"total_price\":1000}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("REQUESTED"));
         mockMvc.perform(post("/api/v1/reports")
                         .header("Authorization", bearer(borrowerToken))
                         .contentType(MediaType.APPLICATION_JSON)

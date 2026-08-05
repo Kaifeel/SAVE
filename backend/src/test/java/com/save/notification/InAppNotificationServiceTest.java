@@ -57,12 +57,14 @@ class InAppNotificationServiceTest {
     }
 
     @Test
-    void storesRentalApprovalForBorrower() {
-        service.rentalApproved(rental);
+    void storesRentalStartForBorrower() {
+        service.rentalStarted(rental);
 
         InAppNotification stored = captureStoredNotification();
         assertThat(stored.getRecipient()).isSameAs(borrower);
         assertThat(stored.getType()).isEqualTo(InAppNotificationType.RENTAL_APPROVED);
+        assertThat(stored.getTitle()).isEqualTo("거래 시작");
+        assertThat(stored.getContent()).contains("거래가 시작되었습니다");
         assertPublishedFor(3, InAppNotificationType.RENTAL_APPROVED);
     }
 

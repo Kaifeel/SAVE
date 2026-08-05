@@ -18,9 +18,6 @@ spring:
     console:
       enabled: false
 
-features:
-  direct-payment-transition: false
-
 server:
   forward-headers-strategy: framework
 

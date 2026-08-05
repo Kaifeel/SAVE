@@ -21,18 +21,15 @@ public class RentalService {
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
     private final ChatRoomRepository chatRoomRepository;
-    private final PaymentTransitionPolicy paymentTransitionPolicy;
     private final InAppNotificationService notificationService;
 
     public RentalService(RentalRepository rentalRepository, ItemRepository itemRepository,
                          UserRepository userRepository, ChatRoomRepository chatRoomRepository,
-                         PaymentTransitionPolicy paymentTransitionPolicy,
                          InAppNotificationService notificationService) {
         this.rentalRepository = rentalRepository;
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
         this.chatRoomRepository = chatRoomRepository;
-        this.paymentTransitionPolicy = paymentTransitionPolicy;
         this.notificationService = notificationService;
     }
 
@@ -86,20 +83,8 @@ public class RentalService {
     }
 
     @Transactional
-    public RentalResponse approve(Integer rentalId, Integer userId) {
-        Rental rental = findRental(rentalId);
-        requireLender(rental, userId);
-        requireStatus(rental, RentalStatus.REQUESTED);
-        requireItemStatus(rental, ItemStatus.REQUEST_PENDING);
-        rental.changeStatus(RentalStatus.APPROVED);
-        rental.getItem().changeStatus(ItemStatus.RESERVED);
-        notificationService.rentalApproved(rental);
-        return RentalResponse.from(rental);
-    }
-
-    @Transactional
     public RentalResponse reject(Integer rentalId, Integer userId) {
-        Rental rental = findRental(rentalId);
+        Rental rental = findRentalForUpdate(rentalId);
         requireLender(rental, userId);
         requireStatus(rental, RentalStatus.REQUESTED);
         requireItemStatus(rental, ItemStatus.REQUEST_PENDING);
@@ -111,7 +96,7 @@ public class RentalService {
 
     @Transactional
     public RentalResponse cancel(Integer rentalId, Integer userId) {
-        Rental rental = findRental(rentalId);
+        Rental rental = findRentalForUpdate(rentalId);
         if (!rental.getBorrower().getId().equals(userId)) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "대여 신청을 취소할 권한이 없습니다.");
         }
@@ -126,35 +111,21 @@ public class RentalService {
     }
 
     @Transactional
-    public RentalResponse markPaid(Integer rentalId, Integer userId) {
-        paymentTransitionPolicy.assertDirectPaymentAllowed();
-        Rental rental = findRental(rentalId);
-        if (!rental.getBorrower().getId().equals(userId)) {
-            throw new BusinessException(HttpStatus.FORBIDDEN, "결제 처리 권한이 없습니다.");
-        }
-        requireStatus(rental, RentalStatus.APPROVED);
-        requireItemStatus(rental, ItemStatus.RESERVED);
-        rental.changeStatus(RentalStatus.PAID);
-        return RentalResponse.from(rental);
-    }
-
-    @Transactional
     public RentalResponse startRenting(Integer rentalId, Integer userId) {
-        Rental rental = findRental(rentalId);
+        Rental rental = findRentalForUpdate(rentalId);
         requireLender(rental, userId);
-        requireStatus(rental, RentalStatus.PAID);
-        requireItemStatus(rental, ItemStatus.RESERVED);
+        requireStatus(rental, RentalStatus.REQUESTED);
+        requireItemStatus(rental, ItemStatus.REQUEST_PENDING);
         rental.changeStatus(RentalStatus.RENTING);
         rental.getItem().changeStatus(ItemStatus.RENTED);
+        notificationService.rentalStarted(rental);
         return RentalResponse.from(rental);
     }
 
     @Transactional
     public RentalResponse returnItem(Integer rentalId, Integer userId) {
-        Rental rental = findRental(rentalId);
-        if (!rental.getBorrower().getId().equals(userId) && !rental.getLender().getId().equals(userId)) {
-            throw new BusinessException(HttpStatus.FORBIDDEN, "반납 처리 권한이 없습니다.");
-        }
+        Rental rental = findRentalForUpdate(rentalId);
+        requireLender(rental, userId);
         requireStatus(rental, RentalStatus.RENTING);
         requireItemStatus(rental, ItemStatus.RENTED);
         rental.changeStatus(RentalStatus.RETURNED);
@@ -172,6 +143,11 @@ public class RentalService {
 
     private Rental findRental(Integer id) {
         return rentalRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "대여 내역이 존재하지 않습니다."));
+    }
+
+    private Rental findRentalForUpdate(Integer id) {
+        return rentalRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "대여 내역이 존재하지 않습니다."));
     }
 
