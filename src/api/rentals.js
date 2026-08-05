@@ -22,13 +22,6 @@ export function getRentalDetail(rentalId, accessToken) {
   })
 }
 
-export function approveRental(rentalId, accessToken) {
-  return apiFetch(`/rentals/${rentalId}/approve`, {
-    method: 'PATCH',
-    accessToken,
-  })
-}
-
 export function rejectRental(rentalId, accessToken) {
   return apiFetch(`/rentals/${rentalId}/reject`, {
     method: 'PATCH',
@@ -45,13 +38,6 @@ export function cancelRental(rentalId, accessToken) {
 
 export function returnRental(rentalId, accessToken) {
   return apiFetch(`/rentals/${rentalId}/return`, {
-    method: 'PATCH',
-    accessToken,
-  })
-}
-
-export function markRentalPaid(rentalId, accessToken) {
-  return apiFetch(`/rentals/${rentalId}/paid`, {
     method: 'PATCH',
     accessToken,
   })

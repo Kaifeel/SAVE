@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import * as rentalApi from '../api/rentals'
 
-export function useRentals({ accessToken, currentUserId, enabled, api = rentalApi }) {
+export function useRentals({
+  accessToken,
+  currentUserId,
+  enabled,
+  api = rentalApi,
+  onRentalChanged,
+}) {
   const [rentals, setRentals] = useState([])
   const [loading, setLoading] = useState(enabled)
   const [error, setError] = useState(null)
+  const [pendingAction, setPendingAction] = useState(null)
 
   const reload = useCallback(async () => {
     if (!enabled) return
@@ -38,9 +45,28 @@ export function useRentals({ accessToken, currentUserId, enabled, api = rentalAp
   }, [accessToken, api, enabled])
 
   const transition = useCallback(async (id, action) => {
-    const updated = await api[action](id, accessToken)
-    setRentals(current => current.map(rental => rental.id === id ? updated : rental))
-  }, [accessToken, api])
+    setPendingAction(`${id}:${action}`)
+    try {
+      const updated = await api[action](id, accessToken)
+      setRentals(current => current.map(rental => rental.id === id ? updated : rental))
+      await Promise.allSettled([reload(), onRentalChanged?.()])
+      return updated
+    } finally {
+      setPendingAction(null)
+    }
+  }, [accessToken, api, onRentalChanged, reload])
+
+  const create = useCallback(async payload => {
+    setPendingAction('create')
+    try {
+      const created = await api.createRental(payload, accessToken)
+      setRentals(current => [created, ...current])
+      await Promise.allSettled([reload(), onRentalChanged?.()])
+      return created
+    } finally {
+      setPendingAction(null)
+    }
+  }, [accessToken, api, onRentalChanged, reload])
 
   return {
     rentals,
@@ -48,11 +74,9 @@ export function useRentals({ accessToken, currentUserId, enabled, api = rentalAp
     received: rentals.filter(rental => rental.lender_id === currentUserId),
     loading,
     error,
+    pendingAction,
     reload,
-    create: payload => api.createRental(payload, accessToken).then(created => {
-      setRentals(current => [created, ...current])
-      return created
-    }),
+    create,
     transition,
   }
 }

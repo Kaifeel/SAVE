@@ -191,14 +191,19 @@ function App() {
     onRoomRead: handleChatRoomRead,
     onNotification: handleNotification,
   })
+  const myPageData = useMyPageData({
+    accessToken,
+    enabled: USE_API && isLoggedIn && Boolean(accessToken) && !isAdminPath,
+  })
+  const handleRentalChanged = useCallback(() => Promise.allSettled([
+    myPageData.reload(),
+    itemData.reload(),
+  ]), [itemData.reload, myPageData.reload])
   const rentalData = useRentals({
     accessToken,
     currentUserId: savedUser?.id,
     enabled: USE_API && isLoggedIn && Boolean(accessToken) && !isAdminPath,
-  })
-  const myPageData = useMyPageData({
-    accessToken,
-    enabled: USE_API && isLoggedIn && Boolean(accessToken) && !isAdminPath,
+    onRentalChanged: handleRentalChanged,
   })
   const recommendationData = useRecommendations({
     accessToken,
