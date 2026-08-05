@@ -8,6 +8,7 @@ import com.save.common.BusinessException;
 import com.save.item.Item;
 import com.save.item.ItemRepository;
 import com.save.item.ItemStatus;
+import com.save.notification.InAppNotificationRepository;
 import com.save.user.User;
 import com.save.user.UserRepository;
 import java.time.LocalDateTime;
@@ -18,20 +19,42 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class RentalTransitionLockIntegrationTest {
     @Autowired RentalService rentalService;
     @Autowired RentalRepository rentalRepository;
     @Autowired ItemRepository itemRepository;
     @Autowired UserRepository userRepository;
     @Autowired ChatRoomRepository chatRoomRepository;
+    @Autowired InAppNotificationRepository notificationRepository;
     @Autowired TransactionTemplate transactionTemplate;
+    private TestIds testIds;
+
+    @AfterEach
+    void cleanUpCreatedGraph() {
+        if (testIds == null) return;
+        transactionTemplate.executeWithoutResult(status -> {
+            var notifications = notificationRepository.findAll().stream()
+                    .filter(notification -> notification.getRental().getId()
+                            .equals(testIds.rentalId()))
+                    .toList();
+            notificationRepository.deleteAll(notifications);
+            notificationRepository.flush();
+            rentalRepository.deleteById(testIds.rentalId());
+            rentalRepository.flush();
+            chatRoomRepository.deleteById(testIds.chatRoomId());
+            chatRoomRepository.flush();
+            itemRepository.deleteById(testIds.itemId());
+            itemRepository.flush();
+            userRepository.deleteAllById(List.of(testIds.borrowerId(), testIds.lenderId()));
+            userRepository.flush();
+        });
+    }
 
     @Test
     void serializesConflictingStartAndRejectTransitions() throws Exception {
@@ -45,8 +68,10 @@ class RentalTransitionLockIntegrationTest {
                     LocalDateTime.of(2026, 8, 6, 10, 0),
                     LocalDateTime.of(2026, 8, 7, 10, 0), 0));
             item.changeStatus(ItemStatus.REQUEST_PENDING);
-            return new TestIds(rental.getId(), lender.getId());
+            return new TestIds(rental.getId(), lender.getId(), borrower.getId(),
+                    item.getId(), room.getId());
         });
+        testIds = ids;
 
         CyclicBarrier barrier = new CyclicBarrier(2);
         Callable<Boolean> start = transition(barrier,
@@ -92,6 +117,7 @@ class RentalTransitionLockIntegrationTest {
         }
     }
 
-    private record TestIds(Integer rentalId, Integer lenderId) {}
+    private record TestIds(Integer rentalId, Integer lenderId, Integer borrowerId,
+                           Integer itemId, Integer chatRoomId) {}
     private record StatePair(RentalStatus rentalStatus, ItemStatus itemStatus) {}
 }

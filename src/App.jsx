@@ -103,7 +103,7 @@ function App() {
     enabled: USE_API && isLoggedIn && !isAdminPath,
     initialItems: USE_API ? [] : INITIAL_ITEMS,
   })
-  const { items, setItems } = itemData
+  const { items, setItems, reload: reloadItems } = itemData
 
   // Modals & Sheets
   const [selectedItem, setSelectedItem] = useState(null)
@@ -195,10 +195,11 @@ function App() {
     accessToken,
     enabled: USE_API && isLoggedIn && Boolean(accessToken) && !isAdminPath,
   })
+  const { reload: reloadMyPage } = myPageData
   const handleRentalChanged = useCallback(() => Promise.allSettled([
-    myPageData.reload(),
-    itemData.reload(),
-  ]), [itemData.reload, myPageData.reload])
+    reloadMyPage(),
+    reloadItems(),
+  ]), [reloadItems, reloadMyPage])
   const rentalData = useRentals({
     accessToken,
     currentUserId: savedUser?.id,

@@ -49,8 +49,36 @@ export function useMyPageData({ accessToken, enabled, api = defaultApi }) {
   }, [accessToken, api, enabled])
 
   useEffect(() => {
-    reload()
-  }, [reload])
+    if (!enabled) return undefined
+    let active = true
+    const requests = {
+      profile: api.getMyInfo(accessToken),
+      items: api.getMyItems(accessToken),
+      wishlist: api.getMyWishlist(accessToken),
+      rentals: api.getMyRentals(accessToken),
+    }
+    Object.entries(requests).forEach(([key, request]) => {
+      Promise.resolve(request)
+        .then(data => {
+          if (!active) return
+          const normalized = key === 'items' || key === 'wishlist'
+            ? normalizeItemsResponse(data)
+            : data
+          setSections(current => ({
+            ...current,
+            [key]: { data: normalized, loading: false, error: null },
+          }))
+        })
+        .catch(error => {
+          if (!active) return
+          setSections(current => ({
+            ...current,
+            [key]: { data: null, loading: false, error },
+          }))
+        })
+    })
+    return () => { active = false }
+  }, [accessToken, api, enabled])
 
   return { ...sections, reload }
 }
