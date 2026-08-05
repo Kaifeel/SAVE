@@ -162,7 +162,6 @@ export default function ItemRegistrationModal({
                     >
                       <option value="일">일</option>
                       <option value="시간">시간</option>
-                      <option value="무료">무료</option>
                     </select>
                   </div>
                 </div>

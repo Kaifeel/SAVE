@@ -1,5 +1,16 @@
 import { ChevronRight, User } from 'lucide-react'
 
+const STATUS_META = {
+  available: ['대여 가능', 'text-emerald-600 bg-emerald-50'],
+  request_pending: ['요청 확인 중', 'text-amber-600 bg-amber-50'],
+  reserved: ['대여 예약', 'text-indigo-600 bg-indigo-50'],
+  rented: ['대여 중', 'text-rose-500 bg-rose-50'],
+}
+
+function itemStatusMeta(status) {
+  return STATUS_META[status] || [status || '상태 확인', 'text-slate-500 bg-slate-100']
+}
+
 export default function MyPage(props) {
   const {
     memberName,
@@ -28,14 +39,9 @@ export default function MyPage(props) {
               <section className="mb-5">
                 <h3 className="text-[17px] font-black text-slate-800 mb-2">등록 물품</h3>
                 <div className="space-y-3">
-                  {(data?.items?.data || popularItems).slice(0, 2).map((item, index) => {
+                  {(data?.items?.data || popularItems).slice(0, 2).map(item => {
                     const MyItemIcon = item.imageIcon
-                    const statusText = index === 1 ? '대여중' : '대여 가능'
-                    const statusClass = index === 1
-                      ? 'text-rose-500 bg-rose-50'
-                      : index === 2
-                        ? 'text-emerald-600 bg-emerald-50'
-                        : 'text-slate-500 bg-slate-100'
+                    const [statusText, statusClass] = itemStatusMeta(item.status)
 
                     return (
                       <button
@@ -65,10 +71,9 @@ export default function MyPage(props) {
               <section className="mb-5">
                 <h3 className="text-[17px] font-black text-slate-800 mb-2">찜 목록</h3>
                 <div className="space-y-3">
-                  {(data?.wishlist?.data || recommendItems).slice(0, 2).map((item, index) => {
+                  {(data?.wishlist?.data || recommendItems).slice(0, 2).map(item => {
                     const FavoriteIcon = item.imageIcon
-                    const statusText = index === 0 ? '대여 가능' : '대여중'
-                    const statusClass = index === 0 ? 'text-emerald-600 bg-emerald-50' : 'text-rose-500 bg-rose-50'
+                    const [statusText, statusClass] = itemStatusMeta(item.status)
 
                     return (
                       <button

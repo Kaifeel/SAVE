@@ -1,7 +1,9 @@
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { expect, it, vi } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import ItemRegistrationModal from './ItemRegistrationModal'
+
+afterEach(cleanup)
 
 const baseProps = {
   isOpen: true,
@@ -37,4 +39,10 @@ it('stores a pickup-location id instead of a location string', async () => {
   await user.selectOptions(screen.getByLabelText('거래 선호 위치'), '3')
 
   expect(setNewPickupLocationId).toHaveBeenCalledWith(3)
+})
+
+it('does not offer free as a rental period unit', () => {
+  render(<ItemRegistrationModal {...baseProps} />)
+
+  expect(screen.queryByRole('option', { name: '무료' })).not.toBeInTheDocument()
 })

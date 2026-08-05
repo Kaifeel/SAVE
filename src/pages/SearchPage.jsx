@@ -60,7 +60,9 @@ export default function SearchPage(props) {
 
               {/* Available Toggle */}
               <div className="flex items-center justify-between bg-white border border-slate-100 rounded-2xl px-4 py-3 mb-4">
-                <span className="text-xs font-extrabold text-slate-700">대여 가능 물품만 보기</span>
+                <span className="text-xs font-extrabold text-slate-700">
+                  {activeBoard === 'borrow' ? '대여 희망 물품만 보기' : '대여 가능 물품만 보기'}
+                </span>
                 <button
                   type="button"
                   aria-pressed={availableOnly}
