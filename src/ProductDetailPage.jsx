@@ -21,6 +21,7 @@ export default function ProductDetailPage({
   onDelete,
   onRental,
   onToggleWishlist,
+  onOwnerProfile,
 }) {
   const ItemIcon = item.imageIcon
   const ownerName = item.owner?.split(' ')[0] || '대여자'
@@ -133,7 +134,9 @@ export default function ProductDetailPage({
             <h2 className="text-sm font-bold text-slate-800 mb-3">대여자 정보</h2>
             <button
               type="button"
+              onClick={() => onOwnerProfile?.(item)}
               className="w-full rounded-2xl bg-white border border-slate-100 shadow-sm px-4 py-3 flex items-center text-left active:scale-[0.99] transition"
+              aria-label={`${ownerName} 프로필 보기`}
             >
               <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-lg mr-3">
                 <User className="w-5 h-5 text-indigo-500" />

@@ -4,6 +4,7 @@ import {
   mergeChatRoomSnapshot,
   normalizeChatRoom,
   normalizeItem,
+  normalizePublicUserProfile,
   toCreateItemPayload,
 } from './normalizers'
 
@@ -61,6 +62,32 @@ describe('item API normalization', () => {
       description: '깨끗함',
       precautions: '',
       photos: [],
+    })
+  })
+})
+
+describe('public user profile normalization', () => {
+  it('maps only the public profile response fields', () => {
+    expect(normalizePublicUserProfile({
+      id: 9,
+      name: '김소유',
+      department: '컴퓨터공학과',
+      university_id: 1,
+      university_name: '부경대학교',
+      profile_image_url: '/profiles/9.png',
+      rating: 0,
+      review_count: 0,
+      completed_trade_count: 12,
+    })).toEqual({
+      id: 9,
+      name: '김소유',
+      department: '컴퓨터공학과',
+      universityId: 1,
+      universityName: '부경대학교',
+      profileImageUrl: '/profiles/9.png',
+      rating: 0,
+      reviewCount: 0,
+      completedTradeCount: 12,
     })
   })
 })

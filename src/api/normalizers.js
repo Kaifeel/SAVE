@@ -56,6 +56,24 @@ export function normalizeItemsResponse(response) {
   return unwrapList(response).map(normalizeItem)
 }
 
+export function normalizePublicUserProfile(response) {
+  const profile = unwrapObject(response)
+
+  return {
+    id: profile.id ?? profile.userId ?? profile.user_id,
+    name: profile.name || '사용자',
+    department: profile.department || '',
+    universityId: profile.university_id ?? profile.universityId,
+    universityName: profile.university_name || profile.universityName || '',
+    profileImageUrl: profile.profile_image_url || profile.profileImageUrl || null,
+    rating: Number(profile.rating || 0),
+    reviewCount: Number(profile.review_count ?? profile.reviewCount ?? 0),
+    completedTradeCount: Number(
+      profile.completed_trade_count ?? profile.completedTradeCount ?? 0,
+    ),
+  }
+}
+
 export function normalizeChatMessage(apiMessage, currentUserId) {
   const message = unwrapObject(apiMessage)
   const senderType = message.senderType || message.sender || ''

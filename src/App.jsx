@@ -5,6 +5,7 @@ import SearchPage from './pages/SearchPage.jsx'
 import ChatPage from './pages/ChatPage.jsx'
 import MyPage from './pages/MyPage.jsx'
 import RentalsPage from './pages/RentalsPage.jsx'
+import UserProfilePage from './pages/UserProfilePage.jsx'
 import BottomNavigation from './components/BottomNavigation.jsx'
 import ItemRegistrationModal from './components/ItemRegistrationModal.jsx'
 import LoginPage from './pages/LoginPage.jsx'
@@ -106,6 +107,7 @@ function App() {
 
   // Modals & Sheets
   const [selectedItem, setSelectedItem] = useState(null)
+  const [profileTarget, setProfileTarget] = useState(null)
   const [reportTarget, setReportTarget] = useState(null)
   const [reportReason, setReportReason] = useState('')
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
@@ -682,8 +684,12 @@ function App() {
         {selectedItem && (
           <ProductDetailPage
             item={selectedItem}
-            onClose={() => setSelectedItem(null)}
+            onClose={() => {
+              setProfileTarget(null)
+              setSelectedItem(null)
+            }}
             isOwner={Boolean(savedUser?.id && selectedItem.ownerId === savedUser.id)}
+            onOwnerProfile={setProfileTarget}
             onEdit={(item) => {
               setEditingItemId(item.id)
               setNewTitle(item.title)
@@ -787,6 +793,29 @@ function App() {
               }
               setActiveTab('chat')
               setSelectedItem(null)
+            }}
+          />
+        )}
+
+        {profileTarget && (
+          <UserProfilePage
+            userId={profileTarget.ownerId}
+            accessToken={accessToken}
+            enabled={USE_API}
+            fallbackItem={profileTarget}
+            fallbackItems={items.filter(item => profileTarget.ownerId
+              ? item.ownerId === profileTarget.ownerId
+              : item.owner === profileTarget.owner)}
+            onBack={() => setProfileTarget(null)}
+            onSelectItem={item => {
+              setSelectedItem(item)
+              setProfileTarget(null)
+            }}
+            canReport={!savedUser?.id || profileTarget.ownerId !== savedUser.id}
+            onReport={() => {
+              setProfileTarget(null)
+              setReportTarget(profileTarget)
+              setReportReason('')
             }}
           />
         )}

@@ -8,6 +8,7 @@ afterEach(cleanup)
 
 const item = {
   id: 7,
+  ownerId: 12,
   title: '우산',
   owner: '나',
   university: '부경대학교',
@@ -55,4 +56,20 @@ it('passes the displayed item to the report handler', async () => {
   await user.click(screen.getByRole('button', { name: '악성 유저 신고하기' }))
 
   expect(onReport).toHaveBeenCalledWith(item)
+})
+
+it('opens the displayed item owner profile without exposing a status toggle', async () => {
+  const user = userEvent.setup()
+  const onOwnerProfile = vi.fn()
+  render(<ProductDetailPage
+    item={item}
+    onClose={vi.fn()}
+    onOwnerProfile={onOwnerProfile}
+  />)
+
+  await user.click(screen.getByRole('button', { name: '나 프로필 보기' }))
+
+  expect(onOwnerProfile).toHaveBeenCalledWith(item)
+  expect(screen.queryByRole('button', { name: /대여 (중|가능)으로 변경/ }))
+    .not.toBeInTheDocument()
 })

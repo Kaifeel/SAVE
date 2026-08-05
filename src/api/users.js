@@ -19,3 +19,11 @@ export function getMyItems(accessToken) {
 export function getMyWishlist(accessToken) {
   return apiFetch('/users/me/wishlist', { accessToken })
 }
+
+export function getPublicUserProfile(userId, accessToken) {
+  return apiFetch(`/users/${userId}/profile`, { accessToken })
+}
+
+export function getPublicUserItems(userId, accessToken) {
+  return apiFetch(`/users/${userId}/items`, { accessToken })
+}
