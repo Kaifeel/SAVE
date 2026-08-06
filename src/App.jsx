@@ -366,6 +366,7 @@ function App() {
       imageIcon: SelectedIcon,
       iconColor: colorClasses,
       status: 'available',
+      createdAt: new Date().toISOString(),
       photos: newPhotos.map(file => ({ name: file.name, size: file.size }))
     }
 

@@ -48,6 +48,7 @@ export function normalizeItem(apiItem) {
     mainImageUrl: item.main_image_url || item.mainImageUrl || null,
     wishlistCount: Number(item.wishlist_count ?? item.wishlistCount ?? 0),
     wishlisted: Boolean(item.wishlisted),
+    createdAt: item.created_at ?? item.createdAt,
     raw: item,
   }
 }

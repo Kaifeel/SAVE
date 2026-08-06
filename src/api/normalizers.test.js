@@ -27,6 +27,7 @@ describe('item API normalization', () => {
       wishlist_count: 4,
       wishlisted: true,
       status: 'AVAILABLE',
+      created_at: '2026-08-06T11:55:00+09:00',
     })).toMatchObject({
       id: 7,
       ownerId: 9,
@@ -42,6 +43,17 @@ describe('item API normalization', () => {
       wishlistCount: 4,
       wishlisted: true,
       status: 'available',
+      createdAt: '2026-08-06T11:55:00+09:00',
+    })
+  })
+
+  it('preserves a camel-case item creation timestamp', () => {
+    expect(normalizeItem({
+      id: 8,
+      title: '충전기',
+      createdAt: '2026-08-06T11:58:00+09:00',
+    })).toMatchObject({
+      createdAt: '2026-08-06T11:58:00+09:00',
     })
   })
 
