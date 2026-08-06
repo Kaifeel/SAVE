@@ -1,4 +1,6 @@
 import { ChevronRight, Info, MapPin, Search, X } from 'lucide-react'
+import { useNow } from '../hooks/useNow'
+import { formatRelativeTime } from '../utils/relativeTime'
 
 export default function HomePage(props) {
   const {
@@ -14,6 +16,7 @@ export default function HomePage(props) {
     recommendationError,
     onRefreshRecommendations,
   } = props
+  const now = useNow()
 
   return (
             <div className="animate-in fade-in duration-200">
@@ -150,6 +153,7 @@ export default function HomePage(props) {
                   <div className="space-y-2.5">
                     {recentItems.map((item) => {
                       const ItemIcon = item.imageIcon
+                      const relativeTime = formatRelativeTime(item.createdAt, now)
                       return (
                         <div
                           key={item.id}
@@ -165,7 +169,11 @@ export default function HomePage(props) {
                           <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-start">
                               <h4 className="font-bold text-slate-800 text-sm truncate">{item.title}</h4>
-                              <span className="text-[10px] text-slate-400 font-medium">방금 전</span>
+                              {relativeTime && (
+                                <span className="text-[10px] text-slate-400 font-medium">
+                                  {relativeTime}
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center justify-between mt-1">
                               <span className="text-sm font-extrabold text-indigo-600">
