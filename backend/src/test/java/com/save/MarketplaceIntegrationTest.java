@@ -1,5 +1,6 @@
 package com.save;
 
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -65,6 +66,8 @@ class MarketplaceIntegrationTest {
                 .andExpect(jsonPath("$.owner_name").value("물품주인"))
                 .andExpect(jsonPath("$.owner_university_name").value("부경대학교"))
                 .andExpect(jsonPath("$.pickup_location_name").value("대연캠퍼스"))
+                .andExpect(jsonPath("$.created_at").value(matchesPattern(".*Z$")))
+                .andExpect(jsonPath("$.updated_at").value(matchesPattern(".*Z$")))
                 .andReturn();
         int itemId = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asInt();
 

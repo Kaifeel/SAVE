@@ -1,6 +1,6 @@
 package com.save.item;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 public record ItemResponse(
@@ -23,8 +23,8 @@ public record ItemResponse(
         Integer viewCount,
         long wishlistCount,
         boolean wishlisted,
-        LocalDateTime createdAt,
-        LocalDateTime updatedAt) {
+        Instant createdAt,
+        Instant updatedAt) {
 
     public static ItemResponse from(Item item, boolean wishlisted, long wishlistCount) {
         List<String> images = item.getPhotoUrls();
