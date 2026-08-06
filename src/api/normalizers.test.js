@@ -27,7 +27,7 @@ describe('item API normalization', () => {
       wishlist_count: 4,
       wishlisted: true,
       status: 'AVAILABLE',
-      created_at: '2026-08-06T11:55:00+09:00',
+      created_at: '2026-08-06T02:55:00Z',
     })).toMatchObject({
       id: 7,
       ownerId: 9,
@@ -43,7 +43,7 @@ describe('item API normalization', () => {
       wishlistCount: 4,
       wishlisted: true,
       status: 'available',
-      createdAt: '2026-08-06T11:55:00+09:00',
+      createdAt: '2026-08-06T02:55:00Z',
     })
   })
 
