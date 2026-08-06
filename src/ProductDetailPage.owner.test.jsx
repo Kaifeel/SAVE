@@ -4,7 +4,11 @@ import { Camera } from 'lucide-react'
 import { afterEach, expect, it, vi } from 'vitest'
 import ProductDetailPage from './ProductDetailPage'
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+  vi.useRealTimers()
+})
 
 const item = {
   id: 7,
@@ -72,4 +76,30 @@ it('opens the displayed item owner profile without exposing a status toggle', as
   expect(onOwnerProfile).toHaveBeenCalledWith(item)
   expect(screen.queryByRole('button', { name: /대여 (중|가능)으로 변경/ }))
     .not.toBeInTheDocument()
+})
+
+it('shows the item creation time as a relative age', () => {
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-08-06T12:00:00+09:00'))
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+
+  render(<ProductDetailPage
+    item={{ ...item, createdAt: '2026-08-06T11:55:00+09:00' }}
+    onClose={vi.fn()}
+  />)
+
+  expect(screen.getByText('5분 전')).toBeInTheDocument()
+})
+
+it('omits the creation time when it is invalid', () => {
+  vi.useFakeTimers()
+  vi.setSystemTime(new Date('2026-08-06T12:00:00+09:00'))
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+
+  render(<ProductDetailPage
+    item={{ ...item, createdAt: 'invalid' }}
+    onClose={vi.fn()}
+  />)
+
+  expect(screen.queryByText(/분 전$/)).not.toBeInTheDocument()
 })
