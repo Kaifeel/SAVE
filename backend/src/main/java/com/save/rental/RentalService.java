@@ -10,6 +10,7 @@ import com.save.notification.InAppNotificationService;
 import com.save.user.User;
 import com.save.user.UserRepository;
 import java.util.List;
+import java.time.Clock;
 import java.time.Duration;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,15 +23,17 @@ public class RentalService {
     private final UserRepository userRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final InAppNotificationService notificationService;
+    private final Clock clock;
 
     public RentalService(RentalRepository rentalRepository, ItemRepository itemRepository,
                          UserRepository userRepository, ChatRoomRepository chatRoomRepository,
-                         InAppNotificationService notificationService) {
+                         InAppNotificationService notificationService, Clock clock) {
         this.rentalRepository = rentalRepository;
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
         this.chatRoomRepository = chatRoomRepository;
         this.notificationService = notificationService;
+        this.clock = clock;
     }
 
     @Transactional
@@ -128,7 +131,7 @@ public class RentalService {
         requireLender(rental, userId);
         requireStatus(rental, RentalStatus.RENTING);
         requireItemStatus(rental, ItemStatus.RENTED);
-        rental.changeStatus(RentalStatus.RETURNED);
+        rental.returnItem(clock.instant());
         rental.getItem().changeStatus(ItemStatus.AVAILABLE);
         return RentalResponse.from(rental);
     }
