@@ -78,6 +78,16 @@ it('opens the displayed item owner profile without exposing a status toggle', as
     .not.toBeInTheDocument()
 })
 
+it('opens the owner profile from the displayed rating summary', async () => {
+  const user = userEvent.setup()
+  const onOwnerProfile = vi.fn()
+  render(<ProductDetailPage item={item} onClose={vi.fn()} onOwnerProfile={onOwnerProfile} />)
+
+  await user.click(screen.getByRole('button', { name: '작성자 평점 0, 후기 0개 보기' }))
+
+  expect(onOwnerProfile).toHaveBeenCalledWith(item)
+})
+
 it('shows the item creation time as a relative age', () => {
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2026-08-06T12:00:00+09:00'))

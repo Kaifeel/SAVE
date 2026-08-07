@@ -95,11 +95,16 @@ export default function ProductDetailPage({
                   {item.location}
                 </span>
                 {relativeTime && <span>{relativeTime}</span>}
-                <span className="inline-flex items-center gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => onOwnerProfile?.(item)}
+                  aria-label={`작성자 평점 ${item.rating}, 후기 ${item.reviews}개 보기`}
+                  className="inline-flex items-center gap-0.5"
+                >
                   <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                   <span className="text-slate-600 font-bold">{item.rating}</span>
                   <span>({item.reviews}개 후기)</span>
-                </span>
+                </button>
               </div>
             </div>
             <div className="text-right flex-shrink-0">
