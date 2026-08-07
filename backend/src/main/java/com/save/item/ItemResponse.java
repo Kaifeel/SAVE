@@ -1,5 +1,6 @@
 package com.save.item;
 
+import com.save.review.ReviewSummary;
 import java.time.Instant;
 import java.util.List;
 
@@ -23,10 +24,17 @@ public record ItemResponse(
         Integer viewCount,
         long wishlistCount,
         boolean wishlisted,
+        double ownerRating,
+        long reviewCount,
         Instant createdAt,
         Instant updatedAt) {
 
     public static ItemResponse from(Item item, boolean wishlisted, long wishlistCount) {
+        return from(item, wishlisted, wishlistCount, ReviewSummary.empty());
+    }
+
+    public static ItemResponse from(Item item, boolean wishlisted, long wishlistCount,
+                                    ReviewSummary reviewSummary) {
         List<String> images = item.getPhotoUrls();
         Integer universityId = item.getOwner().getUniversity() == null
                 ? null : item.getOwner().getUniversity().getId();
@@ -42,6 +50,7 @@ public record ItemResponse(
                 pickupLocationId, pickupLocationName, item.getDescription(),
                 item.getPrecautions(), item.getStatus().name(),
                 images.isEmpty() ? null : images.get(0), images, item.getViewCount(), wishlistCount,
-                wishlisted, item.getCreatedAt(), item.getUpdatedAt());
+                wishlisted, reviewSummary.rating(), reviewSummary.reviewCount(),
+                item.getCreatedAt(), item.getUpdatedAt());
     }
 }

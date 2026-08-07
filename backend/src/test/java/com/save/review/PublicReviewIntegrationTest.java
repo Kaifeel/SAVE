@@ -84,6 +84,11 @@ class PublicReviewIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.rating").value(5.0))
                 .andExpect(jsonPath("$.review_count").value(1));
+        mockMvc.perform(get("/api/v1/items/{itemId}", fixture.rental().getItem().getId())
+                        .with(jwt().jwt(token -> token.subject(fixture.borrower().getId().toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.owner_rating").value(5.0))
+                .andExpect(jsonPath("$.review_count").value(1));
     }
 
     private TestRental returnedRental(Instant returnedAt) {

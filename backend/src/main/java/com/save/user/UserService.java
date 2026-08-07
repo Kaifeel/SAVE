@@ -57,9 +57,10 @@ public class UserService {
     public List<ItemResponse> getMyItems(Integer userId) {
         findUser(userId);
         return itemRepository.findByOwnerIdAndStatusNotOrderByCreatedAtDesc(
-                        userId, ItemStatus.DELETED)
+                userId, ItemStatus.DELETED)
                 .stream().map(item -> ItemResponse.from(item, false,
-                        wishlistRepository.countByItemId(item.getId()))).toList();
+                        wishlistRepository.countByItemId(item.getId()),
+                        reviewQueryService.summary(item.getOwner().getId()))).toList();
     }
 
     @Transactional(readOnly = true)
@@ -67,7 +68,8 @@ public class UserService {
         findUser(userId);
         return wishlistRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                 .map(wishlist -> ItemResponse.from(wishlist.getItem(), true,
-                        wishlistRepository.countByItemId(wishlist.getItem().getId()))).toList();
+                        wishlistRepository.countByItemId(wishlist.getItem().getId()),
+                        reviewQueryService.summary(wishlist.getItem().getOwner().getId()))).toList();
     }
 
     @Transactional(readOnly = true)
@@ -95,7 +97,8 @@ public class UserService {
                         item,
                         viewerId != null && wishlistRepository.existsByUserIdAndItemId(
                                 viewerId, item.getId()),
-                        wishlistRepository.countByItemId(item.getId())))
+                        wishlistRepository.countByItemId(item.getId()),
+                        reviewQueryService.summary(item.getOwner().getId())))
                 .toList();
     }
 

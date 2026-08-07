@@ -1,6 +1,7 @@
 package com.save.item;
 
 import com.save.common.BusinessException;
+import com.save.review.ReviewQueryService;
 import com.save.user.User;
 import com.save.user.UserRepository;
 import com.save.wishlist.WishlistRepository;
@@ -19,15 +20,18 @@ public class ItemService {
     private final WishlistRepository wishlistRepository;
     private final PhotoStorageService photoStorageService;
     private final PickupLocationRepository pickupLocationRepository;
+    private final ReviewQueryService reviewQueryService;
 
     public ItemService(ItemRepository itemRepository, UserRepository userRepository,
                        WishlistRepository wishlistRepository, PhotoStorageService photoStorageService,
-                       PickupLocationRepository pickupLocationRepository) {
+                       PickupLocationRepository pickupLocationRepository,
+                       ReviewQueryService reviewQueryService) {
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
         this.wishlistRepository = wishlistRepository;
         this.photoStorageService = photoStorageService;
         this.pickupLocationRepository = pickupLocationRepository;
+        this.reviewQueryService = reviewQueryService;
     }
 
     @Transactional(readOnly = true)
@@ -109,7 +113,8 @@ public class ItemService {
 
     private ItemResponse response(Item item, Integer userId) {
         boolean wishlisted = userId != null && wishlistRepository.existsByUserIdAndItemId(userId, item.getId());
-        return ItemResponse.from(item, wishlisted, wishlistRepository.countByItemId(item.getId()));
+        return ItemResponse.from(item, wishlisted, wishlistRepository.countByItemId(item.getId()),
+                reviewQueryService.summary(item.getOwner().getId()));
     }
 
     private Item findVisible(Integer id) {
