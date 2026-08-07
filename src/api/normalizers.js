@@ -37,8 +37,8 @@ export function normalizeItem(apiItem) {
     type: isWantPost ? 'want' : 'rent',
     universityId: item.owner_university_id ?? item.ownerUniversityId ?? item.university_id ?? item.universityId,
     university: item.owner_university_name || item.university || item.school || '부경대학교',
-    rating: Number(item.rating || item.ownerRating || 0),
-    reviews: Number(item.reviews || item.reviewCount || 0),
+    rating: Number(item.rating ?? item.owner_rating ?? item.ownerRating ?? 0),
+    reviews: Number(item.reviews ?? item.review_count ?? item.reviewCount ?? 0),
     owner: item.owner_name || item.ownerName || item.owner?.name || item.userName || '대여자',
     description: item.description || item.content || '',
     imageIcon: ItemIcon,
@@ -73,6 +73,41 @@ export function normalizePublicUserProfile(response) {
       profile.completed_trade_count ?? profile.completedTradeCount ?? 0,
     ),
   }
+}
+
+export function normalizeRental(response) {
+  const rental = unwrapObject(response) || {}
+  return {
+    ...rental,
+    id: rental.id ?? rental.rentalId ?? rental.rental_id,
+    item_id: rental.item_id ?? rental.itemId,
+    borrower_id: rental.borrower_id ?? rental.borrowerId,
+    lender_id: rental.lender_id ?? rental.lenderId,
+    returnedAt: rental.returned_at ?? rental.returnedAt ?? null,
+    reviewDeadline: rental.review_deadline ?? rental.reviewDeadline ?? null,
+    reviewState: rental.review_state ?? rental.reviewState ?? 'NOT_AVAILABLE',
+  }
+}
+
+export function normalizePublicReview(response) {
+  const review = unwrapObject(response) || {}
+  return {
+    id: review.id ?? review.reviewId ?? review.review_id,
+    rating: Number(review.rating || 0),
+    content: review.content || '',
+    createdAt: review.created_at ?? review.createdAt,
+    itemId: review.item_id ?? review.itemId,
+    itemTitle: review.item_title ?? review.itemTitle ?? '',
+    reviewerId: review.reviewer_id ?? review.reviewerId,
+    reviewerName: review.reviewer_name ?? review.reviewerName ?? '사용자',
+    reviewerProfileImageUrl:
+      review.reviewer_profile_image_url ?? review.reviewerProfileImageUrl ?? null,
+    revieweeRole: review.reviewee_role ?? review.revieweeRole,
+  }
+}
+
+export function normalizePublicReviewsResponse(response) {
+  return unwrapList(response).map(normalizePublicReview)
 }
 
 export function normalizeChatMessage(apiMessage, currentUserId) {

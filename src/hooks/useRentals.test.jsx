@@ -36,3 +36,30 @@ it('locks a transition and refreshes related screens after server success', asyn
   expect(onRentalChanged).toHaveBeenCalledTimes(1)
   expect(result.current.pendingAction).toBeNull()
 })
+
+it('submits a review and reloads rental workflow state', async () => {
+  const api = {
+    getMyRentals: vi.fn().mockResolvedValue([]),
+    submitRentalReview: vi.fn().mockResolvedValue({ review_state: 'SUBMITTED_WAITING' }),
+  }
+  const onRentalChanged = vi.fn().mockResolvedValue(undefined)
+  const { result } = renderHook(() => useRentals({
+    accessToken: 'jwt',
+    currentUserId: 2,
+    enabled: true,
+    api,
+    onRentalChanged,
+  }))
+  await waitFor(() => expect(result.current.loading).toBe(false))
+
+  await act(async () => {
+    await result.current.submitReview(3, { rating: 5, content: '좋았어요.' })
+  })
+
+  expect(api.submitRentalReview).toHaveBeenCalledWith(
+    3, { rating: 5, content: '좋았어요.' }, 'jwt',
+  )
+  expect(api.getMyRentals).toHaveBeenCalledTimes(2)
+  expect(onRentalChanged).toHaveBeenCalledTimes(1)
+  expect(result.current.pendingAction).toBeNull()
+})

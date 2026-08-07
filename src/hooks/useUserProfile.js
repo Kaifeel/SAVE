@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { getPublicUserItems, getPublicUserProfile } from '../api/users'
-import { normalizeItemsResponse, normalizePublicUserProfile } from '../api/normalizers'
+import { getPublicUserItems, getPublicUserProfile, getPublicUserReviews } from '../api/users'
+import {
+  normalizeItemsResponse,
+  normalizePublicReviewsResponse,
+  normalizePublicUserProfile,
+} from '../api/normalizers'
 
-const defaultApi = { getPublicUserItems, getPublicUserProfile }
+const defaultApi = { getPublicUserItems, getPublicUserProfile, getPublicUserReviews }
 
 export function useUserProfile({
   userId,
@@ -13,6 +17,7 @@ export function useUserProfile({
   const [state, setState] = useState({
     profile: null,
     items: [],
+    reviews: [],
     loading: Boolean(enabled && userId),
     error: null,
   })
@@ -25,18 +30,20 @@ export function useUserProfile({
     Promise.all([
       api.getPublicUserProfile(userId, accessToken),
       api.getPublicUserItems(userId, accessToken),
+      api.getPublicUserReviews(userId, accessToken),
     ])
-      .then(([profile, items]) => {
+      .then(([profile, items, reviews]) => {
         if (!active) return
         setState({
           profile: normalizePublicUserProfile(profile),
           items: normalizeItemsResponse(items),
+          reviews: normalizePublicReviewsResponse(reviews),
           loading: false,
           error: null,
         })
       })
       .catch(error => {
-        if (active) setState({ profile: null, items: [], loading: false, error })
+        if (active) setState({ profile: null, items: [], reviews: [], loading: false, error })
       })
 
     return () => { active = false }

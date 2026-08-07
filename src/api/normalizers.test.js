@@ -4,7 +4,9 @@ import {
   mergeChatRoomSnapshot,
   normalizeChatRoom,
   normalizeItem,
+  normalizePublicReview,
   normalizePublicUserProfile,
+  normalizeRental,
   toCreateItemPayload,
 } from './normalizers'
 
@@ -25,6 +27,8 @@ describe('item API normalization', () => {
       main_image_url: '/main.png',
       image_urls: ['/main.png', '/detail.png'],
       wishlist_count: 4,
+      owner_rating: 4.8,
+      review_count: 12,
       wishlisted: true,
       status: 'AVAILABLE',
       created_at: '2026-08-06T02:55:00Z',
@@ -41,6 +45,8 @@ describe('item API normalization', () => {
       photos: ['/main.png', '/detail.png'],
       mainImageUrl: '/main.png',
       wishlistCount: 4,
+      rating: 4.8,
+      reviews: 12,
       wishlisted: true,
       status: 'available',
       createdAt: '2026-08-06T02:55:00Z',
@@ -100,6 +106,55 @@ describe('public user profile normalization', () => {
       rating: 0,
       reviewCount: 0,
       completedTradeCount: 12,
+    })
+  })
+})
+
+describe('rental review normalization', () => {
+  it('maps rental workflow fields without removing role ids', () => {
+    expect(normalizeRental({
+      id: 3,
+      item_id: 7,
+      borrower_id: 2,
+      lender_id: 1,
+      status: 'RETURNED',
+      returned_at: '2026-08-06T03:00:00Z',
+      review_deadline: '2026-08-13T03:00:00Z',
+      review_state: 'AVAILABLE',
+    })).toMatchObject({
+      id: 3,
+      item_id: 7,
+      borrower_id: 2,
+      lender_id: 1,
+      returnedAt: '2026-08-06T03:00:00Z',
+      reviewDeadline: '2026-08-13T03:00:00Z',
+      reviewState: 'AVAILABLE',
+    })
+  })
+
+  it('maps a public review card response', () => {
+    expect(normalizePublicReview({
+      id: 9,
+      rating: 5,
+      content: '좋은 거래였어요.',
+      created_at: '2026-08-07T03:00:00Z',
+      item_id: 7,
+      item_title: '우산',
+      reviewer_id: 2,
+      reviewer_name: '김학생',
+      reviewer_profile_image_url: '/profiles/2.png',
+      reviewee_role: 'LENDER',
+    })).toEqual({
+      id: 9,
+      rating: 5,
+      content: '좋은 거래였어요.',
+      createdAt: '2026-08-07T03:00:00Z',
+      itemId: 7,
+      itemTitle: '우산',
+      reviewerId: 2,
+      reviewerName: '김학생',
+      reviewerProfileImageUrl: '/profiles/2.png',
+      revieweeRole: 'LENDER',
     })
   })
 })
