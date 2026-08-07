@@ -1,6 +1,7 @@
 package com.save.user;
 
 import com.save.item.ItemResponse;
+import com.save.review.PublicReviewResponse;
 import java.util.List;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -27,6 +28,11 @@ public class PublicUserController {
     public List<ItemResponse> items(@PathVariable Integer userId,
                                     @AuthenticationPrincipal Jwt jwt) {
         return userService.getPublicItems(userId, viewerId(jwt));
+    }
+
+    @GetMapping("/{userId:\\d+}/reviews")
+    public List<PublicReviewResponse> reviews(@PathVariable Integer userId) {
+        return userService.getPublicReviews(userId);
     }
 
     private Integer viewerId(Jwt jwt) {

@@ -6,6 +6,8 @@ import com.save.item.ItemResponse;
 import com.save.item.ItemStatus;
 import com.save.rental.RentalRepository;
 import com.save.rental.RentalStatus;
+import com.save.review.PublicReviewResponse;
+import com.save.review.ReviewQueryService;
 import com.save.wishlist.WishlistRepository;
 import com.save.university.University;
 import com.save.university.UniversityRepository;
@@ -21,16 +23,19 @@ public class UserService {
     private final WishlistRepository wishlistRepository;
     private final UniversityRepository universityRepository;
     private final RentalRepository rentalRepository;
+    private final ReviewQueryService reviewQueryService;
 
     public UserService(UserRepository userRepository, ItemRepository itemRepository,
                        WishlistRepository wishlistRepository,
                        UniversityRepository universityRepository,
-                       RentalRepository rentalRepository) {
+                       RentalRepository rentalRepository,
+                       ReviewQueryService reviewQueryService) {
         this.userRepository = userRepository;
         this.itemRepository = itemRepository;
         this.wishlistRepository = wishlistRepository;
         this.universityRepository = universityRepository;
         this.rentalRepository = rentalRepository;
+        this.reviewQueryService = reviewQueryService;
     }
 
     @Transactional(readOnly = true)
@@ -70,7 +75,14 @@ public class UserService {
         User user = findUser(userId);
         long completedTradeCount = rentalRepository.countByLenderIdAndStatus(
                 userId, RentalStatus.RETURNED);
-        return PublicUserProfileResponse.from(user, completedTradeCount);
+        return PublicUserProfileResponse.from(user, completedTradeCount,
+                reviewQueryService.summary(userId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<PublicReviewResponse> getPublicReviews(Integer userId) {
+        findUser(userId);
+        return reviewQueryService.visibleReviews(userId);
     }
 
     @Transactional(readOnly = true)
