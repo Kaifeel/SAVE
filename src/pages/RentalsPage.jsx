@@ -1,4 +1,12 @@
+import { useState } from 'react'
 import AsyncState from '../components/AsyncState'
+import ReviewFormModal from '../components/ReviewFormModal'
+
+const reviewLabels = {
+  SUBMITTED_WAITING: '상대방 후기 작성 대기 중',
+  PUBLISHED: '후기 공개됨',
+  EXPIRED: '후기 작성 기간 종료',
+}
 
 const actions = {
   REQUESTED: {
@@ -8,7 +16,7 @@ const actions = {
   RENTING: { lender: [['거래 완료', 'returnRental']] },
 }
 
-function RentalList({ title, rentals, role, onTransition, pendingAction }) {
+function RentalList({ title, rentals, role, onTransition, onReview, pendingAction }) {
   return (
     <section className="mt-5">
       <h2 className="text-sm font-black text-slate-800">{title}</h2>
@@ -31,7 +39,21 @@ function RentalList({ title, rentals, role, onTransition, pendingAction }) {
                   {label}
                 </button>
               ))}
+              {rental.reviewState === 'AVAILABLE' && (
+                <button
+                  type="button"
+                  onClick={() => onReview(rental.id)}
+                  className="rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-white"
+                >
+                  후기 작성
+                </button>
+              )}
             </div>
+            {reviewLabels[rental.reviewState] && (
+              <p className="mt-3 text-xs font-bold text-slate-500">
+                {reviewLabels[rental.reviewState]}
+              </p>
+            )}
           </article>
         ))}
       </div>
@@ -39,15 +61,33 @@ function RentalList({ title, rentals, role, onTransition, pendingAction }) {
   )
 }
 
-export default function RentalsPage({ data, onBack }) {
+export default function RentalsPage({ data, onBack, onError }) {
+  const [reviewRentalId, setReviewRentalId] = useState(null)
+  const reviewPending = data.pendingAction === `${reviewRentalId}:submitReview`
+
+  const submitReview = async review => {
+    try {
+      await data.submitReview(reviewRentalId, review)
+      setReviewRentalId(null)
+    } catch (error) {
+      onError?.(error.message || '후기를 제출하지 못했습니다.')
+    }
+  }
+
   return (
     <div className="p-5">
       <button type="button" onClick={onBack} className="text-xs font-bold text-indigo-600">마이페이지로</button>
       <h1 className="mt-3 text-xl font-black">대여 내역</h1>
       <AsyncState loading={data.loading} error={data.error} onRetry={data.reload} empty={!data.loading && !data.error && data.rentals.length === 0}>
-        <RentalList title="받은 요청" rentals={data.received} role="lender" onTransition={data.transition} pendingAction={data.pendingAction} />
-        <RentalList title="보낸 요청" rentals={data.sent} role="borrower" onTransition={data.transition} pendingAction={data.pendingAction} />
+        <RentalList title="받은 요청" rentals={data.received} role="lender" onTransition={data.transition} onReview={setReviewRentalId} pendingAction={data.pendingAction} />
+        <RentalList title="보낸 요청" rentals={data.sent} role="borrower" onTransition={data.transition} onReview={setReviewRentalId} pendingAction={data.pendingAction} />
       </AsyncState>
+      <ReviewFormModal
+        isOpen={reviewRentalId != null}
+        isSubmitting={reviewPending}
+        onClose={() => setReviewRentalId(null)}
+        onSubmit={submitReview}
+      />
     </div>
   )
 }

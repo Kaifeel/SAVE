@@ -57,3 +57,14 @@ it('disables every action for a rental while its transition is pending', () => {
   expect(screen.getByRole('button', { name: '거래 시작' })).toBeDisabled()
   expect(screen.getByRole('button', { name: '거절' })).toBeDisabled()
 })
+
+it('shows review action and waiting state after return', () => {
+  render(<RentalsPage onBack={vi.fn()} data={{
+    loading: false, error: null, reload: vi.fn(), transition: vi.fn(),
+    pendingAction: null, rentals: [{ id: 5 }, { id: 6 }],
+    received: [{ id: 5, item_id: 15, status: 'RETURNED', reviewState: 'AVAILABLE' }],
+    sent: [{ id: 6, item_id: 16, status: 'RETURNED', reviewState: 'SUBMITTED_WAITING' }],
+  }} />)
+  expect(screen.getByRole('button', { name: '후기 작성' })).toBeInTheDocument()
+  expect(screen.getByText('상대방 후기 작성 대기 중')).toBeInTheDocument()
+})

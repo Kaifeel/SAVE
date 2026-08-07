@@ -671,7 +671,11 @@ function App() {
             />
           )}
           {activeTab === 'rentals' && (
-            <RentalsPage data={rentalData} onBack={() => setActiveTab('my')} />
+            <RentalsPage
+              data={rentalData}
+              onBack={() => setActiveTab('my')}
+              onError={message => toast.error(message)}
+            />
           )}
 
         </main>
