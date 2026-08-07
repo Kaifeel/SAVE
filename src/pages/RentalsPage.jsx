@@ -82,12 +82,14 @@ export default function RentalsPage({ data, onBack, onError }) {
         <RentalList title="받은 요청" rentals={data.received} role="lender" onTransition={data.transition} onReview={setReviewRentalId} pendingAction={data.pendingAction} />
         <RentalList title="보낸 요청" rentals={data.sent} role="borrower" onTransition={data.transition} onReview={setReviewRentalId} pendingAction={data.pendingAction} />
       </AsyncState>
-      <ReviewFormModal
-        isOpen={reviewRentalId != null}
-        isSubmitting={reviewPending}
-        onClose={() => setReviewRentalId(null)}
-        onSubmit={submitReview}
-      />
+      {reviewRentalId != null && (
+        <ReviewFormModal
+          isOpen
+          isSubmitting={reviewPending}
+          onClose={() => setReviewRentalId(null)}
+          onSubmit={submitReview}
+        />
+      )}
     </div>
   )
 }

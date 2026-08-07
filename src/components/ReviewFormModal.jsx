@@ -1,5 +1,5 @@
 import { Star, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 export default function ReviewFormModal({
   isOpen,
@@ -10,13 +10,6 @@ export default function ReviewFormModal({
   const [rating, setRating] = useState(0)
   const [content, setContent] = useState('')
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (!isOpen) return
-    setRating(0)
-    setContent('')
-    setError('')
-  }, [isOpen])
 
   if (!isOpen) return null
 
