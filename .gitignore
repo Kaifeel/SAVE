@@ -12,6 +12,7 @@ dist
 dist-ssr
 .worktrees
 *.local
+.env.example
 
 # Editor directories and files
 .vscode/*
