@@ -46,6 +46,7 @@ import RentalRequestForm from './components/RentalRequestForm.jsx'
 import ReportModal from './components/ReportModal.jsx'
 import { addWishlist, removeWishlist } from './api/wishlist.js'
 import { useToast } from './components/toast.js'
+import { availableItems } from './utils/itemVisibility.js'
 import {
   MapPin,
   Bell,
@@ -330,12 +331,12 @@ function App() {
   }, [campusItems, activeBoard, availableOnly])
 
   // Split into sections
-  const recommendItems = USE_API
+  const recommendItems = availableItems(USE_API
     ? (recommendationData.current?.items || [])
-    : campusItems.filter(i => i.section === 'recommend')
+    : campusItems.filter(i => i.section === 'recommend'))
   const popularItems = useMemo(() => campusItems.filter(i => i.section === 'popular'), [campusItems])
   const homePopularItems = useMemo(
-    () => USE_API ? campusItems.slice(0, 4) : popularItems,
+    () => availableItems(USE_API ? campusItems : popularItems).slice(0, 4),
     [campusItems, popularItems],
   )
   const recentItems = useMemo(() => campusItems.filter(i => i.section === 'recent'), [campusItems])
