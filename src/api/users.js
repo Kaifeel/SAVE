@@ -27,3 +27,7 @@ export function getPublicUserProfile(userId, accessToken) {
 export function getPublicUserItems(userId, accessToken) {
   return apiFetch(`/users/${userId}/items`, { accessToken })
 }
+
+export function getPublicUserReviews(userId, accessToken) {
+  return apiFetch(`/users/${userId}/reviews`, { accessToken })
+}

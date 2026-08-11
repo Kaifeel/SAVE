@@ -4,6 +4,7 @@ import com.save.item.Item;
 import com.save.chat.domain.ChatRoom;
 import com.save.user.User;
 import jakarta.persistence.*;
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Entity
@@ -47,6 +48,9 @@ public class Rental {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "returned_at")
+    private Instant returnedAt;
+
     protected Rental() {}
     public Rental(Item item, User borrower, User lender, ChatRoom chatRoom,
                   LocalDateTime startDate, LocalDateTime endDate, Integer totalPrice) {
@@ -72,5 +76,13 @@ public class Rental {
     public RentalStatus getStatus() { return status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public Instant getReturnedAt() { return returnedAt; }
     public void changeStatus(RentalStatus status) { this.status = status; }
+    public void returnItem(Instant returnedAt) {
+        if (this.returnedAt != null) {
+            throw new IllegalStateException("반납 시각은 다시 설정할 수 없습니다.");
+        }
+        this.status = RentalStatus.RETURNED;
+        this.returnedAt = returnedAt;
+    }
 }

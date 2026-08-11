@@ -2,7 +2,7 @@ package com.save.item;
 
 import com.save.user.User;
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,11 +47,15 @@ public class Item {
     @Column(name = "view_count", nullable = false)
     private Integer viewCount = 0;
 
+    /**
+     * 게시물 감사 시각은 서버 기본 시간대와 무관한 UTC 절대 시각으로 저장한다.
+     * 사용자 현지 시간 변환은 API를 소비하는 화면의 표시 단계에서 수행한다.
+     */
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
+    private Instant updatedAt;
 
     @OneToMany(mappedBy = "item", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC")
@@ -85,13 +89,13 @@ public class Item {
 
     @PrePersist
     void prePersist() {
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         createdAt = now;
         updatedAt = now;
     }
 
     @PreUpdate
-    void preUpdate() { updatedAt = LocalDateTime.now(); }
+    void preUpdate() { updatedAt = Instant.now(); }
 
     public Integer getId() { return id; }
     public User getOwner() { return owner; }
@@ -104,8 +108,8 @@ public class Item {
     public String getPrecautions() { return precautions; }
     public ItemStatus getStatus() { return status; }
     public Integer getViewCount() { return viewCount; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
     public List<String> getPhotoUrls() {
         return images.stream().map(ItemImage::getImageUrl).toList();
     }

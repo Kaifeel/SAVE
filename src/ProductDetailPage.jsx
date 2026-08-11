@@ -10,6 +10,8 @@ import {
   Star,
   User
 } from 'lucide-react'
+import { useNow } from './hooks/useNow'
+import { formatRelativeTime } from './utils/relativeTime'
 
 export default function ProductDetailPage({
   item,
@@ -26,6 +28,8 @@ export default function ProductDetailPage({
   const ItemIcon = item.imageIcon
   const ownerName = item.owner?.split(' ')[0] || '대여자'
   const priceLabel = item.price === 0 ? '무료' : `${item.price.toLocaleString()}원/${item.priceType}`
+  const now = useNow()
+  const relativeTime = formatRelativeTime(item.createdAt, now)
 
   return (
     <div className="absolute inset-0 z-50 bg-white flex flex-col animate-in fade-in duration-200">
@@ -90,11 +94,17 @@ export default function ProductDetailPage({
                   <MapPin className="w-3 h-3 text-indigo-500" />
                   {item.location}
                 </span>
-                <span className="inline-flex items-center gap-0.5">
+                {relativeTime && <span>{relativeTime}</span>}
+                <button
+                  type="button"
+                  onClick={() => onOwnerProfile?.(item)}
+                  aria-label={`작성자 평점 ${item.rating}, 후기 ${item.reviews}개 보기`}
+                  className="inline-flex items-center gap-0.5"
+                >
                   <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                   <span className="text-slate-600 font-bold">{item.rating}</span>
                   <span>({item.reviews}개 후기)</span>
-                </span>
+                </button>
               </div>
             </div>
             <div className="text-right flex-shrink-0">

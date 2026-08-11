@@ -68,6 +68,17 @@ export function useRentals({
     }
   }, [accessToken, api, onRentalChanged, reload])
 
+  const submitReview = useCallback(async (id, review) => {
+    setPendingAction(`${id}:submitReview`)
+    try {
+      const result = await api.submitRentalReview(id, review, accessToken)
+      await Promise.allSettled([reload(), onRentalChanged?.()])
+      return result
+    } finally {
+      setPendingAction(null)
+    }
+  }, [accessToken, api, onRentalChanged, reload])
+
   return {
     rentals,
     sent: rentals.filter(rental => rental.borrower_id === currentUserId),
@@ -78,5 +89,6 @@ export function useRentals({
     reload,
     create,
     transition,
+    submitReview,
   }
 }

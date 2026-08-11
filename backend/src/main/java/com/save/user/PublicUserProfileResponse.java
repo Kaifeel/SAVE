@@ -1,5 +1,7 @@
 package com.save.user;
 
+import com.save.review.ReviewSummary;
+
 public record PublicUserProfileResponse(
         Integer id,
         String name,
@@ -11,7 +13,8 @@ public record PublicUserProfileResponse(
         long reviewCount,
         long completedTradeCount) {
 
-    public static PublicUserProfileResponse from(User user, long completedTradeCount) {
+    public static PublicUserProfileResponse from(User user, long completedTradeCount,
+                                                 ReviewSummary reviewSummary) {
         Integer universityId = user.getUniversity() == null ? null : user.getUniversity().getId();
         String universityName = user.getUniversity() == null ? null : user.getUniversity().getName();
         return new PublicUserProfileResponse(
@@ -21,8 +24,8 @@ public record PublicUserProfileResponse(
                 universityId,
                 universityName,
                 user.getProfileImageUrl(),
-                0.0,
-                0,
+                reviewSummary.rating(),
+                reviewSummary.reviewCount(),
                 completedTradeCount);
     }
 }

@@ -7,9 +7,11 @@ import com.save.item.Item;
 import com.save.item.ItemRepository;
 import com.save.item.ItemStatus;
 import com.save.notification.InAppNotificationService;
+import com.save.review.ReviewService;
 import com.save.user.User;
 import com.save.user.UserRepository;
 import java.util.List;
+import java.time.Clock;
 import java.time.Duration;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,15 +24,20 @@ public class RentalService {
     private final UserRepository userRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final InAppNotificationService notificationService;
+    private final ReviewService reviewService;
+    private final Clock clock;
 
     public RentalService(RentalRepository rentalRepository, ItemRepository itemRepository,
                          UserRepository userRepository, ChatRoomRepository chatRoomRepository,
-                         InAppNotificationService notificationService) {
+                         InAppNotificationService notificationService, ReviewService reviewService,
+                         Clock clock) {
         this.rentalRepository = rentalRepository;
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
         this.chatRoomRepository = chatRoomRepository;
         this.notificationService = notificationService;
+        this.reviewService = reviewService;
+        this.clock = clock;
     }
 
     @Transactional
@@ -68,18 +75,18 @@ public class RentalService {
                 chatRoom, request.startDate(), request.endDate(), request.totalPrice()));
         item.changeStatus(ItemStatus.REQUEST_PENDING);
         notificationService.rentalRequested(rental);
-        return RentalResponse.from(rental);
+        return response(rental, borrowerId);
     }
 
     @Transactional(readOnly = true)
     public List<RentalResponse> getMine(Integer userId) {
         return rentalRepository.findByBorrowerIdOrLenderIdOrderByCreatedAtDesc(userId, userId)
-                .stream().map(RentalResponse::from).toList();
+                .stream().map(rental -> response(rental, userId)).toList();
     }
 
     @Transactional(readOnly = true)
     public RentalResponse detail(Integer rentalId, Integer userId) {
-        return RentalResponse.from(findAccessible(rentalId, userId));
+        return response(findAccessible(rentalId, userId), userId);
     }
 
     @Transactional
@@ -91,7 +98,7 @@ public class RentalService {
         rental.changeStatus(RentalStatus.REJECTED);
         rental.getItem().changeStatus(ItemStatus.AVAILABLE);
         notificationService.rentalRejected(rental);
-        return RentalResponse.from(rental);
+        return response(rental, userId);
     }
 
     @Transactional
@@ -107,7 +114,7 @@ public class RentalService {
                 ? ItemStatus.REQUEST_PENDING : ItemStatus.RESERVED);
         rental.getItem().changeStatus(ItemStatus.AVAILABLE);
         rental.changeStatus(RentalStatus.CANCELED);
-        return RentalResponse.from(rental);
+        return response(rental, userId);
     }
 
     @Transactional
@@ -119,7 +126,7 @@ public class RentalService {
         rental.changeStatus(RentalStatus.RENTING);
         rental.getItem().changeStatus(ItemStatus.RENTED);
         notificationService.rentalStarted(rental);
-        return RentalResponse.from(rental);
+        return response(rental, userId);
     }
 
     @Transactional
@@ -128,9 +135,13 @@ public class RentalService {
         requireLender(rental, userId);
         requireStatus(rental, RentalStatus.RENTING);
         requireItemStatus(rental, ItemStatus.RENTED);
-        rental.changeStatus(RentalStatus.RETURNED);
+        rental.returnItem(clock.instant());
         rental.getItem().changeStatus(ItemStatus.AVAILABLE);
-        return RentalResponse.from(rental);
+        return response(rental, userId);
+    }
+
+    private RentalResponse response(Rental rental, Integer userId) {
+        return RentalResponse.from(rental, reviewService.workflow(rental, userId));
     }
 
     private Rental findAccessible(Integer id, Integer userId) {

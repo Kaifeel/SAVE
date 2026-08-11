@@ -366,6 +366,7 @@ function App() {
       imageIcon: SelectedIcon,
       iconColor: colorClasses,
       status: 'available',
+      createdAt: new Date().toISOString(),
       photos: newPhotos.map(file => ({ name: file.name, size: file.size }))
     }
 
@@ -670,7 +671,11 @@ function App() {
             />
           )}
           {activeTab === 'rentals' && (
-            <RentalsPage data={rentalData} onBack={() => setActiveTab('my')} />
+            <RentalsPage
+              data={rentalData}
+              onBack={() => setActiveTab('my')}
+              onError={message => toast.error(message)}
+            />
           )}
 
         </main>

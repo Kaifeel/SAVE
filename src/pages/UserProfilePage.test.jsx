@@ -24,6 +24,7 @@ const api = {
     rental_unit: 'DAY',
     status: 'AVAILABLE',
   }]),
+  getPublicUserReviews: vi.fn().mockResolvedValue([]),
 }
 
 it('shows exact placeholder scores and opens one of the owner items', async () => {
@@ -68,4 +69,22 @@ it('returns to the item detail and connects reporting', async () => {
 
   expect(onReport).toHaveBeenCalledTimes(1)
   expect(onBack).toHaveBeenCalledTimes(1)
+})
+
+it('shows published reviews with the transaction role', async () => {
+  const reviewApi = {
+    ...api,
+    getPublicUserReviews: vi.fn().mockResolvedValue([{
+      id: 9, rating: 5, content: '좋은 거래였어요.',
+      created_at: '2026-08-07T03:00:00Z', item_id: 7, item_title: '튼튼한 우산',
+      reviewer_id: 2, reviewer_name: '김학생', reviewee_role: 'LENDER',
+    }]),
+  }
+  render(<UserProfilePage userId={12} accessToken="token" api={reviewApi} onBack={vi.fn()} />)
+
+  expect(await screen.findByRole('heading', { name: '김작성' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: '받은 후기' })).toBeInTheDocument()
+  expect(screen.getByText('좋은 거래였어요.')).toBeInTheDocument()
+  expect(screen.getByText('김학생 · 튼튼한 우산')).toBeInTheDocument()
+  expect(screen.getByText('물품 주인으로 받은 후기')).toBeInTheDocument()
 })

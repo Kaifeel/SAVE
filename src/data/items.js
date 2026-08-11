@@ -1,5 +1,7 @@
 import { BookOpen, Calculator, Laptop, PenTool, Plug, Shirt, Umbrella } from 'lucide-react'
 
+const minutesAgo = minutes => new Date(Date.now() - minutes * 60_000).toISOString()
+
 // Initial list of items combining Image 1, Image 2, and extra detailed mockup items
 export const INITIAL_ITEMS = [
   // Section 1: 오늘의 AI 추천 물품 (비 오는 날 우산이 없으신가요?)
@@ -140,7 +142,8 @@ export const INITIAL_ITEMS = [
     description: '필기구 지갑을 두고 와서 볼펜 한 자루만 잠시 빌려주실 천사 구합니다... 반납할 때 마이쮸 드릴게요!',
     imageIcon: PenTool,
     iconColor: 'text-blue-500 bg-blue-50',
-    status: 'available'
+    status: 'available',
+    createdAt: minutesAgo(5),
   },
   {
     id: 8,
@@ -158,7 +161,8 @@ export const INITIAL_ITEMS = [
     description: '배터리가 2% 남았습니다. 1시간 정도만 누리관 휴게실에서 노트북/폰 충전기 빌려주실 분 찾습니다.',
     imageIcon: Plug,
     iconColor: 'text-amber-500 bg-amber-50',
-    status: 'available'
+    status: 'available',
+    createdAt: minutesAgo(12),
   },
   // Items for 한국대학교
   {

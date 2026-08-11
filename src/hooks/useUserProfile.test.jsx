@@ -21,6 +21,17 @@ it('loads and normalizes a public profile with its visible items', async () => {
       rental_unit: 'DAY',
       status: 'AVAILABLE',
     }]),
+    getPublicUserReviews: vi.fn().mockResolvedValue([{
+      id: 9,
+      rating: 5,
+      content: '좋은 거래였어요.',
+      created_at: '2026-08-07T03:00:00Z',
+      item_id: 7,
+      item_title: '우산',
+      reviewer_id: 2,
+      reviewer_name: '김학생',
+      reviewee_role: 'LENDER',
+    }]),
   }
 
   const { result } = renderHook(() => useUserProfile({
@@ -33,6 +44,7 @@ it('loads and normalizes a public profile with its visible items', async () => {
 
   expect(api.getPublicUserProfile).toHaveBeenCalledWith(12, 'token')
   expect(api.getPublicUserItems).toHaveBeenCalledWith(12, 'token')
+  expect(api.getPublicUserReviews).toHaveBeenCalledWith(12, 'token')
   expect(result.current.profile).toMatchObject({
     id: 12,
     name: '작성자',
@@ -46,5 +58,10 @@ it('loads and normalizes a public profile with its visible items', async () => {
     ownerId: 12,
     title: '우산',
     priceType: '일',
+  })
+  expect(result.current.reviews[0]).toMatchObject({
+    id: 9,
+    reviewerName: '김학생',
+    revieweeRole: 'LENDER',
   })
 })
