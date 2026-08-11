@@ -22,7 +22,7 @@ REST API Base URL은 `/api/v1`입니다.
 
 ### 회원가입과 로그인
 
-비밀번호는 BCrypt 해시로만 저장되며 로그인 성공 시 1시간 유효한 JWT를 반환합니다.
+비밀번호는 BCrypt 해시로만 저장되며 로그인 성공 시 기본 15분 유효한 JWT를 반환합니다.
 회원가입, 일반 로그인 및 Google 로그인은 정확히 `@pukyong.ac.kr` 도메인인
 부경대학교 이메일만 허용합니다.
 
@@ -57,6 +57,20 @@ Authorization: Bearer {accessToken}
 ```
 
 운영 환경에서는 반드시 충분히 긴 무작위 `JWT_SECRET` 환경변수를 설정합니다.
+
+로그인 성공 시 14일 절대 만료의 불투명 리프레시 토큰도 `save_refresh` HttpOnly
+쿠키로 발급됩니다. 원문 토큰은 DB에 저장하지 않고 SHA-256 해시만 저장하며, 새 액세스
+토큰을 받을 때마다 쿠키를 회전합니다. 이미 사용한 쿠키가 재사용되면 해당 토큰 가족을
+모두 폐기합니다.
+
+```http
+POST /api/v1/auth/refresh
+POST /api/v1/auth/logout
+```
+
+프런트는 액세스 토큰과 사용자 정보를 메모리에만 두고, 브라우저 새로고침 시
+`/auth/refresh`로 최신 사용자 프로필을 다시 받습니다. 운영 프로필의 리프레시 쿠키는
+`Secure`이며, 로컬 개발 프로필에서는 HTTP 테스트를 위해 `Secure=false`입니다.
 
 ### 대학, 수령 장소와 물품
 
@@ -108,8 +122,16 @@ Authorization: Bearer {accessToken}
 ```
 
 공개 프로필은 이름, 학과, 대학, 프로필 이미지, 평점, 후기 수, 완료 거래 수만 반환하며
-이메일, OAuth 식별자, 비밀번호 해시, 권한은 반환하지 않습니다. 평점과 후기 기능이
-도입되기 전까지 값은 각각 `0.0`, `0`이고 완료 거래 수는 `RETURNED` 기록을 집계합니다.
+이메일, OAuth 식별자, 비밀번호 해시, 권한은 반환하지 않습니다. 완료 거래 수는
+`RETURNED` 기록을 집계합니다. 반납 완료 후 양쪽 참여자는 7일 안에 후기를 작성할 수
+있으며 첫 후기는 상대방에게 숨겨집니다. 양쪽 후기가 모두 제출되거나 작성 기한이 끝난
+뒤에만 공개됩니다.
+
+```http
+POST /api/v1/rentals/{rentalId}/reviews
+GET /api/v1/users/{userId}/reviews
+Authorization: Bearer {accessToken}
+```
 
 ## 실행 및 테스트
 
@@ -182,8 +204,10 @@ PATCH /api/v1/notifications/read-all
 
 새 알림은 데이터베이스 트랜잭션이 커밋된 뒤 개인 STOMP 목적지
 `/user/queue/notifications`로 전달됩니다. 현재 앱 안 알림 유형은
-`RENTAL_REQUESTED`, `RENTAL_APPROVED`, `RENTAL_REJECTED`입니다. Firebase 앱 밖
-푸시 알림과는 별개이며, 대여 상태 앱 밖 푸시는 아직 이 흐름에 연결하지 않았습니다.
+`RENTAL_REQUESTED`, `RENTAL_APPROVED`, `RENTAL_REJECTED`, `REVIEW_PUBLISHED`입니다.
+상호 후기가 공개되면 양쪽 참여자에게 `REVIEW_PUBLISHED`가 전달되어 대여 내역과
+프로필 후기가 새로고침 없이 갱신됩니다. Firebase 앱 밖 푸시 알림과는 별개이며,
+대여 상태 앱 밖 푸시는 아직 이 흐름에 연결하지 않았습니다.
 
 ## Firebase Cloud Messaging 설정
 
@@ -260,6 +284,8 @@ DB_URL=jdbc:postgresql://db-host:5432/save
 DB_USERNAME=save
 DB_PASSWORD=...
 JWT_SECRET=... # 32자 이상의 충분히 긴 무작위 값
+JWT_EXPIRATION_SECONDS=900
+REFRESH_TOKEN_EXPIRATION_SECONDS=1209600
 CORS_ALLOWED_ORIGINS=https://save.example
 OPENAI_API_KEY=...
 S3_REGION=ap-northeast-2
