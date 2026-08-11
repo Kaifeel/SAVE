@@ -65,3 +65,25 @@ it('loads and normalizes a public profile with its visible items', async () => {
     revieweeRole: 'LENDER',
   })
 })
+
+it('reloads an open profile when the review refresh key changes', async () => {
+  const api = {
+    getPublicUserProfile: vi.fn().mockResolvedValue({ id: 12, name: '작성자' }),
+    getPublicUserItems: vi.fn().mockResolvedValue([]),
+    getPublicUserReviews: vi.fn().mockResolvedValue([]),
+  }
+  const { rerender } = renderHook(
+    ({ refreshKey }) => useUserProfile({
+      userId: 12,
+      accessToken: 'token',
+      refreshKey,
+      api,
+    }),
+    { initialProps: { refreshKey: 0 } },
+  )
+  await waitFor(() => expect(api.getPublicUserReviews).toHaveBeenCalledTimes(1))
+
+  rerender({ refreshKey: 1 })
+
+  await waitFor(() => expect(api.getPublicUserReviews).toHaveBeenCalledTimes(2))
+})

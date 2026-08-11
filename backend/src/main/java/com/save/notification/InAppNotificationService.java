@@ -34,6 +34,14 @@ public class InAppNotificationService {
                 "대여 요청 거절", rental.getItem().getTitle() + " 대여 요청이 거절되었습니다.");
     }
 
+    public void reviewPublished(Rental rental) {
+        String itemTitle = rental.getItem().getTitle();
+        create(rental, rental.getLender().getId(), InAppNotificationType.REVIEW_PUBLISHED,
+                "후기 공개", itemTitle + " 거래 후기가 공개되었습니다.");
+        create(rental, rental.getBorrower().getId(), InAppNotificationType.REVIEW_PUBLISHED,
+                "후기 공개", itemTitle + " 거래 후기가 공개되었습니다.");
+    }
+
     private void create(Rental rental, Integer recipientId, InAppNotificationType type,
                         String title, String content) {
         var recipient = rental.getLender().getId().equals(recipientId)

@@ -72,6 +72,14 @@ export function useRentals({
     setPendingAction(`${id}:submitReview`)
     try {
       const result = await api.submitRentalReview(id, review, accessToken)
+      setRentals(current => current.map(rental => rental.id === id
+        ? {
+            ...rental,
+            reviewState: result.review_state ?? result.reviewState ?? rental.reviewState,
+            reviewDeadline:
+              result.review_deadline ?? result.reviewDeadline ?? rental.reviewDeadline,
+          }
+        : rental))
       await Promise.allSettled([reload(), onRentalChanged?.()])
       return result
     } finally {

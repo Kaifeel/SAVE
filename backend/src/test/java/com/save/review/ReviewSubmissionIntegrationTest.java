@@ -11,6 +11,8 @@ import com.save.chat.domain.ChatRoom;
 import com.save.chat.repository.ChatRoomRepository;
 import com.save.item.Item;
 import com.save.item.ItemRepository;
+import com.save.notification.InAppNotificationRepository;
+import com.save.notification.InAppNotificationType;
 import com.save.rental.Rental;
 import com.save.rental.RentalRepository;
 import com.save.rental.RentalStatus;
@@ -48,6 +50,7 @@ class ReviewSubmissionIntegrationTest {
     @Autowired ChatRoomRepository chatRoomRepository;
     @Autowired RentalRepository rentalRepository;
     @Autowired ReviewRepository reviewRepository;
+    @Autowired InAppNotificationRepository notificationRepository;
     @Autowired MutableClock clock;
 
     @BeforeEach
@@ -85,6 +88,13 @@ class ReviewSubmissionIntegrationTest {
                 .andExpect(jsonPath("$.review_state").value("PUBLISHED"))
                 .andExpect(jsonPath("$.review.rating").value(4))
                 .andExpect(jsonPath("$.review.content").value("깨끗한 물품이었어요."));
+
+        var notifications = notificationRepository.findAll();
+        assertThat(notifications).hasSize(2);
+        assertThat(notifications).allMatch(notification ->
+                notification.getType() == InAppNotificationType.REVIEW_PUBLISHED);
+        assertThat(notifications).extracting(notification -> notification.getRecipient().getId())
+                .containsExactlyInAnyOrder(fixture.lenderId(), fixture.borrowerId());
     }
 
     @Test

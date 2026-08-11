@@ -4,6 +4,7 @@ import com.save.common.BusinessException;
 import com.save.rental.Rental;
 import com.save.rental.RentalRepository;
 import com.save.rental.RentalStatus;
+import com.save.notification.InAppNotificationService;
 import com.save.user.User;
 import java.time.Clock;
 import java.time.Instant;
@@ -16,12 +17,14 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final RentalRepository rentalRepository;
     private final Clock clock;
+    private final InAppNotificationService notificationService;
 
     public ReviewService(ReviewRepository reviewRepository, RentalRepository rentalRepository,
-                         Clock clock) {
+                         Clock clock, InAppNotificationService notificationService) {
         this.reviewRepository = reviewRepository;
         this.rentalRepository = rentalRepository;
         this.clock = clock;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -48,6 +51,7 @@ public class ReviewService {
         Review review = reviewRepository.save(new Review(rental, reviewer, reviewee,
                 request.rating(), request.content().trim(), now));
         boolean published = reviewRepository.countByRentalId(rentalId) == 2;
+        if (published) notificationService.reviewPublished(rental);
         return new ReviewSubmissionResponse(
                 published ? ReviewState.PUBLISHED : ReviewState.SUBMITTED_WAITING,
                 deadline,

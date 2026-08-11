@@ -12,6 +12,7 @@ export function useUserProfile({
   userId,
   accessToken,
   enabled = true,
+  refreshKey = 0,
   api = defaultApi,
 }) {
   const [state, setState] = useState({
@@ -47,7 +48,7 @@ export function useUserProfile({
       })
 
     return () => { active = false }
-  }, [accessToken, api, enabled, reloadKey, userId])
+  }, [accessToken, api, enabled, refreshKey, reloadKey, userId])
 
   const reload = useCallback(() => {
     setState(current => ({ ...current, loading: true, error: null }))

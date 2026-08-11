@@ -37,10 +37,17 @@ it('locks a transition and refreshes related screens after server success', asyn
   expect(result.current.pendingAction).toBeNull()
 })
 
-it('submits a review and reloads rental workflow state', async () => {
+it('merges submitted review state before the background reload completes', async () => {
+  let finishReload
+  const initialRental = { id: 3, borrower_id: 2, reviewState: 'AVAILABLE' }
   const api = {
-    getMyRentals: vi.fn().mockResolvedValue([]),
-    submitRentalReview: vi.fn().mockResolvedValue({ review_state: 'SUBMITTED_WAITING' }),
+    getMyRentals: vi.fn()
+      .mockResolvedValueOnce([initialRental])
+      .mockImplementationOnce(() => new Promise(resolve => { finishReload = resolve })),
+    submitRentalReview: vi.fn().mockResolvedValue({
+      review_state: 'SUBMITTED_WAITING',
+      review_deadline: '2026-08-18T03:00:00Z',
+    }),
   }
   const onRentalChanged = vi.fn().mockResolvedValue(undefined)
   const { result } = renderHook(() => useRentals({
@@ -52,8 +59,19 @@ it('submits a review and reloads rental workflow state', async () => {
   }))
   await waitFor(() => expect(result.current.loading).toBe(false))
 
+  let submission
+  act(() => {
+    submission = result.current.submitReview(3, { rating: 5, content: '좋았어요.' })
+  })
+
+  await waitFor(() => expect(result.current.rentals[0]).toMatchObject({
+    reviewState: 'SUBMITTED_WAITING',
+    reviewDeadline: '2026-08-18T03:00:00Z',
+  }))
+
   await act(async () => {
-    await result.current.submitReview(3, { rating: 5, content: '좋았어요.' })
+    finishReload([{ ...initialRental, reviewState: 'SUBMITTED_WAITING' }])
+    await submission
   })
 
   expect(api.submitRentalReview).toHaveBeenCalledWith(

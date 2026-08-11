@@ -7,6 +7,9 @@ import { useAuthStore } from './store/authStore.js'
 const testState = vi.hoisted(() => ({
   chatOptions: null,
   toast: { error: vi.fn(), success: vi.fn() },
+  reloadItems: vi.fn(),
+  reloadRentals: vi.fn(),
+  reloadMyPage: vi.fn(),
 }))
 
 vi.mock('./components/toast.js', () => ({
@@ -29,6 +32,7 @@ vi.mock('./hooks/useItems.js', () => ({
     update: vi.fn(),
     remove: vi.fn(),
     updateStatus: vi.fn(),
+    reload: testState.reloadItems,
     loading: false,
     error: null,
   }),
@@ -46,9 +50,11 @@ vi.mock('./hooks/useChatRooms.js', () => ({
   },
 }))
 
-vi.mock('./hooks/useRentals.js', () => ({ useRentals: () => ({}) }))
+vi.mock('./hooks/useRentals.js', () => ({
+  useRentals: () => ({ reload: testState.reloadRentals }),
+}))
 vi.mock('./hooks/useMyPageData.js', () => ({
-  useMyPageData: () => ({ wishlist: { data: [] } }),
+  useMyPageData: () => ({ wishlist: { data: [] }, reload: testState.reloadMyPage }),
 }))
 vi.mock('./hooks/useRecommendations.js', () => ({
   useRecommendations: () => ({ current: null }),
@@ -61,6 +67,7 @@ vi.mock('./api/notifications.js', () => ({
   getNotifications: vi.fn(),
   normalizeNotification: notification => ({
     id: notification.id,
+    type: notification.type,
     title: notification.title,
     text: notification.content ?? notification.text,
     read: Boolean(notification.read),
@@ -71,6 +78,9 @@ vi.mock('./api/notifications.js', () => ({
 
 beforeEach(() => {
   testState.chatOptions = null
+  testState.reloadItems.mockResolvedValue(undefined)
+  testState.reloadRentals.mockResolvedValue(undefined)
+  testState.reloadMyPage.mockResolvedValue(undefined)
   useAuthStore.getState().setSession({
     access_token: 'jwt',
     user: {
@@ -134,4 +144,25 @@ it('merges a realtime notification only once', async () => {
 
   fireEvent.click(screen.getByRole('button', { name: '알림 열기' }))
   expect(screen.getAllByText('실시간 요청')).toHaveLength(1)
+})
+
+it('reloads review-related screens when mutual reviews are published', async () => {
+  getNotifications.mockResolvedValue([])
+  render(<App />)
+  await waitFor(() => expect(testState.chatOptions?.onNotification).toBeTypeOf('function'))
+
+  act(() => {
+    testState.chatOptions.onNotification({
+      id: 30,
+      type: 'REVIEW_PUBLISHED',
+      title: '후기 공개',
+      content: '서로의 후기가 공개되었습니다.',
+    })
+  })
+
+  await waitFor(() => {
+    expect(testState.reloadRentals).toHaveBeenCalledTimes(1)
+    expect(testState.reloadMyPage).toHaveBeenCalledTimes(1)
+    expect(testState.reloadItems).toHaveBeenCalledTimes(1)
+  })
 })

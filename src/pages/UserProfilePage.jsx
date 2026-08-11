@@ -25,6 +25,7 @@ export default function UserProfilePage({
   userId,
   accessToken,
   enabled = true,
+  refreshKey = 0,
   fallbackItem,
   fallbackItems = [],
   onBack,
@@ -34,7 +35,13 @@ export default function UserProfilePage({
   api,
 }) {
   const remoteEnabled = enabled && Boolean(userId)
-  const remote = useUserProfile({ userId, accessToken, enabled: remoteEnabled, api })
+  const remote = useUserProfile({
+    userId,
+    accessToken,
+    enabled: remoteEnabled,
+    refreshKey,
+    api,
+  })
   const cachedProfile = fallbackProfile(fallbackItem)
   const useFallback = !remoteEnabled || (Boolean(remote.error) && Boolean(cachedProfile))
   const profile = useFallback ? cachedProfile : remote.profile

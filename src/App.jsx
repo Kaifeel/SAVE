@@ -54,6 +54,12 @@ import {
 } from 'lucide-react'
 
 const DEV_AUTO_LOGIN = import.meta.env.VITE_AUTO_LOGIN === 'true'
+const WORKFLOW_NOTIFICATION_TYPES = new Set([
+  'RENTAL_REQUESTED',
+  'RENTAL_APPROVED',
+  'RENTAL_REJECTED',
+  'REVIEW_PUBLISHED',
+])
 
 function App() {
   const toast = useToast()
@@ -111,6 +117,7 @@ function App() {
   // Modals & Sheets
   const [selectedItem, setSelectedItem] = useState(null)
   const [profileTarget, setProfileTarget] = useState(null)
+  const [workflowRefreshVersion, setWorkflowRefreshVersion] = useState(0)
   const [reportTarget, setReportTarget] = useState(null)
   const [reportReason, setReportReason] = useState('')
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
@@ -181,20 +188,6 @@ function App() {
       ? { ...room, unreadCount: 0, unread: false }
       : room))
   }, [])
-  const handleNotification = useCallback(response => {
-    const incoming = normalizeNotification(response)
-    setNotifications(current => current.some(entry => entry.id === incoming.id)
-      ? current
-      : [incoming, ...current])
-  }, [])
-  const chatData = useChatRooms({
-    accessToken,
-    currentUserId: savedUser?.id,
-    realtime: USE_API && !isAdminPath,
-    onChatListUpdate: handleChatListUpdate,
-    onRoomRead: handleChatRoomRead,
-    onNotification: handleNotification,
-  })
   const myPageData = useMyPageData({
     accessToken,
     enabled: USE_API && isLoggedIn && Boolean(accessToken) && !isAdminPath,
@@ -210,6 +203,29 @@ function App() {
     enabled: USE_API && isLoggedIn && Boolean(accessToken) && !isAdminPath,
     onRentalChanged: handleRentalChanged,
   })
+  const { reload: reloadRentals } = rentalData
+  const handleNotification = useCallback(response => {
+    const incoming = normalizeNotification(response)
+    setNotifications(current => current.some(entry => entry.id === incoming.id)
+      ? current
+      : [incoming, ...current])
+    if (WORKFLOW_NOTIFICATION_TYPES.has(incoming.type)) {
+      setWorkflowRefreshVersion(value => value + 1)
+      Promise.allSettled([
+        reloadRentals?.(),
+        reloadMyPage?.(),
+        reloadItems?.(),
+      ])
+    }
+  }, [reloadItems, reloadMyPage, reloadRentals])
+  const chatData = useChatRooms({
+    accessToken,
+    currentUserId: savedUser?.id,
+    realtime: USE_API && !isAdminPath,
+    onChatListUpdate: handleChatListUpdate,
+    onRoomRead: handleChatRoomRead,
+    onNotification: handleNotification,
+  })
   const recommendationData = useRecommendations({
     accessToken,
     enabled: USE_API && isLoggedIn && Boolean(accessToken) && !isAdminPath,
@@ -218,6 +234,10 @@ function App() {
   })
   const activeChatRoom = chatData.activeRoom
   const setActiveChatRoom = chatData.setActiveRoom
+
+  useEffect(() => {
+    if (activeTab === 'rentals' && USE_API && isLoggedIn) reloadRentals?.()
+  }, [activeTab, isLoggedIn, reloadRentals])
 
   useEffect(() => subscribeUnauthorized(() => {
     clearSession()
@@ -832,6 +852,7 @@ function App() {
             userId={profileTarget.ownerId}
             accessToken={accessToken}
             enabled={USE_API}
+            refreshKey={workflowRefreshVersion}
             fallbackItem={profileTarget}
             fallbackItems={items.filter(item => profileTarget.ownerId
               ? item.ownerId === profileTarget.ownerId
