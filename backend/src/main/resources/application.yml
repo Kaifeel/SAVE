@@ -20,7 +20,12 @@ security:
   jwt:
     # Local development default only. Set JWT_SECRET to a long random value in production.
     secret: ${JWT_SECRET:save-local-development-jwt-secret-change-me-2026}
-    expiration-seconds: ${JWT_EXPIRATION_SECONDS:3600}
+    expiration-seconds: ${JWT_EXPIRATION_SECONDS:900}
+  refresh-token:
+    expiration-seconds: ${REFRESH_TOKEN_EXPIRATION_SECONDS:1209600}
+    cookie-name: save_refresh
+    cookie-path: /api/v1/auth
+    cookie-secure: false
 
 storage:
   max-file-size: ${UPLOAD_MAX_FILE_SIZE:10485760}

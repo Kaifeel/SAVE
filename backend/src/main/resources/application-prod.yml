@@ -21,6 +21,10 @@ spring:
 server:
   forward-headers-strategy: framework
 
+security:
+  refresh-token:
+    cookie-secure: true
+
 storage:
   s3:
     endpoint: ${S3_ENDPOINT:}

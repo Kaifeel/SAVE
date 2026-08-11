@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.save.user.User;
 import com.save.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -25,10 +26,13 @@ class AuthIntegrationTest {
     @Autowired MockMvc mockMvc;
     @Autowired ObjectMapper objectMapper;
     @Autowired UserRepository userRepository;
+    @Autowired RefreshTokenRepository refreshTokenRepository;
     @Autowired PasswordEncoder passwordEncoder;
 
     @BeforeEach
+    @AfterEach
     void cleanUp() {
+        refreshTokenRepository.deleteAll();
         userRepository.deleteAll();
     }
 
