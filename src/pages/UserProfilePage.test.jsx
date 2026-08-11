@@ -88,3 +88,22 @@ it('shows published reviews with the transaction role', async () => {
   expect(screen.getByText('김학생 · 튼튼한 우산')).toBeInTheDocument()
   expect(screen.getByText('물품 주인으로 받은 후기')).toBeInTheDocument()
 })
+
+it('renders malicious review markup as inert text', async () => {
+  const malicious = '<img src=x onerror=alert(1)>'
+  const reviewApi = {
+    ...api,
+    getPublicUserReviews: vi.fn().mockResolvedValue([{
+      id: 10, rating: 1, content: malicious,
+      created_at: '2026-08-07T03:00:00Z', item_id: 7, item_title: '튼튼한 우산',
+      reviewer_id: 3, reviewer_name: '공격자', reviewee_role: 'LENDER',
+    }]),
+  }
+
+  const { container } = render(
+    <UserProfilePage userId={12} accessToken="token" api={reviewApi} onBack={vi.fn()} />,
+  )
+
+  expect(await screen.findByText(malicious)).toBeInTheDocument()
+  expect(container.querySelector('img[src="x"]')).toBeNull()
+})
