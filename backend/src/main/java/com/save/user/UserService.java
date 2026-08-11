@@ -67,6 +67,7 @@ public class UserService {
     public List<ItemResponse> getMyWishlist(Integer userId) {
         findUser(userId);
         return wishlistRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .filter(wishlist -> wishlist.getItem().getStatus() != ItemStatus.DELETED)
                 .map(wishlist -> ItemResponse.from(wishlist.getItem(), true,
                         wishlistRepository.countByItemId(wishlist.getItem().getId()),
                         reviewQueryService.summary(wishlist.getItem().getOwner().getId()))).toList();

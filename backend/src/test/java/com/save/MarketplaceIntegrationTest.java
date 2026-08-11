@@ -1,6 +1,7 @@
 package com.save;
 
 import static org.hamcrest.Matchers.matchesPattern;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -234,6 +235,33 @@ class MarketplaceIntegrationTest {
                         .header("Authorization", bearer(borrowerToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].type").value("RENTAL_REJECTED"));
+    }
+
+    @Test
+    void deletedItemDisappearsFromWishlist() throws Exception {
+        JsonNode owner = signUp("wishlist-owner@pukyong.ac.kr", "관심목록주인");
+        JsonNode borrower = signUp("wishlist-borrower@pukyong.ac.kr", "관심목록학생");
+        String ownerToken = owner.get("access_token").asText();
+        String borrowerToken = borrower.get("access_token").asText();
+        int deletedItemId = createItem(ownerToken, "삭제할 우산");
+        int activeItemId = createItem(ownerToken, "남아 있는 우산");
+
+        mockMvc.perform(post("/api/v1/items/{itemId}/wishlist", deletedItemId)
+                        .header("Authorization", bearer(borrowerToken)))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/v1/items/{itemId}/wishlist", activeItemId)
+                        .header("Authorization", bearer(borrowerToken)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(delete("/api/v1/items/{itemId}", deletedItemId)
+                        .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/users/me/wishlist")
+                        .header("Authorization", bearer(borrowerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(activeItemId));
     }
 
     private int createItem(String ownerToken, String title) throws Exception {
