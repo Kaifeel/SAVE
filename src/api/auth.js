@@ -1,6 +1,4 @@
-import { apiFetch } from './client'
-
-const AUTH_STORAGE_KEY = 'save_auth'
+import { apiFetch, refreshAuthSession } from './client'
 
 export function loginWithGoogle(idToken) {
   return apiFetch('/auth/google', {
@@ -36,21 +34,12 @@ export function signUpWithEmail({ email, password, name, department, universityI
   })
 }
 
-export function saveAuth(auth) {
-  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth))
+export function refreshSession() {
+  return refreshAuthSession()
 }
 
-export function getSavedAuth() {
-  try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
-  }
-}
-
-export function clearSavedAuth() {
-  localStorage.removeItem(AUTH_STORAGE_KEY)
+export function logoutSession() {
+  return apiFetch('/auth/logout', { method: 'POST' })
 }
 
 export function getAccessToken(auth) {

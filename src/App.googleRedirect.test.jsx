@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import App from './App'
+import { useAuthStore } from './store/authStore.js'
 
 vi.mock('./components/toast.js', () => ({
   useToast: () => ({ error: vi.fn(), success: vi.fn() }),
@@ -67,6 +68,9 @@ const authResponse = {
 
 beforeEach(() => {
   localStorage.clear()
+  sessionStorage.clear()
+  useAuthStore.getState().clearSession()
+  useAuthStore.getState().setChecking()
   window.history.replaceState(null, '', '/#google_login_code=one-time-code')
   vi.restoreAllMocks()
 })
@@ -91,12 +95,17 @@ function renderGoogleRedirect(response = authResponse) {
   return fetchMock
 }
 
-it('stores Google redirect authentication when rendered in StrictMode', async () => {
+it('keeps Google redirect authentication in memory when rendered in StrictMode', async () => {
   const fetchMock = renderGoogleRedirect()
 
   await waitFor(() => {
-    expect(JSON.parse(localStorage.getItem('save_auth'))).toEqual(authResponse)
+    expect(useAuthStore.getState()).toMatchObject({
+      accessToken: 'save-jwt',
+      user: authResponse.user,
+    })
   })
+  expect(localStorage).toHaveLength(0)
+  expect(sessionStorage).toHaveLength(0)
   expect(fetchMock).toHaveBeenCalledTimes(1)
 })
 
@@ -115,12 +124,12 @@ it('uses the test name for a returning Google user with an incomplete profile', 
   expect(await screen.findByDisplayValue('테스트')).toBeInTheDocument()
 })
 
-it('restores an incomplete saved profile with the test name', () => {
-  localStorage.setItem('save_auth', JSON.stringify({
+it('restores an incomplete profile through the refresh cookie', async () => {
+  window.history.replaceState(null, '', '/')
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
     ...authResponse,
     is_new_user: false,
-  }))
-  window.history.replaceState(null, '', '/')
+  }), { status: 200, headers: { 'Content-Type': 'application/json' } })))
 
   render(
     <StrictMode>
@@ -128,5 +137,5 @@ it('restores an incomplete saved profile with the test name', () => {
     </StrictMode>,
   )
 
-  expect(screen.getByDisplayValue('테스트')).toBeInTheDocument()
+  expect(await screen.findByDisplayValue('테스트')).toBeInTheDocument()
 })

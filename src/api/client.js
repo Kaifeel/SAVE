@@ -1,5 +1,8 @@
+import { useAuthStore } from '../store/authStore.js'
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 const unauthorizedListeners = new Set()
+let refreshPromise = null
 
 export class ApiError extends Error {
   constructor(message, { status = 0, code = 'API_ERROR', data } = {}) {
@@ -45,10 +48,13 @@ async function parseResponse(res) {
   return text || null
 }
 
-export async function apiFetch(path, options = {}) {
-  const { accessToken, params, headers, ...fetchOptions } = options
+async function request(path, options = {}, retried = false) {
+  const { accessToken: requestedToken, params, headers, ...fetchOptions } = options
+  const accessToken = Object.hasOwn(options, 'accessToken')
+    ? requestedToken
+    : useAuthStore.getState().accessToken
   const body = fetchOptions.body
-  const isFormData = body instanceof FormData
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData
 
   let res
   try {
@@ -71,6 +77,18 @@ export async function apiFetch(path, options = {}) {
   const data = await parseResponse(res)
 
   if (!res.ok) {
+    const isAuthRequest = String(path).includes('/auth/')
+    if (res.status === 401 && !retried && !isAuthRequest) {
+      try {
+        const session = await refreshAuthSession()
+        return request(path, {
+          ...options,
+          accessToken: session?.access_token ?? session?.accessToken,
+        }, true)
+      } catch {
+        // The original protected request reports the final unauthorized state below.
+      }
+    }
     const code = res.status === 401 ? 'UNAUTHORIZED' : `HTTP_${res.status}`
     if (res.status === 401) {
       unauthorizedListeners.forEach(listener => listener())
@@ -83,4 +101,26 @@ export async function apiFetch(path, options = {}) {
   }
 
   return data
+}
+
+export function apiFetch(path, options = {}) {
+  return request(path, options)
+}
+
+export function refreshAuthSession() {
+  if (refreshPromise) return refreshPromise
+
+  refreshPromise = request('/auth/refresh', { method: 'POST', accessToken: null })
+    .then(session => {
+      useAuthStore.getState().setSession(session)
+      return session
+    })
+    .catch(error => {
+      useAuthStore.getState().clearSession()
+      throw error
+    })
+    .finally(() => {
+      refreshPromise = null
+    })
+  return refreshPromise
 }

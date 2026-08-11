@@ -2,11 +2,15 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import App from './App'
 import { getNotifications, markAllNotificationsRead } from './api/notifications.js'
+import { useAuthStore } from './store/authStore.js'
 
-const testState = vi.hoisted(() => ({ chatOptions: null }))
+const testState = vi.hoisted(() => ({
+  chatOptions: null,
+  toast: { error: vi.fn(), success: vi.fn() },
+}))
 
 vi.mock('./components/toast.js', () => ({
-  useToast: () => ({ error: vi.fn(), success: vi.fn() }),
+  useToast: () => testState.toast,
 }))
 
 vi.mock('./hooks/useReferenceData.js', () => ({
@@ -67,7 +71,7 @@ vi.mock('./api/notifications.js', () => ({
 
 beforeEach(() => {
   testState.chatOptions = null
-  localStorage.setItem('save_auth', JSON.stringify({
+  useAuthStore.getState().setSession({
     access_token: 'jwt',
     user: {
       id: 1,
@@ -76,7 +80,7 @@ beforeEach(() => {
       university_id: 1,
       university_name: '부경대학교',
     },
-  }))
+  })
   getNotifications.mockResolvedValue([{
     id: 11,
     title: '새 대여 요청',
@@ -89,7 +93,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
-  localStorage.clear()
+  useAuthStore.getState().clearSession()
   vi.clearAllMocks()
 })
 

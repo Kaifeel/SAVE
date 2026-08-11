@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import ProductDetailPage from './ProductDetailPage.jsx'
 import HomePage from './pages/HomePage.jsx'
 import SearchPage from './pages/SearchPage.jsx'
@@ -13,15 +13,13 @@ import ProfileSetupPage from './pages/ProfileSetupPage.jsx'
 import AdminPage, { AdminAccessDenied } from './pages/AdminPage.jsx'
 import { INITIAL_ITEMS } from './data/items.js'
 import {
-  clearSavedAuth,
   exchangeGoogleLogin,
-  getAccessToken,
-  getAuthUser,
-  getSavedAuth,
   loginWithEmail,
-  saveAuth,
+  logoutSession,
+  refreshSession,
   signUpWithEmail,
 } from './api/auth.js'
+import { useAuthStore } from './store/authStore.js'
 import { createOrGetChatRoom, getChatRooms } from './api/chats.js'
 import {
   getNotifications,
@@ -65,14 +63,19 @@ function App() {
   const [activeBoard, setActiveBoard] = useState('borrow')
   const [availableOnly, setAvailableOnly] = useState(false)
   const [activeTab, setActiveTab] = useState('home') // home, search, chat, my
-  const [auth, setAuth] = useState(() => getSavedAuth())
-  const accessToken = getAccessToken(auth)
-  const savedUser = getAuthUser(auth)
+  const accessToken = useAuthStore(state => state.accessToken)
+  const savedUser = useAuthStore(state => state.user)
+  const authStatus = useAuthStore(state => state.authStatus)
+  const setSession = useAuthStore(state => state.setSession)
+  const updateAuthUser = useAuthStore(state => state.updateUser)
+  const clearSession = useAuthStore(state => state.clearSession)
   const savedUniversityId = savedUser?.university_id ?? savedUser?.universityId ?? null
   const savedProfileComplete = Boolean(
     savedUser?.name && savedUser?.department && savedUniversityId,
   )
-  const [isLoggedIn, setIsLoggedIn] = useState(DEV_AUTO_LOGIN || Boolean(accessToken))
+  const [isLoggedIn, setIsLoggedIn] = useState(
+    DEV_AUTO_LOGIN || authStatus === 'authenticated',
+  )
   const [isProfileComplete, setIsProfileComplete] = useState(
     DEV_AUTO_LOGIN || savedProfileComplete,
   )
@@ -121,6 +124,7 @@ function App() {
   const [isSubmittingItem, setIsSubmittingItem] = useState(false)
   const [editingItemId, setEditingItemId] = useState(null)
   const [rentalRequest, setRentalRequest] = useState(null)
+  const authBootstrapStarted = useRef(false)
 
   // Write item form states
   const [newTitle, setNewTitle] = useState('')
@@ -216,15 +220,14 @@ function App() {
   const setActiveChatRoom = chatData.setActiveRoom
 
   useEffect(() => subscribeUnauthorized(() => {
-    clearSavedAuth()
-    setAuth(null)
+    clearSession()
     setChats([])
     setNotifications([])
     setActiveChatRoom(null)
     setIsLoggedIn(false)
     setIsProfileComplete(false)
     setActiveTab('home')
-  }), [setActiveChatRoom])
+  }), [clearSession, setActiveChatRoom])
 
   useEffect(() => {
     if (!USE_API || !isLoggedIn || isAdminPath) return
@@ -426,11 +429,12 @@ function App() {
   const handleCompleteProfile = async () => {
     if (USE_API && accessToken) {
       try {
-        await updateMyProfile({
+        const updatedUser = await updateMyProfile({
           name: memberName,
           department: memberDepartment,
           university_id: memberUniversityId,
         }, accessToken)
+        updateAuthUser(updatedUser)
       } catch (error) {
         toast.error(error.message || '회원 정보를 저장하지 못했습니다.')
         return
@@ -441,7 +445,7 @@ function App() {
   }
 
   const applyAuth = useCallback((nextAuth, fallbackUniversityId = null) => {
-    const user = getAuthUser(nextAuth)
+    const user = nextAuth?.user ?? null
     const profileUniversityId = user?.university_id
       ?? user?.universityId
       ?? fallbackUniversityId
@@ -450,36 +454,44 @@ function App() {
       user?.name && user?.department && profileUniversityId,
     )
 
-    saveAuth(nextAuth)
     setChats([])
     setNotifications([])
     setActiveChatRoom(null)
-    setAuth(nextAuth)
+    setSession(nextAuth)
     setMemberName(hasCompletedProfile ? user.name : '테스트')
     setMemberDepartment(user?.department || '')
     setMemberUniversityId(profileUniversityId)
     setIsProfileComplete(hasCompletedProfile)
     setIsLoggedIn(true)
-  }, [setActiveChatRoom])
+  }, [setActiveChatRoom, setSession])
 
   useEffect(() => {
-    if (!USE_API || !window.location.hash.startsWith('#')) return undefined
-    const params = new URLSearchParams(window.location.hash.slice(1))
-    const code = params.get('google_login_code')
-    if (!code) return undefined
+    if (!USE_API || DEV_AUTO_LOGIN || authStatus !== 'checking'
+      || authBootstrapStarted.current) return undefined
+    authBootstrapStarted.current = true
 
-    window.history.replaceState(
-      null,
-      document.title,
-      `${window.location.pathname}${window.location.search}`,
-    )
-    exchangeGoogleLogin(code)
+    const params = window.location.hash.startsWith('#')
+      ? new URLSearchParams(window.location.hash.slice(1))
+      : null
+    const code = params?.get('google_login_code')
+    if (code) {
+      window.history.replaceState(
+        null,
+        document.title,
+        `${window.location.pathname}${window.location.search}`,
+      )
+    }
+
+    const restore = code ? exchangeGoogleLogin(code) : refreshSession()
+    restore
       .then(applyAuth)
       .catch(error => {
-        toast.error(error.message || 'Google 로그인에 실패했습니다.')
+        clearSession()
+        setIsLoggedIn(false)
+        if (code) toast.error(error.message || 'Google 로그인에 실패했습니다.')
       })
     return undefined
-  }, [applyAuth, toast])
+  }, [applyAuth, authStatus, clearSession, toast])
 
   const handleLogin = async ({ mode, email, password, name, department, universityId }) => {
     const nextAuth = mode === 'signup'
@@ -488,16 +500,23 @@ function App() {
     applyAuth(nextAuth, universityId)
   }
 
-  const handleLogout = () => {
-    clearSavedAuth()
-    setAuth(null)
-    setChats([])
-    setNotifications([])
-    setIsNotificationOpen(false)
-    setActiveChatRoom(null)
-    setIsLoggedIn(false)
-    setIsProfileComplete(false)
-    setActiveTab('home')
+  const handleLogout = async () => {
+    try {
+      if (USE_API) await logoutSession()
+    } finally {
+      clearSession()
+      setChats([])
+      setNotifications([])
+      setIsNotificationOpen(false)
+      setActiveChatRoom(null)
+      setIsLoggedIn(false)
+      setIsProfileComplete(false)
+      setActiveTab('home')
+    }
+  }
+
+  if (USE_API && authStatus === 'checking') {
+    return <main>로그인 상태 확인 중...</main>
   }
 
   if (!isLoggedIn) {
