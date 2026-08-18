@@ -113,6 +113,7 @@ The web reference must receive the same corrections for known hardcoded display 
 Browser authentication retains its HttpOnly refresh cookie flow. Native authentication uses explicit mobile endpoints on the existing backend; this is an extension of the same service, not a second backend.
 
 ```text
+POST /auth/mobile/signup
 POST /auth/mobile/login
 POST /auth/mobile/google
 POST /auth/mobile/refresh
