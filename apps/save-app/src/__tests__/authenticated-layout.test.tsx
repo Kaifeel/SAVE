@@ -3,7 +3,7 @@ import type { PropsWithChildren } from 'react';
 
 import { useAuthStore } from '@/auth/store';
 
-import RootLayout from './_layout';
+import RootLayout from '@/app/_layout';
 
 jest.mock('expo-router', () => {
   const React = jest.requireActual<typeof import('react')>('react');

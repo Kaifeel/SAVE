@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import { useGoogleLogin } from '@/auth/google-login';
 import { useAuthStore } from '@/auth/store';
 
-import LoginScreen from './login';
+import LoginScreen from '@/app/login';
 
 jest.mock('@/auth/store', () => ({
   useAuthStore: jest.fn(),
