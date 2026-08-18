@@ -12,6 +12,7 @@ WebBrowser.maybeCompleteAuthSession();
 export type GoogleLogin = {
   enabled: boolean;
   busy: boolean;
+  error: string | null;
   prompt: () => Promise<void>;
 };
 
@@ -24,10 +25,13 @@ const platformClientId = Platform.select({
 export function useGoogleLogin(): GoogleLogin {
   const enabled = Boolean(platformClientId);
   const loginWithGoogleToken = useAuthStore(state => state.loginWithGoogleToken);
+  const attemptedToken = useRef<string | null>(null);
   const processedToken = useRef<string | null>(null);
+  const retryToken = useRef<string | null>(null);
   const [prompting, setPrompting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [request, response, promptAsync] = Google.useAuthRequest({
+  const [error, setError] = useState<string | null>(null);
+  const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     androidClientId: runtime.googleAndroidClientId || undefined,
     clientId: platformClientId || 'disabled.apps.googleusercontent.com',
     iosClientId: runtime.googleIosClientId || undefined,
@@ -36,35 +40,65 @@ export function useGoogleLogin(): GoogleLogin {
     webClientId: runtime.googleWebClientId || undefined,
   });
 
+  const submitToken = useCallback(async (idToken: string) => {
+    setError(null);
+    setSubmitting(true);
+    try {
+      await loginWithGoogleToken(idToken);
+      processedToken.current = idToken;
+      retryToken.current = null;
+    } catch (requestError) {
+      retryToken.current = idToken;
+      setError(
+        requestError instanceof Error && requestError.message
+          ? requestError.message
+          : 'Google 로그인에 실패했습니다.',
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }, [loginWithGoogleToken]);
+
   useEffect(() => {
     const idToken =
       response?.type === 'success'
         ? response.authentication?.idToken || response.params.id_token
         : undefined;
 
-    if (!idToken || processedToken.current === idToken) {
+    if (
+      !idToken ||
+      attemptedToken.current === idToken ||
+      processedToken.current === idToken
+    ) {
       return;
     }
 
-    processedToken.current = idToken;
-    setSubmitting(true);
-    void loginWithGoogleToken(idToken)
-      .catch(() => undefined)
-      .finally(() => setSubmitting(false));
-  }, [loginWithGoogleToken, response]);
+    attemptedToken.current = idToken;
+    void submitToken(idToken);
+  }, [response, submitToken]);
 
   const prompt = useCallback(async () => {
-    if (!enabled || !request || prompting || submitting) {
+    if (prompting || submitting) {
       return;
     }
 
+    if (retryToken.current) {
+      await submitToken(retryToken.current);
+      return;
+    }
+
+    if (!enabled || !request) {
+      return;
+    }
+
+    setError(null);
     setPrompting(true);
     try {
       await promptAsync();
     } finally {
       setPrompting(false);
     }
-  }, [enabled, promptAsync, prompting, request, submitting]);
+  }, [enabled, promptAsync, prompting, request, submitToken, submitting]);
 
-  return { enabled, busy: prompting || submitting, prompt };
+  return { enabled, busy: prompting || submitting, error, prompt };
 }

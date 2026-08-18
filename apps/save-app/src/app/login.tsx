@@ -59,6 +59,7 @@ export default function LoginScreen() {
   };
 
   const pending = isSubmitting || google.busy;
+  const visibleErrors = [...error, ...(google.error ? [google.error] : [])];
 
   return (
     <KeyboardAvoidingView
@@ -128,9 +129,9 @@ export default function LoginScreen() {
               />
             </View>
 
-            {error.length > 0 ? (
+            {visibleErrors.length > 0 ? (
               <View accessible accessibilityRole="alert" style={styles.errorBox}>
-                {error.map(message => (
+                {visibleErrors.map(message => (
                   <Text key={message} style={styles.errorText}>{message}</Text>
                 ))}
               </View>

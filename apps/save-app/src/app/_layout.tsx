@@ -11,8 +11,7 @@ export default function RootLayout() {
     <AppBootstrap>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Protected guard={authenticated}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="(authenticated)" />
         </Stack.Protected>
         <Stack.Protected guard={!authenticated}>
           <Stack.Screen name="login" />

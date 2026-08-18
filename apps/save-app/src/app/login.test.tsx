@@ -25,7 +25,7 @@ beforeEach(() => {
   mockUseAuthStore.mockImplementation(selector =>
     selector({ loginWithEmail } as never),
   );
-  mockUseGoogleLogin.mockReturnValue({ enabled: false, busy: false, prompt });
+  mockUseGoogleLogin.mockReturnValue({ enabled: false, busy: false, error: null, prompt });
 });
 
 it('submits the entered email and password through the auth store', async () => {
@@ -82,8 +82,24 @@ it('shows Google entry only when the platform client ID is configured', async ()
   expect(screen.queryByRole('button', { name: 'Google로 계속' })).toBeNull();
 
   await firstRender.unmount();
-  mockUseGoogleLogin.mockReturnValue({ enabled: true, busy: false, prompt });
+  mockUseGoogleLogin.mockReturnValue({ enabled: true, busy: false, error: null, prompt });
   await render(<LoginScreen />);
+
+  await fireEvent.press(screen.getByRole('button', { name: 'Google로 계속' }));
+  expect(prompt).toHaveBeenCalledTimes(1);
+});
+
+it('announces a Google store error and allows retry through the Google entry', async () => {
+  mockUseGoogleLogin.mockReturnValue({
+    enabled: true,
+    busy: false,
+    error: 'Google 계정 로그인을 완료하지 못했습니다.',
+    prompt,
+  });
+  await render(<LoginScreen />);
+
+  expect(screen.getByRole('alert')).toBeTruthy();
+  expect(screen.getByText('Google 계정 로그인을 완료하지 못했습니다.')).toBeTruthy();
 
   await fireEvent.press(screen.getByRole('button', { name: 'Google로 계속' }));
   expect(prompt).toHaveBeenCalledTimes(1);

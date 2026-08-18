@@ -43,6 +43,7 @@ it('shows progress and withholds children while the auth session hydrates', asyn
 
   expect(screen.getByLabelText('로그인 상태 확인 중')).toBeTruthy();
   expect(screen.queryByText('protected route tree')).toBeNull();
+  expect(bootstrap).toHaveBeenCalledTimes(1);
 });
 
 it('shows a retryable network error while bootstrap is offline', async () => {
