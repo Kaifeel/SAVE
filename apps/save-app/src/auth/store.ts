@@ -27,19 +27,45 @@ type AuthState = {
 };
 
 let refreshInFlight: Promise<string> | null = null;
+let sessionGeneration = 0;
+let sessionMutationQueue: Promise<void> = Promise.resolve();
+
+function serializeSessionMutation<T>(operation: () => Promise<T>): Promise<T> {
+  const result = sessionMutationQueue.then(operation);
+  sessionMutationQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+}
+
+function assertCurrentSession(generation: number): void {
+  if (generation !== sessionGeneration) {
+    throw new Error('Session operation was superseded');
+  }
+}
 
 export const useAuthStore = create<AuthState>(set => {
-  const exposeSession = async (session: MobileSession): Promise<string> => {
-    await writeRefreshToken(session.refreshToken);
-    set({
-      status: 'authenticated',
-      accessToken: session.accessToken,
-      user: session.user,
+  const exposeSession = (session: MobileSession, generation: number): Promise<string> => {
+    assertCurrentSession(generation);
+
+    return serializeSessionMutation(async () => {
+      assertCurrentSession(generation);
+      await writeRefreshToken(session.refreshToken);
+      assertCurrentSession(generation);
+      set({
+        status: 'authenticated',
+        accessToken: session.accessToken,
+        user: session.user,
+      });
+      return session.accessToken;
     });
-    return session.accessToken;
   };
 
-  const refreshAccessToken = (knownRefreshToken?: string): Promise<string> => {
+  const refreshAccessToken = (
+    knownRefreshToken?: string,
+    generation = sessionGeneration,
+  ): Promise<string> => {
     if (refreshInFlight) {
       return refreshInFlight;
     }
@@ -53,8 +79,10 @@ export const useAuthStore = create<AuthState>(set => {
       }
 
       try {
-        return await exposeSession(await refresh(refreshToken));
+        return await exposeSession(await refresh(refreshToken), generation);
       } catch (error) {
+        assertCurrentSession(generation);
+
         if (error instanceof ApiError && error.status === 401) {
           try {
             await clearRefreshToken();
@@ -74,11 +102,15 @@ export const useAuthStore = create<AuthState>(set => {
     return refreshInFlight;
   };
 
-  const authenticate = async (request: Promise<MobileSession>): Promise<void> => {
-    await exposeSession(await request);
+  const authenticate = async (
+    request: Promise<MobileSession>,
+    generation: number,
+  ): Promise<void> => {
+    await exposeSession(await request, generation);
   };
 
   const bootstrap = async (): Promise<void> => {
+    const generation = sessionGeneration;
     set({ status: 'hydrating', accessToken: null, user: null });
     const refreshToken = await readRefreshToken();
 
@@ -88,7 +120,7 @@ export const useAuthStore = create<AuthState>(set => {
     }
 
     try {
-      await refreshAccessToken(refreshToken);
+      await refreshAccessToken(refreshToken, generation);
     } catch {
       // refreshAccessToken deterministically records unauthorized and offline outcomes.
     }
@@ -100,23 +132,36 @@ export const useAuthStore = create<AuthState>(set => {
     user: null,
     bootstrap,
     retryBootstrap: bootstrap,
-    loginWithEmail: input => authenticate(login(input)),
-    signupWithEmail: input => authenticate(signup(input)),
-    loginWithGoogleToken: idToken => authenticate(loginWithGoogle(idToken)),
+    loginWithEmail: input => {
+      const generation = sessionGeneration;
+      return authenticate(login(input), generation);
+    },
+    signupWithEmail: input => {
+      const generation = sessionGeneration;
+      return authenticate(signup(input), generation);
+    },
+    loginWithGoogleToken: idToken => {
+      const generation = sessionGeneration;
+      return authenticate(loginWithGoogle(idToken), generation);
+    },
     refreshAccessToken: () => refreshAccessToken(),
-    logout: async () => {
-      try {
-        const refreshToken = await readRefreshToken();
-        if (refreshToken) {
-          await revokeSession(refreshToken);
-        }
-      } finally {
+    logout: () => {
+      sessionGeneration += 1;
+
+      return serializeSessionMutation(async () => {
         try {
-          await clearRefreshToken();
+          const refreshToken = await readRefreshToken();
+          if (refreshToken) {
+            await revokeSession(refreshToken);
+          }
         } finally {
-          set({ status: 'unauthenticated', accessToken: null, user: null });
+          try {
+            await clearRefreshToken();
+          } finally {
+            set({ status: 'unauthenticated', accessToken: null, user: null });
+          }
         }
-      }
+      });
     },
   };
 });

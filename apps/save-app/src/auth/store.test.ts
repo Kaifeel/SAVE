@@ -83,16 +83,22 @@ it('becomes unauthenticated without calling refresh when no token is stored', as
 
 it('persists a rotated token before exposing the refreshed in-memory session', async () => {
   let finishWriting: (() => void) | undefined;
+  let signalWriteStarted: (() => void) | undefined;
   const writePending = new Promise<void>(resolve => {
     finishWriting = resolve;
   });
+  const writeStarted = new Promise<void>(resolve => {
+    signalWriteStarted = resolve;
+  });
   readRefreshToken.mockResolvedValue('stored-refresh-value');
   refresh.mockResolvedValue(refreshedSession);
-  writeRefreshToken.mockReturnValue(writePending);
+  writeRefreshToken.mockImplementation(async () => {
+    signalWriteStarted?.();
+    await writePending;
+  });
 
   const bootstrap = useAuthStore.getState().bootstrap();
-  await Promise.resolve();
-  await Promise.resolve();
+  await writeStarted;
 
   expect(refresh).toHaveBeenCalledWith('stored-refresh-value');
   expect(writeRefreshToken).toHaveBeenCalledWith('rotated-refresh-value');
@@ -174,6 +180,70 @@ it('shares one refresh request across concurrent callers', async () => {
     'new-access-value',
   ]);
   expect(writeRefreshToken).toHaveBeenCalledTimes(1);
+});
+
+it('does not install a refresh response that arrives after logout', async () => {
+  let finishRefresh: ((session: MobileSession) => void) | undefined;
+  const refreshPending = new Promise<MobileSession>(resolve => {
+    finishRefresh = resolve;
+  });
+  readRefreshToken.mockResolvedValue('stored-refresh-value');
+  refresh.mockReturnValue(refreshPending);
+  revokeSession.mockResolvedValue();
+  clearRefreshToken.mockResolvedValue();
+  writeRefreshToken.mockResolvedValue();
+
+  const refreshResult = useAuthStore.getState().refreshAccessToken().catch(error => error);
+  await Promise.resolve();
+  await useAuthStore.getState().logout();
+  finishRefresh?.(refreshedSession);
+  await refreshResult;
+
+  expect(writeRefreshToken).not.toHaveBeenCalled();
+  expect(clearRefreshToken).toHaveBeenCalledTimes(1);
+  expect(useAuthStore.getState()).toMatchObject({
+    status: 'unauthenticated',
+    accessToken: null,
+    user: null,
+  });
+});
+
+it('orders logout cleanup after a refresh-token write already underway', async () => {
+  let finishWriting: (() => void) | undefined;
+  let signalWriteStarted: (() => void) | undefined;
+  const writePending = new Promise<void>(resolve => {
+    finishWriting = resolve;
+  });
+  const writeStarted = new Promise<void>(resolve => {
+    signalWriteStarted = resolve;
+  });
+  const storageEvents: string[] = [];
+  readRefreshToken.mockResolvedValue('stored-refresh-value');
+  refresh.mockResolvedValue(refreshedSession);
+  writeRefreshToken.mockImplementation(async () => {
+    storageEvents.push('write-start');
+    signalWriteStarted?.();
+    await writePending;
+    storageEvents.push('write-end');
+  });
+  revokeSession.mockResolvedValue();
+  clearRefreshToken.mockImplementation(async () => {
+    storageEvents.push('clear');
+  });
+
+  const refreshResult = useAuthStore.getState().refreshAccessToken().catch(error => error);
+  await writeStarted;
+  const logout = useAuthStore.getState().logout();
+  await new Promise<void>(resolve => setImmediate(resolve));
+  finishWriting?.();
+  await Promise.all([refreshResult, logout]);
+
+  expect(storageEvents).toEqual(['write-start', 'write-end', 'clear']);
+  expect(useAuthStore.getState()).toMatchObject({
+    status: 'unauthenticated',
+    accessToken: null,
+    user: null,
+  });
 });
 
 it('persists and installs an email login session', async () => {
