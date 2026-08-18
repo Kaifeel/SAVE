@@ -23,7 +23,7 @@ const requiredProductionFields = [
 
 export function readRuntime(env: PublicEnvironment, dev: boolean): RuntimeConfig {
   const values = {
-    EXPO_PUBLIC_API_BASE_URL: env.EXPO_PUBLIC_API_BASE_URL?.trim() ?? '',
+    EXPO_PUBLIC_API_BASE_URL: (env.EXPO_PUBLIC_API_BASE_URL?.trim() ?? '').replace(/\/$/, ''),
     EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ?? '',
     EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() ?? '',
     EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID: env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() ?? '',
@@ -45,7 +45,7 @@ export function readRuntime(env: PublicEnvironment, dev: boolean): RuntimeConfig
   }
 
   return {
-    apiBaseUrl: values.EXPO_PUBLIC_API_BASE_URL.replace(/\/$/, ''),
+    apiBaseUrl: values.EXPO_PUBLIC_API_BASE_URL,
     googleWebClientId: values.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     googleIosClientId: values.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
     googleAndroidClientId: values.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
