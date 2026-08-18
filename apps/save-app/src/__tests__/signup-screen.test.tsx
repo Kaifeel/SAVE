@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
+import { useGoogleLogin } from '@/auth/google-login';
 import { useAuthStore } from '@/auth/store';
 import { getUniversities } from '@/universities/api';
 
@@ -9,12 +10,18 @@ jest.mock('@/auth/store', () => ({
   useAuthStore: jest.fn(),
 }));
 
+jest.mock('@/auth/google-login', () => ({
+  useGoogleLogin: jest.fn(),
+}));
+
 jest.mock('@/universities/api', () => ({
   getUniversities: jest.fn(),
 }));
 
 const mockUseAuthStore = jest.mocked(useAuthStore);
+const mockUseGoogleLogin = jest.mocked(useGoogleLogin);
 const mockGetUniversities = jest.mocked(getUniversities);
+const promptGoogle = jest.fn<Promise<void>, []>();
 const signupWithEmail = jest.fn<Promise<void>, [{
   email: string;
   password: string;
@@ -29,11 +36,32 @@ const universities = [
 
 beforeEach(() => {
   jest.clearAllMocks();
+  promptGoogle.mockResolvedValue(undefined);
+  mockUseGoogleLogin.mockReturnValue({
+    busy: false,
+    enabled: false,
+    error: null,
+    prompt: promptGoogle,
+  });
   signupWithEmail.mockResolvedValue(undefined);
   mockUseAuthStore.mockImplementation(selector =>
     selector({ signupWithEmail } as never),
   );
   mockGetUniversities.mockResolvedValue(universities);
+});
+
+it('offers the same Google continuation on signup when OAuth is configured', async () => {
+  mockUseGoogleLogin.mockReturnValue({
+    busy: false,
+    enabled: true,
+    error: null,
+    prompt: promptGoogle,
+  });
+
+  await render(<SignupScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: 'Google로 계속' }));
+
+  expect(promptGoogle).toHaveBeenCalledTimes(1);
 });
 
 async function selectUniversity(name = '한국해양대학교') {

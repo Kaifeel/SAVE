@@ -6,7 +6,7 @@ This is the canonical Expo application for SAVE. It uses Expo Router with routes
 
 1. Install dependencies with `npm install`.
 2. Copy `.env.example` to `.env.local`.
-3. Keep `EXPO_PUBLIC_API_MODE=api`. For an Android emulator with the backend on the development host, use `EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8080/api/v1`. For a physical device, replace `10.0.2.2` with the host's LAN address and ensure the device can reach the server.
+3. Keep `EXPO_PUBLIC_API_MODE=api` for real authentication. While the signup backend is unavailable, development builds may use `EXPO_PUBLIC_API_MODE=mock`; this bypasses only email signup with an in-memory session and is rejected by production configuration. For an Android emulator with the backend on the development host, use `EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8080/api/v1`. For a physical device, replace `10.0.2.2` with the host's LAN address and ensure the device can reach the server.
 4. Configure Google Cloud and the apps using `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`, and backend `GOOGLE_CLIENT_IDS`. Keep all values local and do not commit `.env.local`.
 5. Start the configured existing backend, then start Expo with `npm run start`.
 

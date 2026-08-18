@@ -1,4 +1,5 @@
 import { Link } from 'expo-router';
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -9,15 +10,19 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
+import { useGoogleLogin } from '@/auth/google-login';
 import { useAuthStore } from '@/auth/store';
 import { theme } from '@/theme';
 import { getUniversities, type University } from '@/universities/api';
 
 export default function SignupScreen() {
   const signupWithEmail = useAuthStore(state => state.signupWithEmail);
+  const google = useGoogleLogin();
+  const { width } = useWindowDimensions();
   const [name, setName] = useState('');
   const [universities, setUniversities] = useState<University[]>([]);
   const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
@@ -130,10 +135,22 @@ export default function SignupScreen() {
     }
   };
 
+  const submitGoogle = async () => {
+    setError([]);
+    try {
+      await google.prompt();
+    } catch {
+      setError(['Google 로그인에 실패했습니다.']);
+    }
+  };
+
+  const pending = isSubmitting || google.busy;
+  const visibleErrors = [...error, ...(google.error ? [google.error] : [])];
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.canvas}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <View style={styles.card}>
+        <View style={[styles.card, width >= 640 && styles.desktopCard]}>
           <View style={styles.header}>
             <Text style={styles.logo}>SAVE</Text>
             <Text style={styles.tagline}>캠퍼스 물품 대여 서비스</Text>
@@ -150,8 +167,33 @@ export default function SignupScreen() {
             </Pressable>
           </View>
 
+          {google.enabled ? (
+            <View style={styles.googleSection}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={pending}
+                onPress={() => void submitGoogle()}
+                style={({ pressed }) => [styles.googleButton, pressed && styles.pressed, pending && styles.disabled]}
+              >
+                <Text style={styles.googleLabel}>{google.busy ? '처리 중...' : 'Google로 계속'}</Text>
+              </Pressable>
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerLabel}>또는 이메일로 계속</Text>
+                <View style={styles.dividerLine} />
+              </View>
+            </View>
+          ) : null}
+
           <View style={styles.form}>
-            <Field label="이름" value={name} onChangeText={setName} maxLength={50} autoComplete="name" />
+            <Field
+              icon={{ ios: 'person', android: 'person_outline', web: 'person_outline' }}
+              label="이름"
+              value={name}
+              onChangeText={setName}
+              maxLength={50}
+              autoComplete="name"
+            />
             <View>
               <Text style={styles.label}>대학교</Text>
               {catalogLoading ? (
@@ -172,9 +214,9 @@ export default function SignupScreen() {
               ) : (
                 <Pressable
                   accessibilityRole="button"
-                  disabled={isSubmitting || universities.length === 0}
+                  disabled={pending || universities.length === 0}
                   onPress={() => setUniversityModalVisible(true)}
-                  style={({ pressed }) => [styles.selector, pressed && styles.pressed, isSubmitting && styles.disabled]}
+                  style={({ pressed }) => [styles.selector, pressed && styles.pressed, pending && styles.disabled]}
                 >
                   <Text style={selectedUniversity ? styles.selectorValue : styles.selectorPlaceholder}>
                     {selectedUniversity?.name ?? (universities.length === 0 ? '등록된 대학교가 없습니다.' : '대학교 선택')}
@@ -184,6 +226,7 @@ export default function SignupScreen() {
             </View>
             <Field label="학과" value={department} onChangeText={setDepartment} maxLength={100} />
             <Field
+              icon={{ ios: 'envelope', android: 'mail_outline', web: 'mail_outline' }}
               label="이메일"
               value={email}
               onChangeText={setEmail}
@@ -193,6 +236,7 @@ export default function SignupScreen() {
               inputMode="email"
             />
             <Field
+              icon={{ ios: 'lock', android: 'lock_outline', web: 'lock_outline' }}
               label="비밀번호"
               value={password}
               onChangeText={setPassword}
@@ -201,17 +245,17 @@ export default function SignupScreen() {
               secureTextEntry
             />
 
-            {error.length > 0 ? (
+            {visibleErrors.length > 0 ? (
               <View accessible accessibilityRole="alert" style={styles.errorBox}>
-                {error.map(message => <Text key={message} style={styles.errorText}>{message}</Text>)}
+                {visibleErrors.map(message => <Text key={message} style={styles.errorText}>{message}</Text>)}
               </View>
             ) : null}
 
             <Pressable
               accessibilityRole="button"
-              disabled={isSubmitting}
+              disabled={pending}
               onPress={() => void submit()}
-              style={({ pressed }) => [styles.submitButton, pressed && styles.pressed, isSubmitting && styles.disabled]}
+              style={({ pressed }) => [styles.submitButton, pressed && styles.pressed, pending && styles.disabled]}
             >
               <Text style={styles.submitLabel}>{isSubmitting ? '처리 중...' : '회원가입'}</Text>
             </Pressable>
@@ -261,6 +305,7 @@ export default function SignupScreen() {
 }
 
 type FieldProps = {
+  icon?: SymbolViewProps['name'];
   label: string;
   value: string;
   onChangeText: (value: string) => void;
@@ -271,11 +316,27 @@ type FieldProps = {
   secureTextEntry?: boolean;
 };
 
-function Field({ label, ...inputProps }: FieldProps) {
+function Field({ icon, label, ...inputProps }: FieldProps) {
   return (
     <View>
       <Text style={styles.label}>{label}</Text>
-      <TextInput accessibilityLabel={label} style={styles.input} {...inputProps} />
+      <View style={styles.inputFrame}>
+        {icon ? (
+          <SymbolView
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            name={icon}
+            size={20}
+            style={styles.inputIcon}
+            tintColor="#94a3b8"
+          />
+        ) : null}
+        <TextInput
+          accessibilityLabel={label}
+          style={[styles.input, icon && styles.inputWithIcon]}
+          {...inputProps}
+        />
+      </View>
     </View>
   );
 }
@@ -283,7 +344,8 @@ function Field({ label, ...inputProps }: FieldProps) {
 const styles = StyleSheet.create({
   canvas: { backgroundColor: theme.colors.canvas, flex: 1 },
   scrollContent: { flexGrow: 1, justifyContent: 'center' },
-  card: { alignSelf: 'center', backgroundColor: theme.colors.surface, maxWidth: 430, paddingHorizontal: 28, paddingVertical: 48, width: '100%' },
+  card: { alignSelf: 'center', backgroundColor: theme.colors.surface, justifyContent: 'center', maxWidth: 430, minHeight: '100%', paddingHorizontal: 28, paddingVertical: 48, width: '100%' },
+  desktopCard: { borderColor: '#e2e8f0', borderLeftWidth: 1, borderRightWidth: 1, boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.25)', height: 844, minHeight: 844 },
   header: { marginBottom: 36 },
   logo: { color: theme.colors.primary, fontSize: 36, fontWeight: '900' },
   tagline: { color: '#64748b', fontSize: 14, fontWeight: '600', marginTop: 8 },
@@ -292,9 +354,18 @@ const styles = StyleSheet.create({
   activeTab: { alignItems: 'center', backgroundColor: theme.colors.surface, borderRadius: 5, flex: 1, justifyContent: 'center' },
   tabLabel: { color: '#64748b', fontSize: 14, fontWeight: '700' },
   activeTabLabel: { color: theme.colors.primary, fontSize: 14, fontWeight: '700' },
+  googleSection: { marginBottom: 4 },
+  googleButton: { alignItems: 'center', borderColor: '#cbd5e1', borderRadius: 7, borderWidth: 1, height: 48, justifyContent: 'center' },
+  googleLabel: { color: theme.colors.text, fontSize: 14, fontWeight: '700' },
+  divider: { alignItems: 'center', flexDirection: 'row', gap: 12, marginVertical: 20 },
+  dividerLine: { backgroundColor: '#e2e8f0', flex: 1, height: 1 },
+  dividerLabel: { color: theme.colors.muted, fontSize: 12, fontWeight: '600' },
   form: { gap: 16 },
   label: { color: '#475569', fontSize: 12, fontWeight: '700', marginBottom: 6 },
-  input: { borderColor: '#cbd5e1', borderRadius: 7, borderWidth: 1, color: theme.colors.text, fontSize: 14, height: 48, paddingHorizontal: 14 },
+  inputFrame: { position: 'relative' },
+  input: { borderColor: '#cbd5e1', borderRadius: 7, borderWidth: 1, color: theme.colors.text, fontSize: 14, height: 48, paddingHorizontal: 14, width: '100%' },
+  inputWithIcon: { paddingLeft: 44 },
+  inputIcon: { left: 14, position: 'absolute', top: 14, zIndex: 1 },
   catalogStatus: { color: '#64748b', fontSize: 14, height: 48, paddingVertical: 14 },
   catalogError: { gap: 10 },
   retryButton: { alignItems: 'center', borderColor: theme.colors.primary, borderRadius: 7, borderWidth: 1, minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 },

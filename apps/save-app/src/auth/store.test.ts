@@ -1,5 +1,6 @@
 import * as api from './api';
 import * as secureSession from './secure-session';
+import { runtime } from '../config/runtime';
 import { useAuthStore } from './store';
 import type { MobileSession } from './types';
 
@@ -28,6 +29,10 @@ jest.mock('./secure-session', () => ({
   readRefreshToken: jest.fn(),
   writeRefreshToken: jest.fn(),
   clearRefreshToken: jest.fn(),
+}));
+
+jest.mock('../config/runtime', () => ({
+  runtime: { mockEnabled: false },
 }));
 
 const readRefreshToken = jest.mocked(secureSession.readRefreshToken);
@@ -61,10 +66,40 @@ const refreshedSession: MobileSession = {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  runtime.mockEnabled = false;
   useAuthStore.setState({
     status: 'hydrating',
     accessToken: null,
     user: null,
+  });
+});
+
+it('creates an in-memory development session without calling the signup API in mock mode', async () => {
+  runtime.mockEnabled = true;
+
+  await useAuthStore.getState().signupWithEmail({
+    email: 'student@pukyong.ac.kr',
+    password: 'password123',
+    name: 'SAVE Student',
+    department: '컴퓨터공학과',
+    universityId: 3,
+  });
+
+  expect(signup).not.toHaveBeenCalled();
+  expect(writeRefreshToken).not.toHaveBeenCalled();
+  expect(useAuthStore.getState()).toMatchObject({
+    status: 'authenticated',
+    accessToken: null,
+    user: {
+      id: 0,
+      email: 'student@pukyong.ac.kr',
+      name: 'SAVE Student',
+      department: '컴퓨터공학과',
+      universityId: 3,
+      universityName: null,
+      profileImageUrl: null,
+      role: 'USER',
+    },
   });
 });
 

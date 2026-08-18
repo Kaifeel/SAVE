@@ -8,6 +8,7 @@ import {
   refresh,
   signup,
 } from './api';
+import { runtime } from '@/config/runtime';
 import { clearRefreshToken, readRefreshToken, writeRefreshToken } from './secure-session';
 import type { AuthUser, LoginInput, MobileSession, SignupInput } from './types';
 
@@ -136,9 +137,27 @@ export const useAuthStore = create<AuthState>(set => {
       const generation = sessionGeneration;
       return authenticate(login(input), generation);
     },
-    signupWithEmail: input => {
+    signupWithEmail: async input => {
+      if (runtime.mockEnabled) {
+        set({
+          status: 'authenticated',
+          accessToken: null,
+          user: {
+            id: 0,
+            email: input.email,
+            name: input.name,
+            department: input.department,
+            universityId: input.universityId,
+            universityName: null,
+            profileImageUrl: null,
+            role: 'USER',
+          },
+        });
+        return;
+      }
+
       const generation = sessionGeneration;
-      return authenticate(signup(input), generation);
+      await authenticate(signup(input), generation);
     },
     loginWithGoogleToken: idToken => {
       const generation = sessionGeneration;
