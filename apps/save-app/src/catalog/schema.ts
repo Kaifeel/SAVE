@@ -71,27 +71,27 @@ export function parseCatalogItem(value: unknown): CatalogItem {
   const item = record(value, 'item');
   return {
     id: integer(item.id, 'id'),
-    ownerId: integer(item.ownerId, 'ownerId'),
-    ownerName: string(item.ownerName, 'ownerName'),
-    ownerUniversityId: nullableInteger(item.ownerUniversityId, 'ownerUniversityId'),
-    ownerUniversityName: nullableString(item.ownerUniversityName, 'ownerUniversityName'),
+    ownerId: integer(item.owner_id, 'owner_id'),
+    ownerName: string(item.owner_name, 'owner_name'),
+    ownerUniversityId: nullableInteger(item.owner_university_id, 'owner_university_id'),
+    ownerUniversityName: nullableString(item.owner_university_name, 'owner_university_name'),
     type: itemType(item.type),
     title: string(item.title, 'title'),
-    rentalFee: integer(item.rentalFee, 'rentalFee'),
-    rentalUnit: string(item.rentalUnit, 'rentalUnit'),
-    pickupLocationId: nullableInteger(item.pickupLocationId, 'pickupLocationId'),
-    pickupLocationName: nullableString(item.pickupLocationName, 'pickupLocationName'),
+    rentalFee: integer(item.rental_fee, 'rental_fee'),
+    rentalUnit: string(item.rental_unit, 'rental_unit'),
+    pickupLocationId: nullableInteger(item.pickup_location_id, 'pickup_location_id'),
+    pickupLocationName: nullableString(item.pickup_location_name, 'pickup_location_name'),
     description: string(item.description, 'description'),
     precautions: nullableString(item.precautions, 'precautions'),
     status: itemStatus(item.status),
-    imageUrls: stringArray(item.imageUrls, 'imageUrls'),
-    viewCount: integer(item.viewCount, 'viewCount'),
-    wishlistCount: integer(item.wishlistCount, 'wishlistCount'),
+    imageUrls: stringArray(item.image_urls, 'image_urls'),
+    viewCount: integer(item.view_count, 'view_count'),
+    wishlistCount: integer(item.wishlist_count, 'wishlist_count'),
     wishlisted: boolean(item.wishlisted, 'wishlisted'),
-    ownerRating: number(item.ownerRating, 'ownerRating'),
-    reviewCount: integer(item.reviewCount, 'reviewCount'),
-    createdAt: string(item.createdAt, 'createdAt'),
-    updatedAt: string(item.updatedAt, 'updatedAt'),
+    ownerRating: number(item.owner_rating, 'owner_rating'),
+    reviewCount: integer(item.review_count, 'review_count'),
+    createdAt: string(item.created_at, 'created_at'),
+    updatedAt: string(item.updated_at, 'updated_at'),
   };
 }
 
@@ -103,29 +103,29 @@ export function parseCatalogPage(value: unknown): CatalogPage {
   }
   return {
     content: page.content.map(parseCatalogItem),
-    pageNumber: integer(pageable.pageNumber, 'pageNumber'),
-    pageSize: integer(pageable.pageSize, 'pageSize'),
-    totalElements: integer(page.totalElements, 'totalElements'),
+    pageNumber: integer(pageable.page_number, 'page_number'),
+    pageSize: integer(pageable.page_size, 'page_size'),
+    totalElements: integer(page.total_elements, 'total_elements'),
   };
 }
 
 export function parseRecommendation(value: unknown): RecommendationSummary {
   const recommendation = record(value, 'recommendation');
-  if (!Array.isArray(recommendation.recommendedItems)) {
-    protocolError('recommendedItems');
+  if (!Array.isArray(recommendation.recommended_items)) {
+    protocolError('recommended_items');
   }
   return {
-    id: integer(recommendation.recommendationId, 'recommendationId'),
+    id: integer(recommendation.recommendation_id, 'recommendation_id'),
     headline: string(recommendation.headline, 'headline'),
-    reasons: stringArray(recommendation.recommendationReasons, 'recommendationReasons'),
-    keywords: stringArray(recommendation.recommendedKeywords, 'recommendedKeywords'),
-    items: recommendation.recommendedItems.map(parseCatalogItem),
+    reasons: stringArray(recommendation.recommendation_reasons, 'recommendation_reasons'),
+    keywords: stringArray(recommendation.recommended_keywords, 'recommended_keywords'),
+    items: recommendation.recommended_items.map(parseCatalogItem),
     department: string(recommendation.department, 'department'),
-    interestItems: stringArray(recommendation.interestItems, 'interestItems'),
-    timePeriod: string(recommendation.timePeriod, 'timePeriod'),
-    isExamPeriod: boolean(recommendation.isExamPeriod, 'isExamPeriod'),
-    weatherStatus: string(recommendation.weatherStatus, 'weatherStatus'),
-    createdAt: string(recommendation.createdAt, 'createdAt'),
+    interestItems: stringArray(recommendation.interest_items, 'interest_items'),
+    timePeriod: string(recommendation.time_period, 'time_period'),
+    isExamPeriod: boolean(recommendation.is_exam_period, 'is_exam_period'),
+    weatherStatus: string(recommendation.weather_status, 'weather_status'),
+    createdAt: string(recommendation.created_at, 'created_at'),
   };
 }
 

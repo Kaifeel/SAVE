@@ -2,38 +2,38 @@ import { parseCatalogItem, parseCatalogPage, parseRecommendation } from './schem
 
 export const backendItem = {
   id: 7,
-  ownerId: 3,
-  ownerName: '김세이브',
-  ownerUniversityId: 1,
-  ownerUniversityName: '부경대학교',
+  owner_id: 3,
+  owner_name: '김세이브',
+  owner_university_id: 1,
+  owner_university_name: '부경대학교',
   type: 'LEND',
   title: '삼각대',
-  rentalFee: 3000,
-  rentalUnit: 'DAY',
-  pickupLocationId: 4,
-  pickupLocationName: '도서관',
+  rental_fee: 3000,
+  rental_unit: 'DAY',
+  pickup_location_id: 4,
+  pickup_location_name: '도서관',
   description: '가벼운 삼각대',
   precautions: '파손 주의',
   status: 'AVAILABLE',
-  mainImageUrl: null,
-  imageUrls: [],
-  viewCount: 2,
-  wishlistCount: 1,
+  main_image_url: null,
+  image_urls: [],
+  view_count: 2,
+  wishlist_count: 1,
   wishlisted: false,
-  ownerRating: 4.5,
-  reviewCount: 8,
-  createdAt: '2026-08-18T01:00:00Z',
-  updatedAt: '2026-08-18T01:00:00Z',
+  owner_rating: 4.5,
+  review_count: 8,
+  created_at: '2026-08-18T01:00:00Z',
+  updated_at: '2026-08-18T01:00:00Z',
 };
 
 describe('catalog schema', () => {
   it('normalizes a complete ItemResponse without inventing optional values', () => {
     expect(parseCatalogItem({
       ...backendItem,
-      ownerUniversityId: null,
-      ownerUniversityName: null,
-      pickupLocationId: null,
-      pickupLocationName: null,
+      owner_university_id: null,
+      owner_university_name: null,
+      pickup_location_id: null,
+      pickup_location_name: null,
       precautions: null,
     })).toEqual(expect.objectContaining({
       id: 7,
@@ -48,8 +48,8 @@ describe('catalog schema', () => {
   it('uses all real image URLs and ignores a redundant main image field', () => {
     const item = parseCatalogItem({
       ...backendItem,
-      mainImageUrl: 'one.jpg',
-      imageUrls: ['one.jpg', 'two.jpg'],
+      main_image_url: 'one.jpg',
+      image_urls: ['one.jpg', 'two.jpg'],
     });
 
     expect(item.imageUrls).toEqual(['one.jpg', 'two.jpg']);
@@ -58,8 +58,8 @@ describe('catalog schema', () => {
   it.each([
     ['id', { ...backendItem, id: 'seven' }],
     ['type', { ...backendItem, type: 'OTHER' }],
-    ['imageUrls', { ...backendItem, imageUrls: ['one.jpg', 2] }],
-    ['createdAt', { ...backendItem, createdAt: null }],
+    ['image_urls', { ...backendItem, image_urls: ['one.jpg', 2] }],
+    ['created_at', { ...backendItem, created_at: null }],
   ])('rejects a malformed %s in a successful item payload', (_field, payload) => {
     expect(() => parseCatalogItem(payload)).toThrow('catalog');
   });
@@ -67,8 +67,8 @@ describe('catalog schema', () => {
   it('parses page metadata and every content item', () => {
     expect(parseCatalogPage({
       content: [backendItem],
-      pageable: { pageNumber: 2, pageSize: 20 },
-      totalElements: 41,
+      pageable: { page_number: 2, page_size: 20 },
+      total_elements: 41,
     })).toEqual({
       content: [expect.objectContaining({ id: 7 })],
       pageNumber: 2,
@@ -79,17 +79,17 @@ describe('catalog schema', () => {
 
   it('parses recommendation fields and validated item payloads', () => {
     expect(parseRecommendation({
-      recommendationId: 12,
+      recommendation_id: 12,
       headline: '오늘 필요한 물품',
-      recommendationReasons: ['학과 맞춤'],
-      recommendedKeywords: ['삼각대'],
-      recommendedItems: [backendItem],
+      recommendation_reasons: ['학과 맞춤'],
+      recommended_keywords: ['삼각대'],
+      recommended_items: [backendItem],
       department: '컴퓨터공학과',
-      interestItems: ['촬영'],
-      timePeriod: '오후',
-      isExamPeriod: false,
-      weatherStatus: '알 수 없음',
-      createdAt: '2026-08-18T10:00:00',
+      interest_items: ['촬영'],
+      time_period: '오후',
+      is_exam_period: false,
+      weather_status: '알 수 없음',
+      created_at: '2026-08-18T10:00:00',
     })).toEqual(expect.objectContaining({
       id: 12,
       headline: '오늘 필요한 물품',

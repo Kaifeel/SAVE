@@ -15,22 +15,22 @@ jest.mock('@/api/client', () => ({
 const apiRequestMock = apiRequest as jest.MockedFunction<typeof apiRequest>;
 const pagePayload = {
   content: [backendItem],
-  pageable: { pageNumber: 0, pageSize: 20 },
-  totalElements: 1,
+  pageable: { page_number: 0, page_size: 20 },
+  total_elements: 1,
 };
 
 const recommendationPayload = {
-  recommendationId: 12,
+  recommendation_id: 12,
   headline: '오늘 필요한 물품',
-  recommendationReasons: ['학과 맞춤'],
-  recommendedKeywords: ['삼각대'],
-  recommendedItems: [backendItem],
+  recommendation_reasons: ['학과 맞춤'],
+  recommended_keywords: ['삼각대'],
+  recommended_items: [backendItem],
   department: '컴퓨터공학과',
-  interestItems: ['삼각대'],
-  timePeriod: '오후',
-  isExamPeriod: false,
-  weatherStatus: '알 수 없음',
-  createdAt: '2026-08-18T10:00:00',
+  interest_items: ['삼각대'],
+  time_period: '오후',
+  is_exam_period: false,
+  weather_status: '알 수 없음',
+  created_at: '2026-08-18T10:00:00',
 };
 
 describe('catalog API', () => {
