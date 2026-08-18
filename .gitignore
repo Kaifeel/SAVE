@@ -14,6 +14,11 @@ dist-ssr
 *.local
 .env.example
 docs/superpowers/
+apps/save-app/.expo/
+apps/save-app/node_modules/
+apps/save-app/.env.local
+apps/save-app/dist/
+!apps/save-app/.env.example
 
 # Editor directories and files
 .vscode/*
