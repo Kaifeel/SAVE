@@ -27,6 +27,6 @@ export type SignupInput = {
   email: string;
   password: string;
   name: string;
-  department?: string | null;
-  universityId?: number | null;
+  department: string;
+  universityId: number;
 };

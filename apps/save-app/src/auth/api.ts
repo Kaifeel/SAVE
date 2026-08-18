@@ -95,13 +95,79 @@ function normalizeSession(response: BackendMobileSession): MobileSession {
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isNonBlankString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === 'string';
+}
+
+function isNullableFiniteNumber(value: unknown): value is number | null {
+  return value === null || (typeof value === 'number' && Number.isFinite(value));
+}
+
+function isBackendAuthUser(value: unknown): value is BackendAuthUser {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === 'number' &&
+    Number.isFinite(value.id) &&
+    isNonBlankString(value.email) &&
+    typeof value.name === 'string' &&
+    isNullableString(value.department) &&
+    isNullableFiniteNumber(value.university_id) &&
+    isNullableString(value.university_name) &&
+    isNullableString(value.profile_image_url) &&
+    (value.role === 'USER' || value.role === 'ADMIN')
+  );
+}
+
+function isBackendMobileSession(value: unknown): value is BackendMobileSession {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    isNonBlankString(value.access_token) &&
+    value.token_type === 'Bearer' &&
+    typeof value.is_new_user === 'boolean' &&
+    isNonBlankString(value.refresh_token) &&
+    isNonBlankString(value.refresh_token_expires_at) &&
+    Number.isFinite(Date.parse(value.refresh_token_expires_at)) &&
+    isBackendAuthUser(value.user)
+  );
+}
+
+function protocolError(): ApiError {
+  return new ApiError('Invalid authentication response', 502);
+}
+
 async function requestSession(
   path: string,
   body: Record<string, unknown>,
   secrets: readonly string[] = [],
 ): Promise<MobileSession> {
   const response = await post(path, body, secrets);
-  return normalizeSession((await response.json()) as BackendMobileSession);
+  let payload: unknown;
+
+  try {
+    payload = await response.json();
+  } catch {
+    throw protocolError();
+  }
+
+  if (!isBackendMobileSession(payload)) {
+    throw protocolError();
+  }
+
+  return normalizeSession(payload);
 }
 
 export function login(input: LoginInput): Promise<MobileSession> {

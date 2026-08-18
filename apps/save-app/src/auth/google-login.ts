@@ -16,11 +16,22 @@ export type GoogleLogin = {
   prompt: () => Promise<void>;
 };
 
-const platformClientId = Platform.select({
-  android: runtime.googleAndroidClientId,
-  ios: runtime.googleIosClientId,
-  default: runtime.googleWebClientId,
-});
+type GoogleClientIds = Pick<
+  typeof runtime,
+  'googleAndroidClientId' | 'googleIosClientId' | 'googleWebClientId'
+>;
+
+export function selectGoogleClientId(platform: string, clientIds: GoogleClientIds): string {
+  if (platform === 'android') {
+    return clientIds.googleAndroidClientId;
+  }
+  if (platform === 'ios') {
+    return clientIds.googleIosClientId;
+  }
+  return clientIds.googleWebClientId;
+}
+
+const platformClientId = selectGoogleClientId(Platform.OS, runtime);
 
 export function useGoogleLogin(): GoogleLogin {
   const enabled = Boolean(platformClientId);

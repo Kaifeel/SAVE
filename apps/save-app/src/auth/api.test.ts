@@ -14,7 +14,7 @@ const sessionResponse = {
     id: 17,
     email: 'student@pukyong.ac.kr',
     name: 'SAVE Student',
-    department: null,
+    department: '컴퓨터공학과',
     university_id: 3,
     university_name: 'Pukyong National University',
     profile_image_url: null,
@@ -45,7 +45,7 @@ it('posts login JSON without cookie credentials and normalizes the complete sess
       id: 17,
       email: 'student@pukyong.ac.kr',
       name: 'SAVE Student',
-      department: null,
+      department: '컴퓨터공학과',
       universityId: 3,
       universityName: 'Pukyong National University',
       profileImageUrl: null,
@@ -70,7 +70,7 @@ it('maps camel-case signup input to the backend request shape', async () => {
     email: 'new@pukyong.ac.kr',
     password: 'password123',
     name: 'New Student',
-    department: null,
+    department: '컴퓨터공학과',
     universityId: 3,
   });
 
@@ -78,7 +78,7 @@ it('maps camel-case signup input to the backend request shape', async () => {
     email: 'new@pukyong.ac.kr',
     password: 'password123',
     name: 'New Student',
-    department: null,
+    department: '컴퓨터공학과',
     university_id: 3,
   });
   expect(fetchMock.mock.calls[0][0]).toBe(
@@ -132,4 +132,61 @@ it('throws an ApiError with backend status and message without leaking the reque
   });
   await expect(request).rejects.not.toHaveProperty('message', expect.stringContaining('secret-refresh-value'));
   await expect(request).rejects.toBeInstanceOf(ApiError);
+});
+
+describe('mobile session protocol validation', () => {
+  const malformedSessions: readonly (readonly [string, unknown])[] = [
+    ['missing access token', { ...sessionResponse, access_token: undefined }],
+    ['blank access token', { ...sessionResponse, access_token: '   ' }],
+    ['missing refresh token', { ...sessionResponse, refresh_token: undefined }],
+    ['blank refresh token', { ...sessionResponse, refresh_token: '' }],
+    ['wrong token type', { ...sessionResponse, token_type: 'bearer' }],
+    ['non-boolean new-user flag', { ...sessionResponse, is_new_user: 'false' }],
+    ['blank refresh expiry', { ...sessionResponse, refresh_token_expires_at: ' ' }],
+    ['invalid refresh expiry', { ...sessionResponse, refresh_token_expires_at: 'not-a-date' }],
+    ['missing user', { ...sessionResponse, user: undefined }],
+    ['non-finite user id', { ...sessionResponse, user: { ...sessionResponse.user, id: Infinity } }],
+    ['blank user email', { ...sessionResponse, user: { ...sessionResponse.user, email: ' ' } }],
+    ['non-string user name', { ...sessionResponse, user: { ...sessionResponse.user, name: 17 } }],
+    ['non-string department', { ...sessionResponse, user: { ...sessionResponse.user, department: 17 } }],
+    ['non-numeric university id', { ...sessionResponse, user: { ...sessionResponse.user, university_id: '3' } }],
+    ['non-string university name', { ...sessionResponse, user: { ...sessionResponse.user, university_name: 3 } }],
+    ['non-string profile image URL', { ...sessionResponse, user: { ...sessionResponse.user, profile_image_url: false } }],
+    ['blank user role', { ...sessionResponse, user: { ...sessionResponse.user, role: '' } }],
+    ['unknown user role', { ...sessionResponse, user: { ...sessionResponse.user, role: 'SUPERUSER' } }],
+  ];
+
+  it.each(malformedSessions)('rejects a malformed 2xx response with %s', async (_caseName, payload) => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue(payload),
+    });
+
+    const request = login({ email: 'student@pukyong.ac.kr', password: 'password123' });
+
+    await expect(request).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 502,
+      message: 'Invalid authentication response',
+    });
+    await expect(request).rejects.not.toHaveProperty(
+      'message',
+      expect.stringMatching(/access-value|refresh-value/),
+    );
+  });
+
+  it('rejects malformed 2xx JSON without exposing parser details', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockRejectedValue(new SyntaxError('token access-value at position 1')),
+    });
+
+    await expect(login({ email: 'student@pukyong.ac.kr', password: 'password123' })).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 502,
+      message: 'Invalid authentication response',
+    });
+  });
 });

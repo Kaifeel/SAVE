@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 import { useAuthStore } from '@/auth/store';
 
-import { useGoogleLogin } from './google-login';
+import { selectGoogleClientId, useGoogleLogin } from './google-login';
 
 const mockUseAuthRequest = jest.fn();
 const mockUseIdTokenAuthRequest = jest.fn();
@@ -48,6 +48,18 @@ beforeEach(() => {
   );
   mockUseAuthRequest.mockReturnValue([{}, null, mockPromptAsync]);
   mockUseIdTokenAuthRequest.mockReturnValue([{}, null, mockPromptAsync]);
+});
+
+it.each([
+  ['android', 'android-client.apps.googleusercontent.com'],
+  ['ios', 'ios-client.apps.googleusercontent.com'],
+  ['web', 'web-client.apps.googleusercontent.com'],
+] as const)('selects the independent %s Google client ID', (platform, expectedClientId) => {
+  expect(selectGoogleClientId(platform, {
+    googleAndroidClientId: 'android-client.apps.googleusercontent.com',
+    googleIosClientId: 'ios-client.apps.googleusercontent.com',
+    googleWebClientId: 'web-client.apps.googleusercontent.com',
+  })).toBe(expectedClientId);
 });
 
 it('selects the current platform client ID through the ID-token request hook', async () => {

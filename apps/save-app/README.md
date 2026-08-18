@@ -26,3 +26,7 @@ npx expo export --platform android --output-dir /tmp/save-expo-auth-export
 ```
 
 Physical-device checks remain required for Google OAuth, SecureStore restoration, camera access, and Android system-back behavior. An automated test or Android export does not replace those checks. Current screen-by-screen implementation and device status is recorded in [`../../docs/mobile-ui-parity.md`](../../docs/mobile-ui-parity.md).
+
+## Dependency audit disposition
+
+On 2026-08-18, both `npm audit --omit=dev --json` and `npm audit --json` reported the same 23 package-level findings: 15 high, 8 moderate, and 0 critical. There was no additional dev-only advisory delta. The findings are in the Expo 57, React Native 0.86, Metro, and related build-tool dependency graph. npm's suggested automatic remediations would downgrade to incompatible Expo 53 or React Native 0.72-era versions, so no `npm audit fix` was applied. Re-evaluate against SDK-compatible upstream releases rather than forcing those incompatible changes.

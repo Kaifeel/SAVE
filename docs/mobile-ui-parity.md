@@ -13,7 +13,7 @@ This matrix tracks the canonical Expo app in `apps/save-app` against the web ref
 | Screen | Status | Web reference path | Expo target path | API status | Hardcoded-data audit | Physical-device status |
 | --- | --- | --- | --- | --- | --- | --- |
 | Login | `implemented` | `src/pages/LoginPage.jsx` | `apps/save-app/src/app/login.tsx` | Email login and Google ID-token submission are wired to the existing mobile auth API. Interactive Google OAuth is not device-verified. | Pass: no forbidden tags, counters, trade totals, or mock tokens. | Not run. |
-| Signup | `implemented` | `src/pages/LoginPage.jsx` | `apps/save-app/src/app/signup.tsx` | Email signup is wired to the existing mobile auth API. The current form does not fabricate university catalog data. | Pass: no forbidden values or mock tokens. | Not run. |
+| Signup | `implemented` | `src/pages/LoginPage.jsx` | `apps/save-app/src/app/signup.tsx` | Email signup requires name, a university loaded from the public `/universities` catalog, department, email, and password. The native modal selector, catalog loading/error/retry states, exact `universityId` submission, pending state, validation, and API failure are covered by direct screen tests; no catalog fallback is fabricated. | Pass: no forbidden values, university fixtures, or mock tokens in production code. | Not run. |
 | Authentication shell | `implemented` | `src/App.jsx` | `apps/save-app/src/app/_layout.tsx`; `apps/save-app/src/app/(authenticated)/index.tsx`; `apps/save-app/src/components/app-bootstrap.tsx` | SecureStore refresh-token restoration, rotation, retry, and protected routing are wired to the existing mobile auth API and covered by automated tests. | Pass: no embedded sessions or mock token fallback. | Not run; SecureStore restoration and route behavior are not device-verified. |
 | Home | `shell` | `src/pages/HomePage.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/index.tsx` | Not connected; the route renders only a title placeholder. | Pass: no product records or forbidden display values. | Not run. |
 | Explore | `shell` | `src/pages/SearchPage.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/explore.tsx` | Not connected; the route renders only a title placeholder. | Pass: no product records or forbidden display values. | Not run. |
@@ -25,6 +25,8 @@ This matrix tracks the canonical Expo app in `apps/save-app` against the web ref
 | Rentals | `shell` | `src/pages/RentalsPage.jsx` | Planned routes under `apps/save-app/src/app/(authenticated)/rentals/` are absent | Not connected; no Expo rental list or detail route exists. | Not applicable: no Expo rentals UI or data exists to audit. | Not run. |
 
 The hardcoded-data audit covers the prohibited fixed tags, photo counter, trade total, and mock session tokens within `apps/save-app`, excluding `node_modules`. A passing audit means only that these forbidden values are absent; it does not prove an unimplemented screen has live data.
+
+Authentication success responses are runtime-validated before normalization or SecureStore persistence. A malformed 2xx response becomes a sanitized protocol `ApiError`; it cannot install an access token, user, or refresh token.
 
 ## Local environment
 
@@ -51,16 +53,18 @@ npx expo export --platform android --output-dir /tmp/save-expo-auth-export
 
 The Android export is disposable build output under `/tmp`; it is not application source and should not be committed.
 
-Results from 2026-08-18:
+Latest results from 2026-08-18:
 
 | Check | Result |
 | --- | --- |
-| Backend tests | Pass: Gradle `BUILD SUCCESSFUL in 19s`; the test task executed. |
-| Expo tests | Pass: 8 suites and 44 tests. |
+| Backend tests | Prior pass retained: Gradle `BUILD SUCCESSFUL in 19s`; this final client-only fix wave did not change `backend/`. |
+| Expo tests | Pass: 10 suites and 77 tests. |
 | TypeScript | Pass: `tsc --noEmit` exited 0. |
 | ESLint | Pass: `expo lint` exited 0. |
-| Android export | Pass: Metro bundled 1,281 modules and wrote `_expo/static/js/android/entry-ef6b8d3cc5ebe54f0e9a913fa181e44f.hbc` plus `metadata.json` under `/tmp/save-expo-auth-export`. |
+| Android export | Pass: Metro bundled 1,282 modules and wrote `_expo/static/js/android/entry-c42b48d11e3d728a44db9cd771470507.hbc` plus `metadata.json` under `/tmp/save-expo-final-fix-export`. |
 | Forbidden hardcoded content | Pass: the required `rg` audit returned no matches. |
+| Production dependency audit | Reviewed: 23 findings (15 high, 8 moderate, 0 critical); suggested fixes are incompatible SDK/RN downgrades and were not applied. |
+| Full dependency audit | Reviewed: the same 23 findings, with no additional dev-only advisory delta. |
 
 The first Android export attempt found route tests under `src/app` and failed because Expo Router included them in its production route context. Moving those tests, without changing production route code, to `src/__tests__` made the focused tests, full checks, and export pass.
 

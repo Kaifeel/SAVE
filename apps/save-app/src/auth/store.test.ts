@@ -271,6 +271,8 @@ it('persists and installs an email signup session', async () => {
     email: 'student@pukyong.ac.kr',
     password: 'password123',
     name: 'SAVE Student',
+    department: '컴퓨터공학과',
+    universityId: 3,
   });
 
   expect(writeRefreshToken).toHaveBeenCalledWith('rotated-refresh-value');
@@ -278,6 +280,25 @@ it('persists and installs an email signup session', async () => {
     status: 'authenticated',
     accessToken: 'new-access-value',
     user,
+  });
+});
+
+it('does not persist or expose a session when signup rejects a malformed protocol response', async () => {
+  signup.mockRejectedValue(new api.ApiError('Invalid authentication response', 502));
+
+  await expect(useAuthStore.getState().signupWithEmail({
+    email: 'student@pukyong.ac.kr',
+    password: 'password123',
+    name: 'SAVE Student',
+    department: '컴퓨터공학과',
+    universityId: 3,
+  })).rejects.toMatchObject({ status: 502 });
+
+  expect(writeRefreshToken).not.toHaveBeenCalled();
+  expect(useAuthStore.getState()).toMatchObject({
+    status: 'hydrating',
+    accessToken: null,
+    user: null,
   });
 });
 
