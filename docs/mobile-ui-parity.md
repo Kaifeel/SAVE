@@ -62,7 +62,7 @@ Latest results from 2026-08-18:
 | TypeScript | Pass: `tsc --noEmit` exited 0. |
 | ESLint | Pass: `expo lint` exited 0. |
 | Web regression tests | Pass: 38 files and 101 tests. |
-| Android export | Pass: Metro bundled 1,294 modules and wrote `_expo/static/js/android/entry-eae170d2d9ca0a1cd2630337fe150ae6.hbc` plus `metadata.json` under `/tmp/save-expo-catalog-export-20260818`. |
+| Android export | Pass: Metro bundled 1,294 modules and wrote `_expo/static/js/android/entry-f69f6ddcbcde292128b4266efcdd2a8a.hbc` plus `metadata.json` under `/tmp/save-expo-catalog-final-20260818`. |
 | Forbidden hardcoded content | Pass: the required `rg` audit returned no matches. |
 | Production dependency audit | Reviewed: 23 findings (15 high, 8 moderate, 0 critical); suggested fixes are incompatible SDK/RN downgrades and were not applied. |
 | Full dependency audit | Reviewed: the same 23 findings, with no additional dev-only advisory delta. |
