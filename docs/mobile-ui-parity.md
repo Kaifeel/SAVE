@@ -15,18 +15,18 @@ This matrix tracks the canonical Expo app in `apps/save-app` against the web ref
 | Login | `implemented` | `src/pages/LoginPage.jsx` | `apps/save-app/src/app/login.tsx` | Email login and Google ID-token submission are wired to the existing mobile auth API. Interactive Google OAuth is not device-verified. | Pass: no forbidden tags, counters, trade totals, or mock tokens. | Not run. |
 | Signup | `implemented` | `src/pages/LoginPage.jsx` | `apps/save-app/src/app/signup.tsx` | Email signup requires name, a university loaded from the public `/universities` catalog, department, email, and password. The native modal selector, catalog loading/error/retry states, exact `universityId` submission, pending state, validation, and API failure are covered by direct screen tests; no catalog fallback is fabricated. | Pass: no forbidden values, university fixtures, or mock tokens in production code. | Not run. |
 | Authentication shell | `implemented` | `src/App.jsx` | `apps/save-app/src/app/_layout.tsx`; `apps/save-app/src/app/(authenticated)/index.tsx`; `apps/save-app/src/components/app-bootstrap.tsx` | SecureStore refresh-token restoration, rotation, retry, and protected routing are wired to the existing mobile auth API and covered by automated tests. | Pass: no embedded sessions or mock token fallback. | Not run; SecureStore restoration and route behavior are not device-verified. |
-| Home | `shell` | `src/pages/HomePage.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/index.tsx` | Not connected; the route renders only a title placeholder. | Pass: no product records or forbidden display values. | Not run. |
-| Explore | `shell` | `src/pages/SearchPage.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/explore.tsx` | Not connected; the route renders only a title placeholder. | Pass: no product records or forbidden display values. | Not run. |
+| Home | `implemented` | `src/pages/HomePage.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/index.tsx` | Popular/latest item lists and recommendation history/creation use the existing `/items` and `/recommendations` APIs with session refresh, loading, empty, error, retry, and pull-to-refresh states. | Pass: server data only; no product fallback or forbidden display values. | Not run; pull-to-refresh and remote images are not device-verified. |
+| Explore | `implemented` | `src/pages/SearchPage.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/explore.tsx` | Board, debounced query, availability, university, sort, and pagination parameters use the existing `/items` API. Empty and failed responses remain explicit. | Pass: server data only; missing location/university uses neutral copy rather than fixtures. | Not run; native switch and list behavior are not device-verified. |
 | Compose | `shell` | `src/components/ItemRegistrationModal.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/create.tsx` | Not connected; the route renders only a title placeholder. | Pass: no draft item, photo, or product fixture data. | Not run. |
 | Chats | `shell` | `src/pages/ChatPage.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/chat.tsx`; planned `apps/save-app/src/app/(authenticated)/chats/[id].tsx` is absent | Not connected; the tab renders only a title placeholder and no chat-room route exists. | Pass: no chat rooms, notifications, messages, or forbidden display values. | Not run. |
 | My | `shell` | `src/pages/MyPage.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/my.tsx` | Not connected; the route renders only a title placeholder. | Pass: no profile, rental, or notification fixture data. | Not run. |
-| Item detail | `shell` | `src/ProductDetailPage.jsx` | Planned `apps/save-app/src/app/(authenticated)/items/[id].tsx` is absent | Not connected; no Expo route exists. | Not applicable: no Expo item-detail UI or data exists to audit. | Not run. |
+| Item detail | `implemented` | `src/ProductDetailPage.jsx` | `apps/save-app/src/app/(authenticated)/items/[id].tsx` | Detail uses `/items/{id}` and wishlist uses `POST`/`DELETE /items/{id}/wishlist`; responses are runtime-validated and a successful mutation is followed by an authoritative refetch. | Pass: photo counter derives from real images; fixed tags, photo count, trade count, and fallback owner/location values are absent. | Not run; horizontal image paging and Android system-back are not device-verified. |
 | Public profile | `shell` | `src/pages/UserProfilePage.jsx` | Planned `apps/save-app/src/app/(authenticated)/users/[id].tsx` is absent | Not connected; no Expo route exists. | Not applicable: no Expo public-profile UI or data exists to audit. | Not run. |
 | Rentals | `shell` | `src/pages/RentalsPage.jsx` | Planned routes under `apps/save-app/src/app/(authenticated)/rentals/` are absent | Not connected; no Expo rental list or detail route exists. | Not applicable: no Expo rentals UI or data exists to audit. | Not run. |
 
 The hardcoded-data audit covers the prohibited fixed tags, photo counter, trade total, and mock session tokens within `apps/save-app`, excluding `node_modules`. A passing audit means only that these forbidden values are absent; it does not prove an unimplemented screen has live data.
 
-Authentication success responses are runtime-validated before normalization or SecureStore persistence. A malformed 2xx response becomes a sanitized protocol `ApiError`; it cannot install an access token, user, or refresh token.
+Authentication success responses are runtime-validated before normalization or SecureStore persistence. Catalog item, page, and recommendation responses are also runtime-validated before rendering. A malformed 2xx response becomes a protocol failure; it cannot install a session or render partial/fabricated catalog data.
 
 ## Local environment
 
@@ -57,11 +57,12 @@ Latest results from 2026-08-18:
 
 | Check | Result |
 | --- | --- |
-| Backend tests | Prior pass retained: Gradle `BUILD SUCCESSFUL in 19s`; this final client-only fix wave did not change `backend/`. |
-| Expo tests | Pass: 10 suites and 77 tests. |
+| Backend tests | Prior pass retained; the catalog UI milestone did not change `backend/`. |
+| Expo tests | Pass: 16 suites and 117 tests. |
 | TypeScript | Pass: `tsc --noEmit` exited 0. |
 | ESLint | Pass: `expo lint` exited 0. |
-| Android export | Pass: Metro bundled 1,282 modules and wrote `_expo/static/js/android/entry-c42b48d11e3d728a44db9cd771470507.hbc` plus `metadata.json` under `/tmp/save-expo-final-fix-export`. |
+| Web regression tests | Pass: 38 files and 101 tests. |
+| Android export | Pass: Metro bundled 1,294 modules and wrote `_expo/static/js/android/entry-eae170d2d9ca0a1cd2630337fe150ae6.hbc` plus `metadata.json` under `/tmp/save-expo-catalog-export-20260818`. |
 | Forbidden hardcoded content | Pass: the required `rg` audit returned no matches. |
 | Production dependency audit | Reviewed: 23 findings (15 high, 8 moderate, 0 critical); suggested fixes are incompatible SDK/RN downgrades and were not applied. |
 | Full dependency audit | Reviewed: the same 23 findings, with no additional dev-only advisory delta. |
@@ -72,8 +73,8 @@ The first Android export attempt found route tests under `src/app` and failed be
 
 Create separate plans for:
 
-1. Catalog UI parity and corrections to hardcoded web behavior.
-2. Item composition plus rental and profile workflows.
+1. Item composition plus camera/gallery upload.
+2. Rental and profile workflows.
 3. Real-time chat and notifications.
 
 Each plan must leave the app runnable and retain the same TDD, test, typecheck, lint, export, hardcoded-data, and physical-device verification gates.

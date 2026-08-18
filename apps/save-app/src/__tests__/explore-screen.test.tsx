@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import ExploreScreen from '@/app/(authenticated)/(tabs)/explore';
 import { useAuthStore } from '@/auth/store';
 import { listItems } from '@/catalog/api';
-import { catalogItem, catalogPage } from './catalog-fixtures';
+import { catalogItem, catalogPage } from '@/test-utils/catalog-fixtures';
 
 const mockPush = jest.fn();
 let mockRouteQuery = '';

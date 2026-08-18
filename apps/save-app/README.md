@@ -10,6 +10,8 @@ This is the canonical Expo application for SAVE. It uses Expo Router with routes
 4. Configure Google Cloud and the apps using `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`, `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`, and backend `GOOGLE_CLIENT_IDS`. Keep all values local and do not commit `.env.local`.
 5. Start the configured existing backend, then start Expo with `npm run start`.
 
+After authentication, Home, Explore, and Item detail read real data from the existing `/api/v1/items`, `/api/v1/recommendations`, and wishlist endpoints. The mobile client never substitutes mock catalog records when those endpoints are empty or unavailable. Item creation, camera/gallery upload, rental, profile, and chat remain later milestones.
+
 ## Verification
 
 From the repository root, run:
@@ -25,7 +27,7 @@ cd apps/save-app
 npx expo export --platform android --output-dir /tmp/save-expo-auth-export
 ```
 
-Physical-device checks remain required for Google OAuth, SecureStore restoration, camera access, and Android system-back behavior. An automated test or Android export does not replace those checks. Current screen-by-screen implementation and device status is recorded in [`../../docs/mobile-ui-parity.md`](../../docs/mobile-ui-parity.md).
+Physical-device checks remain required for Google OAuth, SecureStore restoration, remote catalog images, horizontal image paging, and Android system-back behavior. Camera access is not implemented yet. An automated test or Android export does not replace those checks. Current screen-by-screen implementation and device status is recorded in [`../../docs/mobile-ui-parity.md`](../../docs/mobile-ui-parity.md).
 
 ## Dependency audit disposition
 

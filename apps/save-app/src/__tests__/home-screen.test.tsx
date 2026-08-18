@@ -7,7 +7,7 @@ import {
   getRecommendationHistory,
   listItems,
 } from '@/catalog/api';
-import { catalogItem, catalogPage, recommendation } from './catalog-fixtures';
+import { catalogItem, catalogPage, recommendation } from '@/test-utils/catalog-fixtures';
 
 const mockPush = jest.fn();
 
