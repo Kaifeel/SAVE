@@ -1,7 +1,11 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import App from './App'
-import { getNotifications, markAllNotificationsRead } from './api/notifications.js'
+import {
+  getNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from './api/notifications.js'
 import { useAuthStore } from './store/authStore.js'
 
 const testState = vi.hoisted(() => ({
@@ -71,8 +75,10 @@ vi.mock('./api/notifications.js', () => ({
     title: notification.title,
     text: notification.content ?? notification.text,
     read: Boolean(notification.read),
+    createdAt: notification.created_at ?? notification.createdAt,
     time: notification.created_at ?? notification.time ?? '',
   }),
+  markNotificationRead: vi.fn(),
   markAllNotificationsRead: vi.fn(),
 }))
 
@@ -99,6 +105,7 @@ beforeEach(() => {
     read: false,
   }])
   markAllNotificationsRead.mockResolvedValue(null)
+  markNotificationRead.mockResolvedValue(null)
 })
 
 afterEach(() => {
@@ -144,6 +151,73 @@ it('merges a realtime notification only once', async () => {
 
   fireEvent.click(screen.getByRole('button', { name: '알림 열기' }))
   expect(screen.getAllByText('실시간 요청')).toHaveLength(1)
+})
+
+it('keeps a realtime notification when an older list response arrives later', async () => {
+  let resolveNotifications
+  getNotifications.mockReturnValue(new Promise(resolve => {
+    resolveNotifications = resolve
+  }))
+  render(<App />)
+  await waitFor(() => expect(testState.chatOptions?.onNotification).toBeTypeOf('function'))
+
+  act(() => {
+    testState.chatOptions.onNotification({
+      id: 21,
+      type: 'RENTAL_REQUESTED',
+      title: '방금 도착한 요청',
+      content: '실시간으로 받은 알림입니다.',
+      read: false,
+      created_at: '2026-08-21T15:00:00',
+    })
+  })
+  await act(async () => {
+    resolveNotifications([])
+  })
+
+  fireEvent.click(screen.getByRole('button', { name: '알림 열기' }))
+  expect(screen.getByText('방금 도착한 요청')).toBeInTheDocument()
+})
+
+it('marks one notification as read when it is selected', async () => {
+  render(<App />)
+  fireEvent.click(await screen.findByRole('button', { name: '알림 열기' }))
+
+  fireEvent.click(await screen.findByRole('button', { name: /새 대여 요청/ }))
+
+  await waitFor(() => expect(markNotificationRead).toHaveBeenCalledWith(11, 'jwt'))
+  await waitFor(() => {
+    expect(screen.queryByLabelText('읽지 않은 알림 있음')).not.toBeInTheDocument()
+  })
+})
+
+it('reloads persisted notifications after websocket reconnection', async () => {
+  getNotifications
+    .mockResolvedValueOnce([{
+      id: 11,
+      title: '새 대여 요청',
+      text: '카메라 대여 요청이 도착했습니다.',
+      time: '8월 3일 오후 9:00',
+      read: false,
+    }])
+    .mockResolvedValueOnce([{
+      id: 11,
+      title: '새 대여 요청',
+      text: '카메라 대여 요청이 도착했습니다.',
+      time: '8월 3일 오후 9:00',
+      read: true,
+    }])
+  render(<App />)
+  await waitFor(() => expect(getNotifications).toHaveBeenCalledTimes(1))
+  expect(screen.getByLabelText('읽지 않은 알림 있음')).toBeInTheDocument()
+  expect(testState.chatOptions?.onReconnect).toBeTypeOf('function')
+
+  await act(() => testState.chatOptions.onReconnect())
+
+  await waitFor(() => expect(getNotifications).toHaveBeenCalledTimes(2))
+  await waitFor(() => {
+    expect(screen.queryByLabelText('읽지 않은 알림 있음')).not.toBeInTheDocument()
+  })
 })
 
 it('reloads review-related screens when mutual reviews are published', async () => {

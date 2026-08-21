@@ -24,6 +24,7 @@ import { createOrGetChatRoom, getChatRooms } from './api/chats.js'
 import {
   getNotifications,
   markAllNotificationsRead,
+  markNotificationRead,
   normalizeNotification,
 } from './api/notifications.js'
 import { updateMyProfile } from './api/users.js'
@@ -61,6 +62,26 @@ const WORKFLOW_NOTIFICATION_TYPES = new Set([
   'RENTAL_REJECTED',
   'REVIEW_PUBLISHED',
 ])
+
+function mergeNotifications(preferred, fallback) {
+  const seenIds = new Set()
+  return [...preferred, ...fallback]
+    .filter(notification => {
+      if (seenIds.has(notification.id)) return false
+      seenIds.add(notification.id)
+      return true
+    })
+    .map((notification, index) => ({ notification, index }))
+    .sort((left, right) => {
+      const leftTime = Date.parse(left.notification.createdAt)
+      const rightTime = Date.parse(right.notification.createdAt)
+      if (!Number.isNaN(leftTime) && !Number.isNaN(rightTime)) return rightTime - leftTime
+      if (!Number.isNaN(leftTime)) return -1
+      if (!Number.isNaN(rightTime)) return 1
+      return left.index - right.index
+    })
+    .map(entry => entry.notification)
+}
 
 function App() {
   const toast = useToast()
@@ -207,9 +228,7 @@ function App() {
   const { reload: reloadRentals } = rentalData
   const handleNotification = useCallback(response => {
     const incoming = normalizeNotification(response)
-    setNotifications(current => current.some(entry => entry.id === incoming.id)
-      ? current
-      : [incoming, ...current])
+    setNotifications(current => mergeNotifications([incoming], current))
     if (WORKFLOW_NOTIFICATION_TYPES.has(incoming.type)) {
       setWorkflowRefreshVersion(value => value + 1)
       Promise.allSettled([
@@ -219,6 +238,14 @@ function App() {
       ])
     }
   }, [reloadItems, reloadMyPage, reloadRentals])
+  const handleRealtimeReconnect = useCallback(() => Promise.allSettled([
+    getNotifications(accessToken).then(response => {
+      setNotifications(current => mergeNotifications(response, current))
+    }),
+    getChatRooms(accessToken).then(response => {
+      setChats(current => mergeChatRoomSnapshot(current, response))
+    }),
+  ]), [accessToken])
   const chatData = useChatRooms({
     accessToken,
     currentUserId: savedUser?.id,
@@ -226,6 +253,7 @@ function App() {
     onChatListUpdate: handleChatListUpdate,
     onRoomRead: handleChatRoomRead,
     onNotification: handleNotification,
+    onReconnect: handleRealtimeReconnect,
   })
   const recommendationData = useRecommendations({
     accessToken,
@@ -281,7 +309,7 @@ function App() {
 
     getNotifications(accessToken)
       .then(response => {
-        if (!ignore) setNotifications(response)
+        if (!ignore) setNotifications(current => mergeNotifications(response, current))
       })
       .catch(error => {
         if (!ignore) {
@@ -627,13 +655,29 @@ function App() {
                     <div className="px-4 py-6 text-center text-xs text-slate-400">새로운 알림이 없습니다.</div>
                   ) : (
                     notifications.map(n => (
-                      <div key={n.id} className={`px-4 py-3 border-b border-slate-50 last:border-b-0 hover:bg-slate-50 transition-colors ${!n.read ? 'bg-indigo-50/20' : ''}`}>
+                      <button
+                        key={n.id}
+                        type="button"
+                        onClick={async () => {
+                          if (n.read) return
+                          try {
+                            if (USE_API) await markNotificationRead(n.id, accessToken)
+                            setNotifications(current => current.map(notification =>
+                              notification.id === n.id
+                                ? { ...notification, read: true }
+                                : notification))
+                          } catch (error) {
+                            toast.error(error.message || '알림 읽음 처리에 실패했습니다.')
+                          }
+                        }}
+                        className={`block w-full text-left px-4 py-3 border-b border-slate-50 last:border-b-0 hover:bg-slate-50 transition-colors ${!n.read ? 'bg-indigo-50/20' : ''}`}
+                      >
                         <div className="flex justify-between items-start">
                           <span className="font-bold text-xs text-indigo-600">{n.title}</span>
                           <span className="text-[10px] text-slate-400">{n.time}</span>
                         </div>
                         <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">{n.text}</p>
-                      </div>
+                      </button>
                     ))
                   )}
                 </div>

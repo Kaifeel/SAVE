@@ -29,7 +29,7 @@ public class DeviceTokenService {
 
     @Transactional
     public void unregister(Integer userId, String token) {
-        tokenRepository.findByToken(token).ifPresent(device -> {
+        tokenRepository.findByToken(token.trim()).ifPresent(device -> {
             if (!device.getUser().getId().equals(userId)) {
                 throw new BusinessException(HttpStatus.FORBIDDEN, "기기 토큰을 삭제할 권한이 없습니다.");
             }

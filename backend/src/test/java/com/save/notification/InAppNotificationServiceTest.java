@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 import com.save.item.Item;
@@ -34,12 +35,12 @@ class InAppNotificationServiceTest {
         lender = mock(User.class);
         borrower = mock(User.class);
         Item item = mock(Item.class);
-        when(lender.getId()).thenReturn(2);
+        lenient().when(lender.getId()).thenReturn(2);
         lenient().when(borrower.getId()).thenReturn(3);
         when(item.getId()).thenReturn(4);
         when(item.getTitle()).thenReturn("테스트 물품");
         when(rental.getId()).thenReturn(5);
-        when(rental.getLender()).thenReturn(lender);
+        lenient().when(rental.getLender()).thenReturn(lender);
         lenient().when(rental.getBorrower()).thenReturn(borrower);
         when(rental.getItem()).thenReturn(item);
         when(repository.save(any(InAppNotification.class)))
@@ -76,6 +77,25 @@ class InAppNotificationServiceTest {
         assertThat(stored.getRecipient()).isSameAs(borrower);
         assertThat(stored.getType()).isEqualTo(InAppNotificationType.RENTAL_REJECTED);
         assertPublishedFor(3, InAppNotificationType.RENTAL_REJECTED);
+    }
+
+    @Test
+    void storesPublishedReviewForBothParticipants() {
+        service.reviewPublished(rental);
+
+        ArgumentCaptor<InAppNotification> stored =
+                ArgumentCaptor.forClass(InAppNotification.class);
+        verify(repository, times(2)).save(stored.capture());
+        assertThat(stored.getAllValues())
+                .extracting(InAppNotification::getRecipient)
+                .containsExactly(lender, borrower);
+
+        ArgumentCaptor<InAppNotificationCreatedEvent> events =
+                ArgumentCaptor.forClass(InAppNotificationCreatedEvent.class);
+        verify(eventPublisher, times(2)).publishEvent(events.capture());
+        assertThat(events.getAllValues())
+                .extracting(InAppNotificationCreatedEvent::recipientId)
+                .containsExactly(2, 3);
     }
 
     private InAppNotification captureStoredNotification() {

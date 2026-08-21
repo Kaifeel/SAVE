@@ -19,6 +19,7 @@ export function normalizeNotification(notification) {
     title: notification.title,
     text: notification.content ?? notification.text,
     read: Boolean(notification.read),
+    createdAt: notification.created_at ?? notification.createdAt,
     time: formatNotificationTime(notification.created_at ?? notification.createdAt),
   }
 }
