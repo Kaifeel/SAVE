@@ -83,7 +83,12 @@ export default function ChatPage(props) {
                       {/* Item Header */}
                       <div className="bg-white px-4 py-3 border-b border-slate-100">
                         <div className="flex items-center mb-2">
-                          <button onClick={() => setActiveChatRoom(null)} className="p-1.5 mr-2 hover:bg-slate-100 rounded-full text-slate-700">
+                          <button
+                            type="button"
+                            aria-label="채팅 목록으로"
+                            onClick={() => setActiveChatRoom(null)}
+                            className="p-1.5 mr-2 hover:bg-slate-100 rounded-full text-slate-700"
+                          >
                             <ArrowLeft className="w-5 h-5" />
                           </button>
                           <h4 className="font-extrabold text-slate-800 text-sm truncate flex-1">{activeChatRoom.sender}</h4>

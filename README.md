@@ -39,6 +39,16 @@ export GOOGLE_CLIENT_ID='프런트의_VITE_GOOGLE_CLIENT_ID와_같은_값'
 로그인 뒤 학과·대학교 입력을 완료한 사용자도 새로고침 시 입력 화면으로 돌아가지
 않습니다.
 
+## 프런트엔드 라우팅과 배포
+
+프런트엔드는 React Router의 `BrowserRouter`를 사용합니다. 운영 웹 서버나 정적 호스팅은
+`/rentals`, `/items/12`, `/chats/3`처럼 실제 파일이 아닌 프런트엔드 경로를 요청받았을 때
+`index.html`을 반환하는 SPA history fallback을 설정해야 합니다. `/api/**`, 정적 asset,
+WebSocket 경로는 fallback에서 제외하고 기존 백엔드 또는 파일 응답으로 전달해야 합니다.
+
+이 fallback이 없으면 앱 안에서 이동할 때는 정상이어도 상세 URL을 직접 열거나 그 상태에서
+새로고침할 때 웹 서버의 404가 발생합니다.
+
 ## 검증
 
 ```bash
