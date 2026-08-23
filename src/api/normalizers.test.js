@@ -10,6 +10,16 @@ import {
   normalizeRental,
   toCreateItemPayload,
 } from './normalizers'
+import * as normalizers from './normalizers.js'
+import { normalizeItem as normalizeItemDirect } from './normalizers/items.js'
+import { normalizeChatRoom as normalizeChatRoomDirect } from './normalizers/chat.js'
+
+describe('normalizer compatibility barrel', () => {
+  it('re-exports the same domain functions', () => {
+    expect(normalizers.normalizeItem).toBe(normalizeItemDirect)
+    expect(normalizers.normalizeChatRoom).toBe(normalizeChatRoomDirect)
+  })
+})
 
 describe('item API normalization', () => {
   it('maps the canonical Spring item response without fallback values', () => {
