@@ -1,5 +1,22 @@
 import { apiFetch } from './client'
 
+export function normalizeAdminReport(report) {
+  return {
+    id: report.id,
+    reporterId: report.reporter_id ?? report.reporterId,
+    reporterName: report.reporter_name ?? report.reporterName,
+    reportedUserId: report.reported_user_id ?? report.reportedUserId,
+    reportedUserName: report.reported_user_name ?? report.reportedUserName,
+    itemId: report.item_id ?? report.itemId,
+    itemTitle: report.item_title ?? report.itemTitle,
+    chatRoomId: report.chat_room_id ?? report.chatRoomId,
+    reason: report.reason || '',
+    status: report.status || 'PENDING',
+    createdAt: report.created_at ?? report.createdAt,
+    handledAt: report.handled_at ?? report.handledAt,
+  }
+}
+
 export function createReport(data, accessToken) {
   return apiFetch('/reports', {
     method: 'POST',
