@@ -22,7 +22,7 @@ This matrix tracks the canonical Expo app in `apps/save-app` against the web ref
 | My | `shell` | `src/pages/MyPage.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/my.tsx` | Not connected; the route renders only a title placeholder. | Pass: no profile, rental, or notification fixture data. | Not run. |
 | Item detail | `implemented` | `src/ProductDetailPage.jsx` | `apps/save-app/src/app/(authenticated)/items/[id].tsx` | Detail uses `/items/{id}` and wishlist uses `POST`/`DELETE /items/{id}/wishlist`; responses are runtime-validated and a successful mutation is followed by an authoritative refetch. | Pass: photo counter derives from real images; fixed tags, photo count, trade count, and fallback owner/location values are absent. | Not run; horizontal image paging and Android system-back are not device-verified. |
 | Public profile | `shell` | `src/pages/UserProfilePage.jsx` | Planned `apps/save-app/src/app/(authenticated)/users/[id].tsx` is absent | Not connected; no Expo route exists. | Not applicable: no Expo public-profile UI or data exists to audit. | Not run. |
-| Rentals | `shell` | `src/pages/RentalsPage.jsx` | Planned routes under `apps/save-app/src/app/(authenticated)/rentals/` are absent | Not connected; no Expo rental list or detail route exists. | Not applicable: no Expo rentals UI or data exists to audit. | Not run. |
+| Rentals | `implemented` (notification landing only) | `src/pages/RentalsPage.jsx` | `apps/save-app/src/app/(authenticated)/rentals/[id].tsx` | Notification deep links load and runtime-validate the authorized `/rentals/{id}` response. The screen is intentionally read-only; rental lists and transition actions remain unimplemented. | Pass: item ID, status, and dates come from the validated response; no sample rental is rendered in production. | Not run; Android notification opening and iPhone direct route opening require physical devices. |
 
 The hardcoded-data audit covers the prohibited fixed tags, photo counter, trade total, and mock session tokens within `apps/save-app`, excluding `node_modules`. A passing audit means only that these forbidden values are absent; it does not prove an unimplemented screen has live data.
 
@@ -88,6 +88,17 @@ Create separate plans for:
 
 1. Item composition plus camera/gallery upload.
 2. Rental and profile workflows.
-3. Push notifications and physical-device chat verification.
+3. Full rental transition UI and profile workflows after the read-only notification landing.
+
+### Expo push milestone results from 2026-08-23
+
+| Check | Result |
+| --- | --- |
+| Backend | Pass: full Gradle gate; pending Expo tickets are polled after 15 minutes, delivery status is updated, and `DeviceNotRegistered` tokens are disabled. |
+| Web | Pass: 42 files and 130 tests, ESLint, and production Vite build. |
+| Expo | Pass: 28 suites and 197 tests, TypeScript, and ESLint. Registration, token rotation, logout removal, routing, and read-only rental landing are covered. |
+| Android export | Pass: Metro bundled 1,386 modules and wrote `_expo/static/js/android/entry-7f0aad7d2f8c064f6d319227c8536429.hbc` under `/tmp/save-expo-push-android`. |
+| Android delivery path | Implemented but not device-verified: EAS build, FCM V1 delivery, and notification deep links remain `Not run` until credentials and a device are available. |
+| iPhone scope | Expo Go core-flow rehearsal only; production iOS push and store distribution are not required for this milestone. |
 
 Each plan must leave the app runnable and retain the same TDD, test, typecheck, lint, export, hardcoded-data, and physical-device verification gates.

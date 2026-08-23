@@ -85,7 +85,23 @@ S3_PATH_STYLE_ACCESS_ENABLED=true
 
 Google Client ID는 공개 식별자지만, DB 비밀번호, JWT Secret, HMAC Secret,
 OpenAI API Key는 저장소에 커밋하지 않는다. Expo Push 기본 전송에는 별도
-서비스 계정 파일이 필요하지 않다.
+서비스 계정 파일이 Cloud Run에 필요하지 않다. 다만 Android 기기까지 전달되는
+구간은 FCM V1을 사용하므로, 해당 서비스 계정 키는 EAS Credentials에만
+업로드한다. 백엔드 환경변수나 이미지에는 넣지 않는다. `google-services.json`은
+EAS의 `GOOGLE_SERVICES_JSON` 파일 환경변수로 빌드에 제공한다.
+
+EAS의 `development`와 `preview` 환경에는 다음 공개 클라이언트 설정을 등록한다.
+값은 앱 번들에서 읽을 수 있으므로 비밀값으로 취급하지 않지만 저장소에는
+환경별 값을 고정하지 않는다.
+
+```dotenv
+EXPO_PUBLIC_API_BASE_URL=https://Cloud-Run-호스트/api/v1
+EXPO_PUBLIC_API_MODE=api
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=...
+EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=...
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=...
+GOOGLE_SERVICES_JSON=EAS에_업로드한_파일
+```
 
 ## 구현 및 배포 순서
 
@@ -102,6 +118,10 @@ OpenAI API Key는 저장소에 커밋하지 않는다. Expo Push 기본 전송�
 11. Expo 앱의 운영 API URL을 Cloud Run HTTPS URL로 변경한다.
 12. EAS 내부 배포 APK로 비공개 베타를 시작한다.
 13. 전시회 당일 Cloud Run 최소 인스턴스를 1로 변경한다.
+
+Android 내부 APK 전에는 EAS 프로젝트 연결, `com.save.capstone` 애플리케이션
+등록, FCM V1 서비스 계정 업로드, `google-services.json`의 sender ID 일치를
+확인한다. Firebase Admin SDK는 Spring 백엔드에 다시 추가하지 않는다.
 
 ## 출시 전 완료 조건
 
