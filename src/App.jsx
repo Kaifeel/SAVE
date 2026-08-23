@@ -1,13 +1,9 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import ProductDetailPage from './ProductDetailPage.jsx'
-import HomePage from './pages/HomePage.jsx'
-import SearchPage from './pages/SearchPage.jsx'
-import ChatPage from './pages/ChatPage.jsx'
-import MyPage from './pages/MyPage.jsx'
-import RentalsPage from './pages/RentalsPage.jsx'
 import UserProfilePage from './pages/UserProfilePage.jsx'
-import BottomNavigation from './components/BottomNavigation.jsx'
 import ItemRegistrationModal from './components/ItemRegistrationModal.jsx'
+import ActivePage from './components/ActivePage.jsx'
+import AppFrame from './components/AppFrame.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import ProfileSetupPage from './pages/ProfileSetupPage.jsx'
 import AdminPage, { AdminAccessDenied } from './pages/AdminPage.jsx'
@@ -37,10 +33,6 @@ import ReportModal from './components/ReportModal.jsx'
 import { addWishlist, removeWishlist } from './api/wishlist.js'
 import { useToast } from './components/toast.js'
 import { availableItems } from './utils/itemVisibility.js'
-import {
-  MapPin,
-  Bell,
-} from 'lucide-react'
 
 const DEV_AUTO_LOGIN = isAutoLoginEnabled(USE_API, import.meta.env.VITE_AUTO_LOGIN)
 function App() {
@@ -306,170 +298,85 @@ function App() {
     )
   }
 
+  const homeProps = {
+    searchQuery,
+    setSearchQuery,
+    recommendItems,
+    setSelectedItem,
+    homePopularItems,
+    setActiveTab,
+    recentItems,
+    filteredItems,
+    recommendationHeadline: recommendationData.current?.headline,
+    recommendationError: recommendationData.error,
+    onRefreshRecommendations: recommendationData.refresh,
+  }
+  const searchProps = {
+    activeBoard,
+    setActiveBoard,
+    searchQuery,
+    setSearchQuery,
+    availableOnly,
+    setAvailableOnly,
+    filteredItems,
+    setSelectedItem,
+    loading: itemData.loading,
+    error: itemData.error || referenceError,
+    onRetry: itemData.error ? itemData.reload : undefined,
+  }
+  const chatProps = {
+    activeChatRoom,
+    items,
+    setActiveChatRoom,
+    selectChatRoom: USE_API ? chatData.selectRoom : setActiveChatRoom,
+    setSelectedItem,
+    chatInput,
+    setChatInput,
+    handleSendMessage,
+    chats,
+    loadingMessages: chatData.loadingMessages,
+    loadingOlder: chatData.loadingOlder,
+    hasOlder: chatData.hasOlder,
+    loadOlder: chatData.loadOlder,
+    messageError: chatData.messageError,
+    retryMessage: chatData.retry,
+    socketState: USE_API ? chatData.socketState : undefined,
+  }
+  const myProps = {
+    memberName,
+    memberDepartment,
+    popularItems: USE_API ? [] : popularItems,
+    setSelectedItem,
+    recommendItems: USE_API ? [] : recommendItems,
+    onLogout: handleLogout,
+    onOpenRentals: () => setActiveTab('rentals'),
+    data: myPageData,
+  }
+  const rentalProps = {
+    data: rentalData,
+    onBack: () => setActiveTab('my'),
+    onError: message => toast.error(message),
+  }
+
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col justify-center items-center py-0 sm:py-6 px-0 sm:px-4">
-      {/* Mobile Frame Container */}
-      <div className="w-full max-w-[430px] h-[932px] sm:h-[844px] bg-white sm:rounded-[40px] sm:shadow-2xl overflow-hidden border border-slate-200 flex flex-col relative font-sans">
-        
-        {/* TOP STATUS BAR MOCK */}
-        <div className="bg-white px-6 pt-3 pb-1 flex justify-between items-center text-xs text-slate-500 font-semibold select-none border-b border-slate-50/50">
-          <span>16:07</span>
-          <div className="flex items-center space-x-1.5">
-            <span className="w-4 h-2.5 border border-slate-400 rounded-sm relative after:content-[''] after:absolute after:top-0.5 after:-right-1 after:w-0.5 after:h-1 after:bg-slate-400"></span>
-            <span>5G</span>
-          </div>
-        </div>
-
-        {/* HEADER AREA */}
-        <header className="relative z-30 overflow-visible px-5 py-3.5 bg-white border-b border-slate-100 flex justify-between items-center">
-          {/* University Display */}
-          <div className="flex items-center space-x-1 px-2 py-1.5 rounded-lg">
-            <MapPin className="w-5 h-5 text-indigo-600 fill-indigo-100/60" />
-            <span className="text-[17px] font-bold text-slate-800">{university}</span>
-          </div>
-
-          {/* Logo Name & Notifications */}
-          <div className="flex items-center space-x-3">
-            <span className="text-xs font-black tracking-widest text-indigo-600 bg-indigo-50 px-2 py-1 rounded">SAVE 대여</span>
-            <div className="relative">
-              <button 
-                type="button"
-                onClick={() => appNotifications.setIsOpen(!appNotifications.isOpen)}
-                aria-label="알림 열기"
-                aria-expanded={appNotifications.isOpen}
-                className="p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors relative"
-              >
-                <Bell className="w-6 h-6" />
-                {appNotifications.notifications.some(n => !n.read) && (
-                  <span aria-label="읽지 않은 알림 있음" className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white"></span>
-                )}
-              </button>
-
-              {/* Notifications Dropdown */}
-              {appNotifications.isOpen && (
-                <div role="dialog" aria-label="알림 목록" className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-100 rounded-2xl shadow-xl py-3 z-[100] max-h-96 overflow-y-auto">
-                  <div className="px-4 pb-2 border-b border-slate-100 flex justify-between items-center">
-                    <span className="font-bold text-slate-800 text-sm">알림</span>
-                    <button 
-                      onClick={appNotifications.markAllRead}
-                      className="text-xs text-indigo-600 hover:underline"
-                    >
-                      모두 읽음
-                    </button>
-                  </div>
-                  {appNotifications.notifications.length === 0 ? (
-                    <div className="px-4 py-6 text-center text-xs text-slate-400">새로운 알림이 없습니다.</div>
-                  ) : (
-                    appNotifications.notifications.map(n => (
-                      <div key={n.id} className={`px-4 py-3 border-b border-slate-50 last:border-b-0 hover:bg-slate-50 transition-colors ${!n.read ? 'bg-indigo-50/20' : ''}`}>
-                        <div className="flex justify-between items-start">
-                          <span className="font-bold text-xs text-indigo-600">{n.title}</span>
-                          <span className="text-[10px] text-slate-400">{n.time}</span>
-                        </div>
-                        <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">{n.text}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </header>
-
-        {/* MAIN DISPLAY AREA */}
-        <main className={`flex-1 overflow-y-auto bg-slate-50/50 ${activeTab === 'chat' && activeChatRoom ? 'pb-0' : 'pb-20'}`}>
-          
-          {/* TAB 1: HOME */}
-          {activeTab === 'home' && (
-            <HomePage
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              recommendItems={recommendItems}
-              setSelectedItem={setSelectedItem}
-              homePopularItems={homePopularItems}
-              setActiveTab={setActiveTab}
-              recentItems={recentItems}
-              filteredItems={filteredItems}
-              recommendationHeadline={recommendationData.current?.headline}
-              recommendationError={recommendationData.error}
-              onRefreshRecommendations={recommendationData.refresh}
-            />
-          )}
-
-          {/* TAB 2: SEARCH */}
-          {activeTab === 'search' && (
-            <SearchPage
-              activeBoard={activeBoard}
-              setActiveBoard={setActiveBoard}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              availableOnly={availableOnly}
-              setAvailableOnly={setAvailableOnly}
-              filteredItems={filteredItems}
-              setSelectedItem={setSelectedItem}
-              loading={itemData.loading}
-              error={itemData.error || referenceError}
-              onRetry={itemData.error ? itemData.reload : undefined}
-            />
-          )}
-
-          {/* TAB 3: CHAT */}
-          {activeTab === 'chat' && (
-            <ChatPage
-              activeChatRoom={activeChatRoom}
-              items={items}
-              setActiveChatRoom={setActiveChatRoom}
-              selectChatRoom={USE_API ? chatData.selectRoom : setActiveChatRoom}
-              setSelectedItem={setSelectedItem}
-              chatInput={chatInput}
-              setChatInput={setChatInput}
-              handleSendMessage={handleSendMessage}
-              chats={chats}
-              loadingMessages={chatData.loadingMessages}
-              loadingOlder={chatData.loadingOlder}
-              hasOlder={chatData.hasOlder}
-              loadOlder={chatData.loadOlder}
-              messageError={chatData.messageError}
-              retryMessage={chatData.retry}
-              socketState={USE_API ? chatData.socketState : undefined}
-            />
-          )}
-
-          {/* TAB 4: MY PAGE */}
-          {activeTab === 'my' && (
-            <MyPage
-              memberName={memberName}
-              memberDepartment={memberDepartment}
-              popularItems={USE_API ? [] : popularItems}
-              setSelectedItem={setSelectedItem}
-              recommendItems={USE_API ? [] : recommendItems}
-              onLogout={handleLogout}
-              onOpenRentals={() => setActiveTab('rentals')}
-              data={myPageData}
-            />
-          )}
-          {activeTab === 'rentals' && (
-            <RentalsPage
-              data={rentalData}
-              onBack={() => setActiveTab('my')}
-              onError={message => toast.error(message)}
-            />
-          )}
-
-        </main>
-
-        {/* BOTTOM TAB NAVIGATION BAR */}
-        <BottomNavigation
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          setActiveChatRoom={setActiveChatRoom}
-          setIsWriteModalOpen={open => open ? itemEditor.openCreate() : itemEditor.close()}
-          chats={chats}
-        />
-
-        {/* --- MODALS & DRAWERS --- */}
-
-        {/* 2. ITEM DETAIL DRAWER/SHEET */}
+    <AppFrame
+      headerProps={{
+        university,
+        notifications: appNotifications.notifications,
+        notificationOpen: appNotifications.isOpen,
+        onToggleNotifications: () => appNotifications.setIsOpen(!appNotifications.isOpen),
+        onMarkAllRead: appNotifications.markAllRead,
+      }}
+      navigationProps={{
+        activeTab,
+        setActiveTab,
+        setActiveChatRoom,
+        setIsWriteModalOpen: open => open ? itemEditor.openCreate() : itemEditor.close(),
+        chats,
+      }}
+      chatDetailOpen={activeTab === 'chat' && Boolean(activeChatRoom)}
+      overlays={(
+        <>
         {selectedItem && (
           <ProductDetailPage
             item={selectedItem}
@@ -676,9 +583,18 @@ function App() {
             />
           </div>
         )}
-
-      </div>
-    </div>
+        </>
+      )}
+    >
+      <ActivePage
+        activeTab={activeTab}
+        homeProps={homeProps}
+        searchProps={searchProps}
+        chatProps={chatProps}
+        myProps={myProps}
+        rentalProps={rentalProps}
+      />
+    </AppFrame>
   )
 }
 
