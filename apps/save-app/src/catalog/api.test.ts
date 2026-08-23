@@ -1,5 +1,6 @@
 import { apiRequest } from '@/api/client';
 import {
+  createItem,
   createRecommendation,
   getItem,
   getRecommendationHistory,
@@ -31,6 +32,17 @@ const recommendationPayload = {
   is_exam_period: false,
   weather_status: '알 수 없음',
   created_at: '2026-08-18T10:00:00',
+};
+
+const validCreateInput = {
+  type: 'LEND' as const,
+  title: 'USB-C 충전기',
+  rentalFee: 0,
+  rentalUnit: '일',
+  pickupLocationId: 4,
+  description: '정상 작동합니다.',
+  precautions: '케이블을 함께 반납해 주세요.',
+  photos: [],
 };
 
 describe('catalog API', () => {
@@ -69,6 +81,57 @@ describe('catalog API', () => {
 
     await expect(getItem(7)).resolves.toEqual(expect.objectContaining({ id: 7 }));
     expect(apiRequestMock).toHaveBeenCalledWith('/items/7');
+  });
+
+  it('creates a photo-free item with the exact JSON contract', async () => {
+    apiRequestMock.mockResolvedValue(backendItem);
+
+    await expect(createItem(validCreateInput)).resolves.toEqual(
+      expect.objectContaining({ id: 7 }),
+    );
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/items', {
+      method: 'POST',
+      body: JSON.stringify({
+        type: 'LEND',
+        title: 'USB-C 충전기',
+        rental_fee: 0,
+        rental_unit: '일',
+        pickup_location_id: 4,
+        description: '정상 작동합니다.',
+        precautions: '케이블을 함께 반납해 주세요.',
+      }),
+    });
+  });
+
+  it('creates an item with native photo parts and no manual multipart header', async () => {
+    apiRequestMock.mockResolvedValue(backendItem);
+
+    await createItem({
+      ...validCreateInput,
+      type: 'BORROW',
+      rentalFee: 1000,
+      photos: [{
+        uri: 'file:///photo.jpg',
+        fileName: 'photo.jpg',
+        mimeType: 'image/jpeg',
+      }],
+    });
+
+    const options = apiRequestMock.mock.calls[0][1];
+    expect(options).toEqual({ method: 'POST', body: expect.any(FormData) });
+    expect(options).not.toHaveProperty('headers.Content-Type');
+
+    const body = options?.body as FormData;
+    expect(body.get('type')).toBe('BORROW');
+    expect(body.get('rentalFee')).toBe('1000');
+    expect(body.get('pickupLocationId')).toBe('4');
+    expect(body.getAll('photos')).toHaveLength(1);
+  });
+
+  it('rejects a malformed create response instead of returning a partial item', async () => {
+    apiRequestMock.mockResolvedValue({ ...backendItem, id: 'bad' });
+    await expect(createItem(validCreateInput)).rejects.toThrow('catalog');
   });
 
   it('uses POST to add and DELETE to remove a wishlist', async () => {

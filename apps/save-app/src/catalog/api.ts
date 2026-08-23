@@ -9,9 +9,41 @@ import type {
   CatalogItem,
   CatalogItemType,
   CatalogPage,
+  CreateItemInput,
   RecommendationInput,
   RecommendationSummary,
 } from './types';
+
+function jsonItemBody(input: CreateItemInput): string {
+  return JSON.stringify({
+    type: input.type,
+    title: input.title,
+    rental_fee: input.rentalFee,
+    rental_unit: input.rentalUnit,
+    pickup_location_id: input.pickupLocationId,
+    description: input.description,
+    precautions: input.precautions,
+  });
+}
+
+function multipartItemBody(input: CreateItemInput): FormData {
+  const body = new FormData();
+  body.append('type', input.type);
+  body.append('title', input.title);
+  body.append('rentalFee', String(input.rentalFee));
+  body.append('rentalUnit', input.rentalUnit);
+  body.append('pickupLocationId', String(input.pickupLocationId));
+  body.append('description', input.description);
+  body.append('precautions', input.precautions);
+  input.photos.forEach(photo => {
+    body.append('photos', {
+      uri: photo.uri,
+      name: photo.fileName,
+      type: photo.mimeType,
+    } as unknown as Blob);
+  });
+  return body;
+}
 
 export type ListItemsInput = {
   type?: CatalogItemType;
@@ -40,6 +72,14 @@ export async function listItems(input: ListItemsInput = {}): Promise<CatalogPage
 
 export async function getItem(id: number): Promise<CatalogItem> {
   return parseCatalogItem(await apiRequest<unknown>(`/items/${id}`));
+}
+
+export async function createItem(input: CreateItemInput): Promise<CatalogItem> {
+  const body = input.photos.length > 0
+    ? multipartItemBody(input)
+    : jsonItemBody(input);
+  const response = await apiRequest<unknown>('/items', { method: 'POST', body });
+  return parseCatalogItem(response);
 }
 
 export async function setWishlist(id: number, wishlisted: boolean): Promise<void> {

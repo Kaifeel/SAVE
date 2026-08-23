@@ -3,6 +3,7 @@ package com.save;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -45,6 +46,26 @@ class MarketplaceIntegrationTest {
         universityId = university.getId();
         pickupLocationId = pickupLocationRepository
                 .save(new PickupLocation(university, "대연캠퍼스")).getId();
+    }
+
+    @Test
+    void multipartItemCreationUsesJavaBeanFieldNames() throws Exception {
+        String ownerToken = signUp("multipart@pukyong.ac.kr", "사진등록자")
+                .get("access_token").asText();
+
+        mockMvc.perform(multipart("/api/v1/items")
+                        .header("Authorization", bearer(ownerToken))
+                        .param("title", "멀티파트 우산")
+                        .param("rentalFee", "1000")
+                        .param("rentalUnit", "DAY")
+                        .param("pickupLocationId", pickupLocationId.toString())
+                        .param("type", "LEND")
+                        .param("description", "깨끗합니다.")
+                        .param("precautions", "분실 주의"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.title").value("멀티파트 우산"))
+                .andExpect(jsonPath("$.rental_fee").value(1000))
+                .andExpect(jsonPath("$.pickup_location_id").value(pickupLocationId));
     }
 
     @Test

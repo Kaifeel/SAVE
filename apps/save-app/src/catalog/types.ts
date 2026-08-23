@@ -1,6 +1,23 @@
 export type CatalogItemType = 'LEND' | 'BORROW';
 export type CatalogItemStatus = 'AVAILABLE' | 'REQUEST_PENDING' | 'RESERVED' | 'RENTED' | 'DELETED';
 
+export type ItemPhotoAsset = {
+  uri: string;
+  fileName: string;
+  mimeType: string;
+};
+
+export type CreateItemInput = {
+  type: CatalogItemType;
+  title: string;
+  rentalFee: number;
+  rentalUnit: string;
+  pickupLocationId: number;
+  description: string;
+  precautions: string;
+  photos: ItemPhotoAsset[];
+};
+
 export type CatalogItem = {
   id: number;
   ownerId: number;
