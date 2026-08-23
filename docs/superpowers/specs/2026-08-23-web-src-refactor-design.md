@@ -153,18 +153,20 @@ Dependencies must continue to point from composition to focused modules.
 Extracted modules must not import `App` or mutate another hook's internal
 state.
 
-## Defect Handling
+## Behavior Characterization
 
-The current file contains duplicated integration fragments around
-authentication restoration and chat-room creation. Before removing either
-fragment, add or strengthen tests that prove:
+Authentication restoration and item-to-chat navigation are high-risk
+orchestration boundaries even though the current source contains one call path
+for each. Before moving either path, add or strengthen tests that prove:
 
 - one restoration response installs the session exactly once;
 - selecting chat from an item creates/selects at most one room and navigates
   once;
 - failed restoration clears the session without duplicate user feedback.
 
-Refactoring must preserve existing error messages and retry behavior. New
+These are characterization tests for refactoring safety, not evidence of a
+known duplicate-execution defect. Refactoring must preserve existing error
+messages and retry behavior. New
 hooks return errors or call the existing toast boundary consistently; they do
 not silently swallow failures that are currently visible.
 
