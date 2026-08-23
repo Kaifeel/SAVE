@@ -33,7 +33,7 @@ storage:
 
 google:
   oauth:
-    client-id: ${GOOGLE_CLIENT_ID:}
+    client-id: ${GOOGLE_CLIENT_ID:69359391525-029eu2u4u5g6r8lqhbi07i5laeh4f10c.apps.googleusercontent.com}
     redirect-success-uri: ${GOOGLE_REDIRECT_SUCCESS_URI:http://localhost:5173}
     redirect-ticket-ttl-seconds: ${GOOGLE_REDIRECT_TICKET_TTL_SECONDS:60}
 

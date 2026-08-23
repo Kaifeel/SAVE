@@ -18,6 +18,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockCookie;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -51,10 +52,14 @@ class AuthRefreshIntegrationTest {
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("SameSite=Lax")))
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("no-store")))
+                .andExpect(header().string(HttpHeaders.PRAGMA, "no-cache"))
                 .andExpect(jsonPath("$.access_token").isNotEmpty())
                 .andReturn();
 
-        Cookie firstCookie = signup.getResponse().getCookie("save_refresh");
+        assertThat(signup.getResponse().getHeaders(HttpHeaders.SET_COOKIE)).hasSize(1);
+
+        Cookie firstCookie = responseCookie(signup);
         assertThat(firstCookie).isNotNull();
         assertThat(firstCookie.isHttpOnly()).isTrue();
         assertThat(firstCookie.getSecure()).isFalse();
@@ -74,14 +79,16 @@ class AuthRefreshIntegrationTest {
                 .andExpect(jsonPath("$.user.department").value("수정된학과"))
                 .andReturn();
 
-        Cookie rotatedCookie = refreshed.getResponse().getCookie("save_refresh");
+        Cookie rotatedCookie = responseCookie(refreshed);
         assertThat(rotatedCookie).isNotNull();
         assertThat(rotatedCookie.getValue()).isNotEqualTo(firstCookie.getValue());
 
-        mockMvc.perform(post("/api/v1/auth/refresh")
+        MvcResult reused = mockMvc.perform(post("/api/v1/auth/refresh")
                         .header(HttpHeaders.ORIGIN, ORIGIN)
                         .cookie(firstCookie))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andReturn();
+        assertThat(responseCookie(reused).getMaxAge()).isZero();
         mockMvc.perform(post("/api/v1/auth/refresh")
                         .header(HttpHeaders.ORIGIN, ORIGIN)
                         .cookie(rotatedCookie))
@@ -99,7 +106,7 @@ class AuthRefreshIntegrationTest {
                                 """))
                 .andExpect(status().isCreated())
                 .andReturn();
-        Cookie cookie = signup.getResponse().getCookie("save_refresh");
+        Cookie cookie = responseCookie(signup);
         assertThat(cookie).isNotNull();
 
         MvcResult logout = mockMvc.perform(post("/api/v1/auth/logout")
@@ -108,7 +115,7 @@ class AuthRefreshIntegrationTest {
                 .andExpect(status().isNoContent())
                 .andReturn();
 
-        Cookie cleared = logout.getResponse().getCookie("save_refresh");
+        Cookie cleared = responseCookie(logout);
         assertThat(cleared).isNotNull();
         assertThat(cleared.getMaxAge()).isZero();
         mockMvc.perform(post("/api/v1/auth/refresh")
@@ -134,7 +141,7 @@ class AuthRefreshIntegrationTest {
                 .andExpect(jsonPath("$.access_token").isNotEmpty())
                 .andReturn();
 
-        Cookie cookie = exchange.getResponse().getCookie("save_refresh");
+        Cookie cookie = responseCookie(exchange);
         assertThat(cookie).isNotNull();
         assertThat(cookie.isHttpOnly()).isTrue();
     }
@@ -153,7 +160,17 @@ class AuthRefreshIntegrationTest {
 
         mockMvc.perform(post("/api/v1/auth/refresh")
                         .header(HttpHeaders.ORIGIN, "https://attacker.example")
-                        .cookie(signup.getResponse().getCookie("save_refresh")))
+                        .cookie(responseCookie(signup)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void refreshRejectsMissingBrowserOrigin() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/refresh"))
+                .andExpect(status().isForbidden());
+    }
+
+    private Cookie responseCookie(MvcResult result) {
+        return MockCookie.parse(result.getResponse().getHeader(HttpHeaders.SET_COOKIE));
     }
 }

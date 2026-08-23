@@ -19,8 +19,8 @@ public class AuthOriginValidator {
                 .collect(Collectors.toUnmodifiableSet());
     }
 
-    public void requireAllowedWhenPresent(String origin) {
-        if (origin != null && !origin.isBlank() && !allowedOrigins.contains(origin)) {
+    public void requireAllowed(String origin) {
+        if (origin == null || origin.isBlank() || !allowedOrigins.contains(origin)) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "허용되지 않은 요청 출처입니다.");
         }
     }

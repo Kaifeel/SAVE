@@ -1,6 +1,7 @@
 package com.save.security;
 
 import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.time.Clock;
 import java.time.Duration;
@@ -32,38 +33,33 @@ public class RefreshCookieService {
         return cookieName;
     }
 
+    public String read(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) return null;
+        for (Cookie cookie : cookies) {
+            if (cookieName.equals(cookie.getName())) return cookie.getValue();
+        }
+        return null;
+    }
+
     public void write(HttpServletResponse response, String rawToken, Instant expiresAt) {
         long seconds = Math.max(0, Duration.between(clock.instant(), expiresAt).toSeconds());
-        Cookie cookie = baseCookie(rawToken);
-        cookie.setMaxAge((int) Math.min(Integer.MAX_VALUE, seconds));
-        response.addCookie(cookie);
-        writeHeader(response, rawToken, Duration.ofSeconds(seconds));
+        response.addHeader(HttpHeaders.SET_COOKIE,
+                buildCookie(rawToken, Duration.ofSeconds(seconds)).toString());
     }
 
     public void clear(HttpServletResponse response) {
-        Cookie cookie = baseCookie("");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
-        writeHeader(response, "", Duration.ZERO);
+        response.addHeader(HttpHeaders.SET_COOKIE,
+                buildCookie("", Duration.ZERO).toString());
     }
 
-    private Cookie baseCookie(String value) {
-        Cookie cookie = new Cookie(cookieName, value);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(secure);
-        cookie.setPath(cookiePath);
-        cookie.setAttribute("SameSite", "Lax");
-        return cookie;
-    }
-
-    private void writeHeader(HttpServletResponse response, String value, Duration maxAge) {
-        ResponseCookie cookie = ResponseCookie.from(cookieName, value)
+    private ResponseCookie buildCookie(String value, Duration maxAge) {
+        return ResponseCookie.from(cookieName, value)
                 .httpOnly(true)
                 .secure(secure)
                 .path(cookiePath)
                 .sameSite("Lax")
                 .maxAge(maxAge)
                 .build();
-        response.setHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 }

@@ -20,4 +20,12 @@ class ProductionSecretsValidatorTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("JWT_SECRET");
     }
+
+    @Test
+    void productionRejectsInsecureRefreshCookie() {
+        assertThatThrownBy(() -> ProductionSecretsValidator.validate(
+                "a-secure-random-production-secret-with-32-bytes", false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Secure");
+    }
 }

@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.beans.factory.annotation.Value;
@@ -90,31 +91,46 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public AuthResponse refresh(
-            @CookieValue(name = "save_refresh", required = false) String rawToken,
             @RequestHeader(name = HttpHeaders.ORIGIN, required = false) String origin,
+            HttpServletRequest servletRequest,
             HttpServletResponse servletResponse) {
-        authOriginValidator.requireAllowedWhenPresent(origin);
-        AuthSession session = authSessionService.refresh(rawToken);
-        refreshCookieService.write(servletResponse, session.refreshToken(), session.expiresAt());
-        return session.response();
+        authOriginValidator.requireAllowed(origin);
+        preventCaching(servletResponse);
+        try {
+            AuthSession session = authSessionService.refresh(
+                    refreshCookieService.read(servletRequest));
+            refreshCookieService.write(
+                    servletResponse, session.refreshToken(), session.expiresAt());
+            return session.response();
+        } catch (BusinessException exception) {
+            refreshCookieService.clear(servletResponse);
+            throw exception;
+        }
     }
 
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void logout(
-            @CookieValue(name = "save_refresh", required = false) String rawToken,
             @RequestHeader(name = HttpHeaders.ORIGIN, required = false) String origin,
+            HttpServletRequest servletRequest,
             HttpServletResponse servletResponse) {
-        authOriginValidator.requireAllowedWhenPresent(origin);
-        authSessionService.logout(rawToken);
+        authOriginValidator.requireAllowed(origin);
+        preventCaching(servletResponse);
+        authSessionService.logout(refreshCookieService.read(servletRequest));
         refreshCookieService.clear(servletResponse);
     }
 
     private AuthResponse startSession(AuthResponse response,
                                       HttpServletResponse servletResponse) {
+        preventCaching(servletResponse);
         AuthSession session = authSessionService.start(response);
         refreshCookieService.write(servletResponse, session.refreshToken(), session.expiresAt());
         return session.response();
+    }
+
+    private void preventCaching(HttpServletResponse response) {
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+        response.setHeader(HttpHeaders.PRAGMA, "no-cache");
     }
 
     private void requireMatchingCsrfToken(String requestToken, String cookieToken) {
