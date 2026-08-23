@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import ProductDetailPage from './ProductDetailPage.jsx'
 import HomePage from './pages/HomePage.jsx'
 import SearchPage from './pages/SearchPage.jsx'
@@ -14,16 +14,7 @@ import AdminPage, { AdminAccessDenied } from './pages/AdminPage.jsx'
 import { INITIAL_ITEMS } from './data/items.js'
 import { createDemoChats } from './data/demoChats.js'
 import { createDemoNotifications } from './data/demoNotifications.js'
-import {
-  exchangeGoogleLogin,
-  loginWithEmail,
-  logoutSession,
-  refreshSession,
-  signUpWithEmail,
-} from './api/auth.js'
-import { useAuthStore } from './store/authStore.js'
 import { createOrGetChatRoom, getChatRooms } from './api/chats.js'
-import { updateMyProfile } from './api/users.js'
 import { createReport } from './api/reports.js'
 import {
   normalizeChatRoom,
@@ -40,6 +31,7 @@ import { useMyPageData } from './hooks/useMyPageData.js'
 import { useRecommendations } from './hooks/useRecommendations.js'
 import { useItemEditor } from './hooks/useItemEditor.js'
 import { useAppNotifications } from './hooks/useAppNotifications.js'
+import { useAppSession } from './hooks/useAppSession.js'
 import RentalRequestForm from './components/RentalRequestForm.jsx'
 import ReportModal from './components/ReportModal.jsx'
 import { addWishlist, removeWishlist } from './api/wishlist.js'
@@ -59,31 +51,22 @@ function App() {
   const [activeBoard, setActiveBoard] = useState('borrow')
   const [availableOnly, setAvailableOnly] = useState(false)
   const [activeTab, setActiveTab] = useState('home') // home, search, chat, my
-  const accessToken = useAuthStore(state => state.accessToken)
-  const savedUser = useAuthStore(state => state.user)
-  const authStatus = useAuthStore(state => state.authStatus)
-  const setSession = useAuthStore(state => state.setSession)
-  const updateAuthUser = useAuthStore(state => state.updateUser)
-  const clearSession = useAuthStore(state => state.clearSession)
-  const savedUniversityId = savedUser?.university_id ?? savedUser?.universityId ?? null
-  const savedProfileComplete = Boolean(
-    savedUser?.name && savedUser?.department && savedUniversityId,
-  )
-  const [isLoggedIn, setIsLoggedIn] = useState(
-    DEV_AUTO_LOGIN || authStatus === 'authenticated',
-  )
-  const [isProfileComplete, setIsProfileComplete] = useState(
-    DEV_AUTO_LOGIN || savedProfileComplete,
-  )
-  const [memberName, setMemberName] = useState(
-    savedProfileComplete
-      ? savedUser.name
-      : (DEV_AUTO_LOGIN ? '홍길동' : ''),
-  )
-  const [memberDepartment, setMemberDepartment] = useState(savedUser?.department || (DEV_AUTO_LOGIN ? '컴퓨터공학과' : ''))
-  const [memberUniversityId, setMemberUniversityId] = useState(
-    savedUniversityId ?? (DEV_AUTO_LOGIN ? 1 : null),
-  )
+  const session = useAppSession({
+    apiEnabled: USE_API,
+    devAutoLogin: DEV_AUTO_LOGIN,
+    toast,
+  })
+  const {
+    accessToken,
+    user: savedUser,
+    authStatus,
+    isLoggedIn,
+    isProfileComplete,
+  } = session
+  const memberName = session.member.name
+  const memberDepartment = session.member.department
+  const memberUniversityId = session.member.universityId
+  const clearSessionState = session.clear
   const {
     universities,
     pickupLocations,
@@ -112,7 +95,6 @@ function App() {
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
   
   const [rentalRequest, setRentalRequest] = useState(null)
-  const authBootstrapStarted = useRef(false)
   const itemEditor = useItemEditor({
     apiEnabled: USE_API,
     itemData,
@@ -184,14 +166,12 @@ function App() {
   }, [activeTab, isLoggedIn, reloadRentals])
 
   useEffect(() => subscribeUnauthorized(() => {
-    clearSession()
+    clearSessionState()
     setChats([])
     clearNotifications()
     setActiveChatRoom(null)
-    setIsLoggedIn(false)
-    setIsProfileComplete(false)
     setActiveTab('home')
-  }), [clearNotifications, clearSession, setActiveChatRoom])
+  }), [clearNotifications, clearSessionState, setActiveChatRoom])
 
   useEffect(() => {
     if (!USE_API || !isLoggedIn || isAdminPath) return
@@ -286,94 +266,13 @@ function App() {
     }))
   }
 
-  const handleCompleteProfile = async () => {
-    if (USE_API && accessToken) {
-      try {
-        const updatedUser = await updateMyProfile({
-          name: memberName,
-          department: memberDepartment,
-          university_id: memberUniversityId,
-        }, accessToken)
-        updateAuthUser(updatedUser)
-      } catch (error) {
-        toast.error(error.message || '회원 정보를 저장하지 못했습니다.')
-        return
-      }
-    }
-
-    setIsProfileComplete(true)
-  }
-
-  const applyAuth = useCallback((
-    nextAuth,
-    fallbackUniversityId = null,
-    { installSession = true } = {},
-  ) => {
-    const user = nextAuth?.user ?? null
-    const profileUniversityId = user?.university_id
-      ?? user?.universityId
-      ?? fallbackUniversityId
-      ?? null
-    const hasCompletedProfile = Boolean(
-      user?.name && user?.department && profileUniversityId,
-    )
-
-    setChats([])
-    clearNotifications()
-    setActiveChatRoom(null)
-    if (installSession) setSession(nextAuth)
-    setMemberName(user?.name || '')
-    setMemberDepartment(user?.department || '')
-    setMemberUniversityId(profileUniversityId)
-    setIsProfileComplete(hasCompletedProfile)
-    setIsLoggedIn(true)
-  }, [clearNotifications, setActiveChatRoom, setSession])
-
-  useEffect(() => {
-    if (!USE_API || DEV_AUTO_LOGIN || authStatus !== 'checking'
-      || authBootstrapStarted.current) return undefined
-    authBootstrapStarted.current = true
-
-    const params = window.location.hash.startsWith('#')
-      ? new URLSearchParams(window.location.hash.slice(1))
-      : null
-    const code = params?.get('google_login_code')
-    if (code) {
-      window.history.replaceState(
-        null,
-        document.title,
-        `${window.location.pathname}${window.location.search}`,
-      )
-    }
-
-    const restore = code ? exchangeGoogleLogin(code) : refreshSession()
-    restore
-      .then(nextAuth => applyAuth(nextAuth, null, { installSession: Boolean(code) }))
-      .catch(error => {
-        clearSession()
-        setIsLoggedIn(false)
-        if (code) toast.error(error.message || 'Google 로그인에 실패했습니다.')
-      })
-    return undefined
-  }, [applyAuth, authStatus, clearSession, toast])
-
-  const handleLogin = async ({ mode, email, password, name, department, universityId }) => {
-    const nextAuth = mode === 'signup'
-      ? await signUpWithEmail({ email, password, name, department, universityId })
-      : await loginWithEmail(email, password)
-    applyAuth(nextAuth, universityId)
-  }
-
   const handleLogout = async () => {
     try {
-      if (USE_API) await logoutSession()
+      await session.logout()
     } finally {
-      clearSession()
       setChats([])
       clearNotifications()
       setActiveChatRoom(null)
-      setIsLoggedIn(false)
-      setIsProfileComplete(false)
       setActiveTab('home')
     }
   }
@@ -383,7 +282,7 @@ function App() {
   }
 
   if (!isLoggedIn) {
-    return <LoginPage onLogin={handleLogin} universities={universities} />
+    return <LoginPage onLogin={session.login} universities={universities} />
   }
 
   if (isAdminPath) {
@@ -396,13 +295,13 @@ function App() {
     return (
       <ProfileSetupPage
         memberName={memberName}
-        setMemberName={setMemberName}
+        setMemberName={session.memberSetters.setName}
         memberDepartment={memberDepartment}
-        setMemberDepartment={setMemberDepartment}
+        setMemberDepartment={session.memberSetters.setDepartment}
         memberUniversityId={memberUniversityId}
-        setMemberUniversityId={setMemberUniversityId}
+        setMemberUniversityId={session.memberSetters.setUniversityId}
         universities={universities}
-        onComplete={handleCompleteProfile}
+        onComplete={session.completeProfile}
       />
     )
   }
