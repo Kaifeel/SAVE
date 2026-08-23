@@ -21,8 +21,10 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class WebSocketAuthorizationInterceptor implements ChannelInterceptor {
-    private static final Pattern ROOM_DESTINATION = Pattern.compile(
-            "^/(?:app|topic)/chats/rooms/(\\d+)(?:/messages)?$");
+    private static final Pattern ROOM_SEND_DESTINATION = Pattern.compile(
+            "^/app/chats/rooms/(\\d+)/messages$");
+    private static final Pattern ROOM_SUBSCRIBE_DESTINATION = Pattern.compile(
+            "^/topic/chats/rooms/(\\d+)$");
     private static final String CHAT_LIST_DESTINATION = "/user/queue/chat-list";
     private static final String NOTIFICATION_DESTINATION = "/user/queue/notifications";
 
@@ -50,9 +52,10 @@ public class WebSocketAuthorizationInterceptor implements ChannelInterceptor {
                 && (CHAT_LIST_DESTINATION.equals(accessor.getDestination())
                 || NOTIFICATION_DESTINATION.equals(accessor.getDestination()))) {
             requireAuthenticated(accessor);
-        } else if (StompCommand.SEND.equals(accessor.getCommand())
-                || StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
-            authorizeRoom(accessor);
+        } else if (StompCommand.SEND.equals(accessor.getCommand())) {
+            authorizeRoom(accessor, ROOM_SEND_DESTINATION);
+        } else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+            authorizeRoom(accessor, ROOM_SUBSCRIBE_DESTINATION);
         }
         return message;
     }
@@ -81,9 +84,9 @@ public class WebSocketAuthorizationInterceptor implements ChannelInterceptor {
         }
     }
 
-    private void authorizeRoom(StompHeaderAccessor accessor) {
+    private void authorizeRoom(StompHeaderAccessor accessor, Pattern allowedDestination) {
         requireAuthenticated(accessor);
-        Matcher matcher = ROOM_DESTINATION.matcher(
+        Matcher matcher = allowedDestination.matcher(
                 accessor.getDestination() == null ? "" : accessor.getDestination());
         if (!matcher.matches()) {
             throw new IllegalArgumentException("Unsupported WebSocket destination");
