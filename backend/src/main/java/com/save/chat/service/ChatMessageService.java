@@ -3,6 +3,7 @@ package com.save.chat.service;
 import com.save.chat.domain.ChatMessage;
 import com.save.chat.domain.ChatRoom;
 import com.save.chat.dto.ChatMessageResponse;
+import com.save.chat.dto.ChatMessagePageResponse;
 import com.save.chat.repository.ChatMessageRepository;
 import com.save.chat.repository.ChatRoomRepository;
 import com.save.common.BusinessException;
@@ -52,13 +53,22 @@ public class ChatMessageService {
     }
 
     @Transactional(readOnly = true)
-    public List<ChatMessageResponse> getMessages(Integer roomId, Integer userId, int size) {
+    public ChatMessagePageResponse getMessages(
+            Integer roomId, Integer userId, int size, Integer before) {
         getAccessibleRoom(roomId, userId);
         int safeSize = Math.min(Math.max(size, 1), 100);
-        List<ChatMessage> messages = new ArrayList<>(messageRepository
-                .findByChatRoomIdOrderByCreatedAtDesc(roomId, PageRequest.of(0, safeSize)));
+        PageRequest page = PageRequest.of(0, safeSize + 1);
+        List<ChatMessage> fetched = before == null
+                ? messageRepository.findByChatRoomIdOrderByIdDesc(roomId, page)
+                : messageRepository.findByChatRoomIdAndIdLessThanOrderByIdDesc(
+                        roomId, before, page);
+        boolean hasMore = fetched.size() > safeSize;
+        List<ChatMessage> messages = new ArrayList<>(
+                fetched.subList(0, Math.min(fetched.size(), safeSize)));
         Collections.reverse(messages);
-        return messages.stream().map(this::toResponse).toList();
+        List<ChatMessageResponse> responses = messages.stream().map(this::toResponse).toList();
+        Integer nextBefore = hasMore && !messages.isEmpty() ? messages.get(0).getId() : null;
+        return new ChatMessagePageResponse(responses, nextBefore, hasMore);
     }
 
     @Transactional

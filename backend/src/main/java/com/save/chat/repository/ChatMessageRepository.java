@@ -10,7 +10,11 @@ import org.springframework.data.repository.query.Param;
 
 public interface ChatMessageRepository extends JpaRepository<ChatMessage, Integer> {
     @EntityGraph(attributePaths = "sender")
-    List<ChatMessage> findByChatRoomIdOrderByCreatedAtDesc(Integer roomId, Pageable pageable);
+    List<ChatMessage> findByChatRoomIdOrderByIdDesc(Integer roomId, Pageable pageable);
+
+    @EntityGraph(attributePaths = "sender")
+    List<ChatMessage> findByChatRoomIdAndIdLessThanOrderByIdDesc(
+            Integer roomId, Integer before, Pageable pageable);
 
     Optional<ChatMessage> findFirstByChatRoomIdOrderByCreatedAtDesc(Integer roomId);
 

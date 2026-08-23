@@ -1,12 +1,13 @@
 package com.save.chat.controller;
 
 import com.save.chat.dto.ChatMessageResponse;
+import com.save.chat.dto.ChatMessagePageResponse;
 import com.save.chat.dto.ChatMessageSendRequest;
 import com.save.chat.service.ChatMessageService;
 import com.save.chat.service.ChatRealtimePublisher;
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -31,10 +32,11 @@ public class ChatMessageController {
     }
 
     @GetMapping("/messages")
-    public List<ChatMessageResponse> messages(@PathVariable Integer roomId,
+    public ChatMessagePageResponse messages(@PathVariable Integer roomId,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestParam(defaultValue = "50") int size) {
-        return service.getMessages(roomId, userId(jwt), size);
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam Optional<Integer> before) {
+        return service.getMessages(roomId, userId(jwt), size, before.orElse(null));
     }
 
     @PatchMapping("/read")
