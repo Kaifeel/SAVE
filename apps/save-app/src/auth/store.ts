@@ -10,6 +10,7 @@ import {
 } from './api';
 import { runtime } from '@/config/runtime';
 import { clearRefreshToken, readRefreshToken, writeRefreshToken } from './secure-session';
+import { runLogoutCleanup } from './logout-cleanup';
 import type { AuthUser, LoginInput, MobileSession, SignupInput } from './types';
 
 type AuthStatus = 'hydrating' | 'authenticated' | 'unauthenticated' | 'offline';
@@ -46,7 +47,7 @@ function assertCurrentSession(generation: number): void {
   }
 }
 
-export const useAuthStore = create<AuthState>(set => {
+export const useAuthStore = create<AuthState>((set, get) => {
   const exposeSession = (session: MobileSession, generation: number): Promise<string> => {
     assertCurrentSession(generation);
 
@@ -165,9 +166,17 @@ export const useAuthStore = create<AuthState>(set => {
     },
     refreshAccessToken: () => refreshAccessToken(),
     logout: () => {
+      const accessToken = get().accessToken;
       sessionGeneration += 1;
 
       return serializeSessionMutation(async () => {
+        if (accessToken) {
+          try {
+            await runLogoutCleanup(accessToken);
+          } catch {
+            // Push cleanup must not prevent server logout or local session removal.
+          }
+        }
         try {
           const refreshToken = await readRefreshToken();
           if (refreshToken) {

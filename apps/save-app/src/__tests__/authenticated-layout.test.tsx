@@ -37,6 +37,10 @@ jest.mock('@/auth/store', () => ({
   useAuthStore: jest.fn(),
 }));
 
+jest.mock('@/notifications/coordinator', () => ({
+  NotificationCoordinator: () => null,
+}));
+
 const mockUseAuthStore = jest.mocked(useAuthStore);
 
 it('places every signed-in route beneath one protected authenticated group', async () => {

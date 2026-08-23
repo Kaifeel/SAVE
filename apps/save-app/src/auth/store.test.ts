@@ -1,5 +1,6 @@
 import * as api from './api';
 import * as secureSession from './secure-session';
+import { setLogoutCleanup } from './logout-cleanup';
 import { runtime } from '../config/runtime';
 import { useAuthStore } from './store';
 import type { MobileSession } from './types';
@@ -31,6 +32,7 @@ jest.mock('./secure-session', () => ({
   clearRefreshToken: jest.fn(),
 }));
 
+
 jest.mock('../config/runtime', () => ({
   runtime: { mockEnabled: false },
 }));
@@ -43,6 +45,7 @@ const signup = jest.mocked(api.signup);
 const loginWithGoogle = jest.mocked(api.loginWithGoogle);
 const refresh = jest.mocked(api.refresh);
 const revokeSession = jest.mocked(api.logout);
+const unregisterPushToken = jest.fn<Promise<void>, [string]>();
 
 const user: MobileSession['user'] = {
   id: 17,
@@ -67,8 +70,51 @@ const refreshedSession: MobileSession = {
 beforeEach(() => {
   jest.clearAllMocks();
   runtime.mockEnabled = false;
+  unregisterPushToken.mockResolvedValue();
+  setLogoutCleanup(unregisterPushToken);
   useAuthStore.setState({
     status: 'hydrating',
+    accessToken: null,
+    user: null,
+  });
+});
+
+it('unregisters push before clearing the authenticated access token', async () => {
+  const events: string[] = [];
+  readRefreshToken.mockResolvedValue('stored-refresh-value');
+  unregisterPushToken.mockImplementation(async () => { events.push('unregister-push'); });
+  revokeSession.mockImplementation(async () => { events.push('revoke-session'); });
+  clearRefreshToken.mockImplementation(async () => { events.push('clear-refresh'); });
+  useAuthStore.setState({
+    status: 'authenticated',
+    accessToken: 'old-access-value',
+    user,
+  });
+
+  await useAuthStore.getState().logout();
+
+  expect(unregisterPushToken).toHaveBeenCalledWith('old-access-value');
+  expect(events).toEqual(['unregister-push', 'revoke-session', 'clear-refresh']);
+  expect(useAuthStore.getState().accessToken).toBeNull();
+});
+
+it('still clears authentication when push unregistration fails', async () => {
+  readRefreshToken.mockResolvedValue('stored-refresh-value');
+  unregisterPushToken.mockRejectedValue(new Error('push unavailable'));
+  revokeSession.mockResolvedValue();
+  clearRefreshToken.mockResolvedValue();
+  useAuthStore.setState({
+    status: 'authenticated',
+    accessToken: 'old-access-value',
+    user,
+  });
+
+  await expect(useAuthStore.getState().logout()).resolves.toBeUndefined();
+
+  expect(revokeSession).toHaveBeenCalledWith('stored-refresh-value');
+  expect(clearRefreshToken).toHaveBeenCalledTimes(1);
+  expect(useAuthStore.getState()).toMatchObject({
+    status: 'unauthenticated',
     accessToken: null,
     user: null,
   });

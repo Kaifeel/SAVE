@@ -21,6 +21,7 @@ export default function AuthenticatedLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="items/[id]" />
       <Stack.Screen name="chats/[id]" />
+      <Stack.Screen name="rentals/[id]" />
     </Stack>
   );
 }
