@@ -34,7 +34,6 @@ import {
   normalizeChatRoom,
   mergeChatListUpdate,
   mergeChatRoomSnapshot,
-  toCreateItemPayload,
 } from './api/normalizers.js'
 import { subscribeUnauthorized } from './api/client.js'
 import { isAutoLoginEnabled, USE_API } from './config/runtime.js'
@@ -44,6 +43,7 @@ import { useChatRooms } from './hooks/useChatRooms.js'
 import { useRentals } from './hooks/useRentals.js'
 import { useMyPageData } from './hooks/useMyPageData.js'
 import { useRecommendations } from './hooks/useRecommendations.js'
+import { useItemEditor } from './hooks/useItemEditor.js'
 import RentalRequestForm from './components/RentalRequestForm.jsx'
 import ReportModal from './components/ReportModal.jsx'
 import { addWishlist, removeWishlist } from './api/wishlist.js'
@@ -52,8 +52,6 @@ import { availableItems } from './utils/itemVisibility.js'
 import {
   MapPin,
   Bell,
-  Camera,
-  PenTool,
 } from 'lucide-react'
 
 const DEV_AUTO_LOGIN = isAutoLoginEnabled(USE_API, import.meta.env.VITE_AUTO_LOGIN)
@@ -124,25 +122,22 @@ function App() {
   const [reportTarget, setReportTarget] = useState(null)
   const [reportReason, setReportReason] = useState('')
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
-  const [isWriteModalOpen, setIsWriteModalOpen] = useState(false)
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
   const [notifications, setNotifications] = useState(() => (
     USE_API ? [] : createDemoNotifications()
   ))
   
-  const [isSubmittingItem, setIsSubmittingItem] = useState(false)
-  const [editingItemId, setEditingItemId] = useState(null)
   const [rentalRequest, setRentalRequest] = useState(null)
   const authBootstrapStarted = useRef(false)
-
-  // Write item form states
-  const [newTitle, setNewTitle] = useState('')
-  const [newPrice, setNewPrice] = useState('')
-  const [newPriceType, setNewPriceType] = useState('일')
-  const [newPickupLocationId, setNewPickupLocationId] = useState('')
-  const [newType, setNewType] = useState('rent') // rent (빌려줘요) or want (구해요)
-  const [newDescription, setNewDescription] = useState('')
-  const [newPhotos, setNewPhotos] = useState([])
+  const itemEditor = useItemEditor({
+    apiEnabled: USE_API,
+    itemData,
+    pickupLocations,
+    university,
+    setItems,
+    setSelectedItem,
+    toast,
+  })
 
   // Chat tab mock states
   const [chats, setChats] = useState(() => (
@@ -308,102 +303,6 @@ function App() {
     [campusItems, popularItems],
   )
   const recentItems = useMemo(() => campusItems.filter(i => i.section === 'recent'), [campusItems])
-
-  const handlePhotoSelect = (e) => {
-    const selectedFiles = Array.from(e.target.files || [])
-    if (selectedFiles.length === 0) return
-
-    setNewPhotos(prev => [...prev, ...selectedFiles].slice(0, 5))
-    e.target.value = ''
-  }
-
-  const handlePhotoRemove = (index) => {
-    setNewPhotos(prev => prev.filter((_, photoIndex) => photoIndex !== index))
-  }
-
-  const resetItemForm = () => {
-    setNewType('rent')
-    setNewTitle('')
-    setNewPrice('')
-    setNewPriceType('일')
-    setNewPickupLocationId('')
-    setNewDescription('')
-    setNewPhotos([])
-    setEditingItemId(null)
-  }
-
-  const closeItemForm = () => {
-    resetItemForm()
-    setIsWriteModalOpen(false)
-  }
-
-  const openCreateItemForm = () => {
-    resetItemForm()
-    setIsWriteModalOpen(true)
-  }
-
-  // Handle uploading new item
-  const handleCreateItem = async (e) => {
-    e.preventDefault()
-    if (!newTitle || !newPrice) return
-
-    setIsSubmittingItem(true)
-    const wasEditing = Boolean(editingItemId)
-
-    const SelectedIcon = newType === 'want' ? PenTool : Camera
-    const colorClasses = newType === 'want' ? 'text-blue-500 bg-blue-50' : 'text-rose-500 bg-rose-50'
-
-    const newItem = {
-      id: Date.now(),
-      title: newTitle,
-      price: parseInt(newPrice, 10) || 0,
-      priceType: newPriceType,
-      location: pickupLocations.find(location => location.id === newPickupLocationId)?.name || '캠퍼스 내',
-      badge: '신규',
-      section: 'recent',
-      type: newType,
-      university: university,
-      rating: 5.0,
-      reviews: 0,
-      owner: '나 (학생인증완료)',
-      description: newDescription || '설명이 작성되지 않았습니다.',
-      imageIcon: SelectedIcon,
-      iconColor: colorClasses,
-      status: 'available',
-      createdAt: new Date().toISOString(),
-      photos: newPhotos.map(file => ({ name: file.name, size: file.size }))
-    }
-
-    try {
-      if (USE_API) {
-        const payload = toCreateItemPayload({
-          title: newTitle,
-          price: newPrice,
-          priceType: newPriceType,
-          pickupLocationId: newPickupLocationId,
-          type: newType,
-          description: newDescription,
-          photos: newPhotos,
-        })
-        if (editingItemId) {
-          const updated = await itemData.update(editingItemId, payload)
-          setSelectedItem(updated)
-        } else {
-          await itemData.create(payload)
-        }
-      } else {
-        setItems(prev => [newItem, ...prev])
-      }
-
-      resetItemForm()
-      setIsWriteModalOpen(false)
-      toast.success(wasEditing ? '물품이 수정되었습니다.' : '물품이 성공적으로 등록되었습니다.')
-    } catch (error) {
-      toast.error(error.message || '물품 등록에 실패했습니다.')
-    } finally {
-      setIsSubmittingItem(false)
-    }
-  }
 
   // Handle sending chat message
   const handleSendMessage = async () => {
@@ -713,7 +612,7 @@ function App() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           setActiveChatRoom={setActiveChatRoom}
-          setIsWriteModalOpen={open => open ? openCreateItemForm() : closeItemForm()}
+          setIsWriteModalOpen={open => open ? itemEditor.openCreate() : itemEditor.close()}
           chats={chats}
         />
 
@@ -729,18 +628,7 @@ function App() {
             }}
             isOwner={Boolean(savedUser?.id && selectedItem.ownerId === savedUser.id)}
             onOwnerProfile={setProfileTarget}
-            onEdit={(item) => {
-              setEditingItemId(item.id)
-              setNewTitle(item.title)
-              setNewPrice(String(item.price))
-              setNewPriceType(item.priceType)
-              setNewPickupLocationId(item.pickupLocationId || '')
-              setNewType(item.type)
-              setNewDescription(item.description)
-              setNewPhotos([])
-              setSelectedItem(null)
-              setIsWriteModalOpen(true)
-            }}
+            onEdit={itemEditor.openEdit}
             onDelete={async itemId => {
               try {
                 await itemData.remove(itemId)
@@ -897,28 +785,27 @@ function App() {
         />
         {/* 3. WRITE MODAL (SLIDE UP) */}
         <ItemRegistrationModal
-          isOpen={isWriteModalOpen}
-          setIsWriteModalOpen={setIsWriteModalOpen}
-          handleCreateItem={handleCreateItem}
-          newType={newType}
-          setNewType={setNewType}
-          newPhotos={newPhotos}
-          handlePhotoSelect={handlePhotoSelect}
-          handlePhotoRemove={handlePhotoRemove}
-          newTitle={newTitle}
-          setNewTitle={setNewTitle}
-          newPrice={newPrice}
-          setNewPrice={setNewPrice}
-          newPriceType={newPriceType}
-          setNewPriceType={setNewPriceType}
-          newPickupLocationId={newPickupLocationId}
-          setNewPickupLocationId={setNewPickupLocationId}
+          isOpen={itemEditor.isOpen}
+          handleCreateItem={itemEditor.submit}
+          newType={itemEditor.fields.type}
+          setNewType={itemEditor.setters.setType}
+          newPhotos={itemEditor.fields.photos}
+          handlePhotoSelect={itemEditor.selectPhotos}
+          handlePhotoRemove={itemEditor.removePhoto}
+          newTitle={itemEditor.fields.title}
+          setNewTitle={itemEditor.setters.setTitle}
+          newPrice={itemEditor.fields.price}
+          setNewPrice={itemEditor.setters.setPrice}
+          newPriceType={itemEditor.fields.priceType}
+          setNewPriceType={itemEditor.setters.setPriceType}
+          newPickupLocationId={itemEditor.fields.pickupLocationId}
+          setNewPickupLocationId={itemEditor.setters.setPickupLocationId}
           pickupLocations={pickupLocations}
-          newDescription={newDescription}
-          setNewDescription={setNewDescription}
-          isSubmittingItem={isSubmittingItem}
-          editingItemId={editingItemId}
-          onClose={closeItemForm}
+          newDescription={itemEditor.fields.description}
+          setNewDescription={itemEditor.setters.setDescription}
+          isSubmittingItem={itemEditor.isSubmitting}
+          editingItemId={itemEditor.editingItemId}
+          onClose={itemEditor.close}
         />
         {rentalRequest && (
           <div className="absolute inset-0 z-[60] flex items-end bg-black/50 p-4">
