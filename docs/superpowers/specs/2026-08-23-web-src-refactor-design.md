@@ -72,7 +72,9 @@ wishlist, chat-room creation, and rental-request overlay implementations.
 New focused modules:
 
 - `src/hooks/useAppSession.js`: refresh/Google callback restoration, login,
-  profile completion, unauthorized reset, and logout orchestration.
+  profile completion, local session clearing, and server logout. Cross-domain
+  chat/notification/overlay cleanup remains a short composition callback in
+  `App`, preventing the session hook from depending on downstream workflows.
 - `src/hooks/useAppNotifications.js`: initial notification fetch, realtime
   deduplication, workflow refresh fan-out, unread state, and mark-all-read.
 - `src/hooks/useItemEditor.js`: item form state, photo selection/removal,
@@ -84,9 +86,11 @@ New focused modules:
 - `src/data/demoChats.js` and `src/data/demoNotifications.js`: intentional
   mock-mode fixtures currently embedded in `App`.
 
-Handlers that need several existing domains may remain in a small
-`useMarketplaceActions` hook only if extraction avoids a broad bag-of-props
-interface. Otherwise they stay as short callbacks in `App`.
+Marketplace handlers are divided by workflow rather than collected in one
+broad App-shaped hook: item detail actions (delete, wishlist, rental
+preparation, and opening chat) and report submission state use separate,
+explicit dependency contracts. Any remaining cross-domain reset stays as a
+short callback in `App`.
 
 ### Admin page
 
@@ -139,7 +143,8 @@ element or pass the entire editor object without an explicit contract.
 
 1. `App` obtains the persisted auth snapshot from Zustand.
 2. `useAppSession` resolves restoration and exposes authenticated profile
-   state plus stable session actions.
+   state plus stable session actions. `App` coordinates the small amount of
+   cross-domain cleanup required after logout or an unauthorized event.
 3. Existing domain hooks (`useItems`, `useChatRooms`, `useRentals`,
    `useMyPageData`, and `useRecommendations`) continue to own remote state.
 4. `useAppNotifications` receives only the reload callbacks needed for rental,
