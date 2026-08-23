@@ -4,13 +4,37 @@ export function createChatSocket({
   url,
   accessToken,
   onStateChange = () => {},
+  onProtocolError = () => {},
   clientFactory = options => new Client(options),
 }) {
   const seenMessageIds = new Set()
+  const seenMessageIdQueue = []
   const subscriptions = new Map()
   const chatListSubscriptionKey = 'chat-list'
   const notificationSubscriptionKey = 'notifications'
   let reconnectAttempt = 0
+
+  function parseFrame(frame, handler) {
+    let body
+    try {
+      body = JSON.parse(frame.body)
+    } catch (error) {
+      onProtocolError(error, frame)
+      return
+    }
+    handler(body)
+  }
+
+  function rememberMessageId(id) {
+    if (id == null) return true
+    if (seenMessageIds.has(id)) return false
+    seenMessageIds.add(id)
+    seenMessageIdQueue.push(id)
+    if (seenMessageIdQueue.length > 500) {
+      seenMessageIds.delete(seenMessageIdQueue.shift())
+    }
+    return true
+  }
 
   const client = clientFactory({
     brokerURL: url,
@@ -36,10 +60,10 @@ export function createChatSocket({
     subscribe(roomId, handler) {
       subscriptions.get(roomId)?.unsubscribe()
       const subscription = client.subscribe(`/topic/chats/rooms/${roomId}`, frame => {
-        const message = JSON.parse(frame.body)
-        if (message.id != null && seenMessageIds.has(message.id)) return
-        if (message.id != null) seenMessageIds.add(message.id)
-        handler(message)
+        parseFrame(frame, message => {
+          if (!rememberMessageId(message.id)) return
+          handler(message)
+        })
       })
       subscriptions.set(roomId, subscription)
       return () => {
@@ -50,7 +74,7 @@ export function createChatSocket({
     subscribeToChatList(handler) {
       subscriptions.get(chatListSubscriptionKey)?.unsubscribe()
       const subscription = client.subscribe('/user/queue/chat-list', frame => {
-        handler(JSON.parse(frame.body))
+        parseFrame(frame, handler)
       })
       subscriptions.set(chatListSubscriptionKey, subscription)
       return () => {
@@ -61,19 +85,13 @@ export function createChatSocket({
     subscribeToNotifications(handler) {
       subscriptions.get(notificationSubscriptionKey)?.unsubscribe()
       const subscription = client.subscribe('/user/queue/notifications', frame => {
-        handler(JSON.parse(frame.body))
+        parseFrame(frame, handler)
       })
       subscriptions.set(notificationSubscriptionKey, subscription)
       return () => {
         subscription.unsubscribe()
         subscriptions.delete(notificationSubscriptionKey)
       }
-    },
-    publish(roomId, message) {
-      client.publish({
-        destination: `/app/chats/rooms/${roomId}/messages`,
-        body: JSON.stringify({ message }),
-      })
     },
     async disconnect() {
       subscriptions.forEach(subscription => subscription.unsubscribe())
