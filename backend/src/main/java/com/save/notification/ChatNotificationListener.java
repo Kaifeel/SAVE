@@ -9,7 +9,7 @@ public class ChatNotificationListener {
     private final PushNotificationService pushService;
     public ChatNotificationListener(PushNotificationService pushService) { this.pushService = pushService; }
 
-    @Async
+    @Async("pushExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onMessageCreated(ChatMessageCreatedEvent event) {
         pushService.sendChatMessage(event);

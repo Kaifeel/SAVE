@@ -1,7 +1,7 @@
 package com.save.notification;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "push_delivery_tickets", indexes =
@@ -25,10 +25,10 @@ public class PushDeliveryTicket {
     private String errorCode;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 
     @Column(name = "checked_at")
-    private LocalDateTime checkedAt;
+    private Instant checkedAt;
 
     protected PushDeliveryTicket() {}
 
@@ -39,16 +39,16 @@ public class PushDeliveryTicket {
 
     @PrePersist
     void created() {
-        if (createdAt == null) createdAt = LocalDateTime.now();
+        if (createdAt == null) createdAt = Instant.now();
     }
 
-    public void delivered(LocalDateTime checkedAt) {
+    public void delivered(Instant checkedAt) {
         this.status = PushDeliveryStatus.DELIVERED;
         this.errorCode = null;
         this.checkedAt = checkedAt;
     }
 
-    public void failed(String errorCode, LocalDateTime checkedAt) {
+    public void failed(String errorCode, Instant checkedAt) {
         this.status = PushDeliveryStatus.FAILED;
         this.errorCode = errorCode;
         this.checkedAt = checkedAt;
@@ -59,6 +59,6 @@ public class PushDeliveryTicket {
     public UserDeviceToken getDeviceToken() { return deviceToken; }
     public PushDeliveryStatus getStatus() { return status; }
     public String getErrorCode() { return errorCode; }
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public LocalDateTime getCheckedAt() { return checkedAt; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getCheckedAt() { return checkedAt; }
 }

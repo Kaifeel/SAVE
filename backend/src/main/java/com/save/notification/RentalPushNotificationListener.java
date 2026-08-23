@@ -13,7 +13,7 @@ public class RentalPushNotificationListener {
         this.pushService = pushService;
     }
 
-    @Async
+    @Async("pushExecutor")
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onNotificationCreated(InAppNotificationCreatedEvent event) {
         pushService.sendInAppNotification(event);

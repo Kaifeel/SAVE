@@ -4,8 +4,8 @@ CREATE TABLE push_delivery_tickets (
     device_token_id INTEGER NOT NULL REFERENCES user_device_tokens(id),
     status VARCHAR(20) NOT NULL,
     error_code VARCHAR(100),
-    created_at TIMESTAMP NOT NULL,
-    checked_at TIMESTAMP
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    checked_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE INDEX idx_push_ticket_status_created
