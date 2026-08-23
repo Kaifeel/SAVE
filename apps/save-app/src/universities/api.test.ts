@@ -1,6 +1,6 @@
 import { ApiError } from '@/auth/api';
 
-import { getUniversities } from './api';
+import { getPickupLocations, getUniversities } from './api';
 
 jest.mock('@/config/runtime', () => ({
   runtime: { apiBaseUrl: 'https://api.save.example/api/v1' },
@@ -65,4 +65,47 @@ it('surfaces a sanitized API failure for catalog loading', async () => {
       message: '대학교 목록을 불러오지 못했습니다.',
     }),
   );
+});
+
+it('loads pickup locations for the exact authenticated university', async () => {
+  fetchMock.mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: jest.fn().mockResolvedValue([
+      { id: 4, name: '도서관 앞' },
+      { id: 5, name: '학생회관' },
+    ]),
+  });
+
+  await expect(getPickupLocations(2)).resolves.toEqual([
+    { id: 4, name: '도서관 앞' },
+    { id: 5, name: '학생회관' },
+  ]);
+  expect(fetchMock).toHaveBeenCalledWith(
+    'https://api.save.example/api/v1/universities/2/pickup-locations',
+    { cache: 'no-store', headers: { Accept: 'application/json' } },
+  );
+});
+
+it.each([
+  ['non-array response', { id: 4, name: '도서관 앞' }],
+  ['string id', [{ id: '4', name: '도서관 앞' }]],
+  ['blank name', [{ id: 4, name: '' }]],
+] as const)('rejects malformed pickup location data: %s', async (_caseName, payload) => {
+  fetchMock.mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: jest.fn().mockResolvedValue(payload),
+  });
+
+  await expect(getPickupLocations(2)).rejects.toMatchObject({
+    name: 'ApiError',
+    status: 502,
+    message: 'Invalid pickup location catalog response',
+  });
+});
+
+it('rejects an invalid university id before requesting pickup locations', async () => {
+  await expect(getPickupLocations(0)).rejects.toThrow('Invalid university id');
+  expect(fetchMock).not.toHaveBeenCalled();
 });
