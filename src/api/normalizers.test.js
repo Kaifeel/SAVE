@@ -3,6 +3,7 @@ import {
   mergeChatListUpdate,
   mergeChatRoomSnapshot,
   normalizeChatRoom,
+  normalizeMessagesResponse,
   normalizeItem,
   normalizePublicReview,
   normalizePublicUserProfile,
@@ -171,6 +172,24 @@ describe('rental review normalization', () => {
 })
 
 describe('chat room API normalization', () => {
+  it('normalizes a cursor-based message page', () => {
+    expect(normalizeMessagesResponse({
+      messages: [
+        { id: 12, sender_id: 2, message: '오래된 메시지' },
+        { id: 13, sender_id: 1, message: '최신 메시지' },
+      ],
+      next_before: 12,
+      has_more: true,
+    }, 1)).toEqual({
+      messages: [
+        expect.objectContaining({ id: 12, sender: 'other', text: '오래된 메시지' }),
+        expect.objectContaining({ id: 13, sender: 'me', text: '최신 메시지' }),
+      ],
+      nextBefore: 12,
+      hasMore: true,
+    })
+  })
+
   it('keeps room metadata when a creation response contains an item summary', () => {
     expect(normalizeChatRoom({
       chat_room_id: 15,

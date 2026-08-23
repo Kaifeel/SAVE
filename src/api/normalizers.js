@@ -215,7 +215,13 @@ export function mergeChatListUpdate(currentRooms, response, activeRoomId = null)
 }
 
 export function normalizeMessagesResponse(response, currentUserId) {
-  return unwrapList(response).map(message => normalizeChatMessage(message, currentUserId))
+  const page = Array.isArray(response) ? { messages: response } : (response || {})
+  return {
+    messages: unwrapList(page.messages)
+      .map(message => normalizeChatMessage(message, currentUserId)),
+    nextBefore: page.next_before ?? page.nextBefore ?? null,
+    hasMore: Boolean(page.has_more ?? page.hasMore),
+  }
 }
 
 export function toCreateItemPayload({

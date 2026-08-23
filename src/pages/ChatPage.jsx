@@ -75,8 +75,12 @@ export default function ChatPage(props) {
     handleSendMessage,
     chats,
     loadingMessages,
+    loadingOlder,
+    hasOlder,
+    loadOlder,
     messageError,
     retryMessage,
+    socketState,
   } = props
 
   return (
@@ -124,8 +128,26 @@ export default function ChatPage(props) {
                         </div>
                       </div>
 
+                      {socketState && socketState !== 'connected' && (
+                        <div role="status" className="bg-slate-100 px-4 py-1.5 text-center text-[10px] font-semibold text-slate-500">
+                          실시간 연결을 복구하는 중...
+                        </div>
+                      )}
+
                       {/* Messages Area */}
                       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3">
+                        {hasOlder && (
+                          <div className="text-center">
+                            <button
+                              type="button"
+                              onClick={loadOlder}
+                              disabled={loadingOlder}
+                              className="text-[11px] font-bold text-slate-500 hover:text-indigo-600 disabled:text-slate-300"
+                            >
+                              {loadingOlder ? '이전 메시지를 불러오는 중...' : '이전 메시지 보기'}
+                            </button>
+                          </div>
+                        )}
                         {loadingMessages && <div role="status" className="text-center text-xs text-slate-400">메시지를 불러오는 중...</div>}
                         {messageError && <div role="alert" className="text-center text-xs text-rose-600">{messageError.message}</div>}
                         {(activeChatRoom.messages || []).map((msg, index, messages) => {

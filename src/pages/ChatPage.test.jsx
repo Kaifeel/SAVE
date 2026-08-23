@@ -243,3 +243,34 @@ it('opens a room from a keyboard-accessible chat-list control', () => {
 
   expect(selectChatRoom).toHaveBeenCalledWith(room)
 })
+
+it('loads older messages and keeps current messages visible while reconnecting', () => {
+  const loadOlder = vi.fn()
+  render(<ChatPage
+    activeChatRoom={{
+      id: 9,
+      roomId: 9,
+      itemTitle: '우산',
+      sender: '학생',
+      messages: [{ id: 1, sender: 'other', text: '남아 있는 메시지' }],
+    }}
+    items={[]}
+    setActiveChatRoom={vi.fn()}
+    setSelectedItem={vi.fn()}
+    chatInput=""
+    setChatInput={vi.fn()}
+    handleSendMessage={vi.fn()}
+    chats={[]}
+    loadingMessages={false}
+    loadingOlder={false}
+    hasOlder
+    loadOlder={loadOlder}
+    socketState="disconnected"
+  />)
+
+  fireEvent.click(screen.getByRole('button', { name: '이전 메시지 보기' }))
+
+  expect(loadOlder).toHaveBeenCalledOnce()
+  expect(screen.getByText('실시간 연결을 복구하는 중...')).toBeInTheDocument()
+  expect(screen.getByText('남아 있는 메시지')).toBeInTheDocument()
+})

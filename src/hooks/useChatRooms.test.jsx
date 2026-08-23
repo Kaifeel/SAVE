@@ -30,6 +30,46 @@ it('loads room messages and marks them read when selected', async () => {
   })
 })
 
+it('prepends an older page without duplicating an existing message id', async () => {
+  const api = {
+    getChatMessages: vi.fn()
+      .mockResolvedValueOnce({
+        messages: [
+          { id: 3, sender_id: 2, message: '세 번째' },
+          { id: 4, sender_id: 1, message: '네 번째' },
+        ],
+        next_before: 3,
+        has_more: true,
+      })
+      .mockResolvedValueOnce({
+        messages: [
+          { id: 1, sender_id: 2, message: '첫 번째' },
+          { id: 3, sender_id: 2, message: '중복 세 번째' },
+        ],
+        next_before: null,
+        has_more: false,
+      }),
+    markChatRoomRead: vi.fn().mockResolvedValue({ read_count: 1 }),
+    sendChatMessage: vi.fn(),
+  }
+  const { result } = renderHook(() => useChatRooms({
+    api,
+    accessToken: 'jwt',
+    currentUserId: 1,
+  }))
+
+  await act(() => result.current.selectRoom({ roomId: 9, messages: [] }))
+  await act(() => result.current.loadOlder())
+
+  expect(api.getChatMessages).toHaveBeenLastCalledWith(9, 'jwt', {
+    size: 50,
+    before: 3,
+  })
+  expect(result.current.activeRoom.messages.map(message => message.id)).toEqual([1, 3, 4])
+  expect(result.current.hasOlder).toBe(false)
+  expect(result.current.loadingOlder).toBe(false)
+})
+
 it('keeps a failed optimistic message available for retry', async () => {
   const api = {
     getChatMessages: vi.fn(),

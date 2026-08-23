@@ -704,8 +704,12 @@ function App() {
               handleSendMessage={handleSendMessage}
               chats={chats}
               loadingMessages={chatData.loadingMessages}
+              loadingOlder={chatData.loadingOlder}
+              hasOlder={chatData.hasOlder}
+              loadOlder={chatData.loadOlder}
               messageError={chatData.messageError}
               retryMessage={chatData.retry}
+              socketState={USE_API ? chatData.socketState : undefined}
             />
           )}
 

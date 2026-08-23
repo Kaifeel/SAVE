@@ -18,7 +18,8 @@ export function getChatRooms(accessToken) {
   })
 }
 
-export function getChatMessages(roomId, accessToken, params = { size: 50 }) {
+export function getChatMessages(roomId, accessToken, { size = 50, before } = {}) {
+  const params = before == null ? { size } : { size, before }
   return apiFetch(`/chats/rooms/${roomId}/messages`, {
     method: 'GET',
     accessToken,

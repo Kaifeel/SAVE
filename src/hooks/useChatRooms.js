@@ -31,6 +31,7 @@ export function useChatRooms({
 }) {
   const [activeRoom, setActiveRoom] = useState(null)
   const [loadingMessages, setLoadingMessages] = useState(false)
+  const [loadingOlder, setLoadingOlder] = useState(false)
   const [messageError, setMessageError] = useState(null)
   const [socketState, setSocketState] = useState('disconnected')
   const socketRef = useRef(null)
@@ -102,8 +103,15 @@ export function useChatRooms({
     try {
       const response = await api.getChatMessages(roomId, accessToken, { size: 50 })
       if (roomSelectionRequestRef.current !== requestId) return
+      const page = normalizeMessagesResponse(response, currentUserId)
       setActiveRoom(current => current?.roomId === roomId
-        ? { ...current, messages: normalizeMessagesResponse(response, currentUserId), unreadCount: 0 }
+        ? {
+          ...current,
+          messages: page.messages,
+          nextBefore: page.nextBefore,
+          hasOlder: page.hasMore,
+          unreadCount: 0,
+        }
         : current)
       await api.markChatRoomRead(roomId, accessToken)
       onRoomRead?.(roomId)
@@ -113,6 +121,44 @@ export function useChatRooms({
       if (roomSelectionRequestRef.current === requestId) setLoadingMessages(false)
     }
   }, [accessToken, api, currentUserId, onRoomRead])
+
+  const loadOlder = useCallback(async () => {
+    const roomId = activeRoom?.roomId || activeRoom?.id
+    const before = activeRoom?.nextBefore
+    if (!roomId || before == null || !activeRoom?.hasOlder || loadingOlder) return
+
+    setLoadingOlder(true)
+    setMessageError(null)
+    try {
+      const response = await api.getChatMessages(roomId, accessToken, { size: 50, before })
+      const page = normalizeMessagesResponse(response, currentUserId)
+      setActiveRoom(current => {
+        const currentRoomId = current?.roomId || current?.id
+        if (String(currentRoomId) !== String(roomId)) return current
+
+        const existingIds = new Set((current.messages || [])
+          .filter(message => message.id != null)
+          .map(message => String(message.id)))
+        const olderMessages = page.messages.filter(message => {
+          if (message.id == null) return true
+          const id = String(message.id)
+          if (existingIds.has(id)) return false
+          existingIds.add(id)
+          return true
+        })
+        return {
+          ...current,
+          messages: [...olderMessages, ...(current.messages || [])],
+          nextBefore: page.nextBefore,
+          hasOlder: page.hasMore,
+        }
+      })
+    } catch (error) {
+      setMessageError(error)
+    } finally {
+      setLoadingOlder(false)
+    }
+  }, [accessToken, activeRoom, api, currentUserId, loadingOlder])
 
   const deliver = useCallback(async optimistic => {
     try {
@@ -184,6 +230,9 @@ export function useChatRooms({
     send,
     retry,
     loadingMessages,
+    loadingOlder,
+    hasOlder: Boolean(activeRoom?.hasOlder),
+    loadOlder,
     messageError,
     socketState,
   }
