@@ -32,6 +32,12 @@ class ProductionConfigurationTest {
                     assertThat(context.getEnvironment()
                             .getProperty("spring.h2.console.enabled"))
                             .isEqualTo("false");
+                    assertThat(context.getEnvironment()
+                            .getProperty("expo.push.enabled"))
+                            .isEqualTo("false");
+                    assertThat(context.getEnvironment()
+                            .getProperty("expo.push.base-url"))
+                            .isEqualTo("https://exp.host");
                 });
     }
 }
