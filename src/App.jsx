@@ -23,11 +23,6 @@ import {
 } from './api/auth.js'
 import { useAuthStore } from './store/authStore.js'
 import { createOrGetChatRoom, getChatRooms } from './api/chats.js'
-import {
-  getNotifications,
-  markAllNotificationsRead,
-  normalizeNotification,
-} from './api/notifications.js'
 import { updateMyProfile } from './api/users.js'
 import { createReport } from './api/reports.js'
 import {
@@ -44,6 +39,7 @@ import { useRentals } from './hooks/useRentals.js'
 import { useMyPageData } from './hooks/useMyPageData.js'
 import { useRecommendations } from './hooks/useRecommendations.js'
 import { useItemEditor } from './hooks/useItemEditor.js'
+import { useAppNotifications } from './hooks/useAppNotifications.js'
 import RentalRequestForm from './components/RentalRequestForm.jsx'
 import ReportModal from './components/ReportModal.jsx'
 import { addWishlist, removeWishlist } from './api/wishlist.js'
@@ -55,13 +51,6 @@ import {
 } from 'lucide-react'
 
 const DEV_AUTO_LOGIN = isAutoLoginEnabled(USE_API, import.meta.env.VITE_AUTO_LOGIN)
-const WORKFLOW_NOTIFICATION_TYPES = new Set([
-  'RENTAL_REQUESTED',
-  'RENTAL_APPROVED',
-  'RENTAL_REJECTED',
-  'REVIEW_PUBLISHED',
-])
-
 function App() {
   const toast = useToast()
   const isAdminPath = window.location.pathname === '/admin'
@@ -118,14 +107,9 @@ function App() {
   // Modals & Sheets
   const [selectedItem, setSelectedItem] = useState(null)
   const [profileTarget, setProfileTarget] = useState(null)
-  const [workflowRefreshVersion, setWorkflowRefreshVersion] = useState(0)
   const [reportTarget, setReportTarget] = useState(null)
   const [reportReason, setReportReason] = useState('')
   const [isSubmittingReport, setIsSubmittingReport] = useState(false)
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false)
-  const [notifications, setNotifications] = useState(() => (
-    USE_API ? [] : createDemoNotifications()
-  ))
   
   const [rentalRequest, setRentalRequest] = useState(null)
   const authBootstrapStarted = useRef(false)
@@ -168,27 +152,23 @@ function App() {
     onRentalChanged: handleRentalChanged,
   })
   const { reload: reloadRentals } = rentalData
-  const handleNotification = useCallback(response => {
-    const incoming = normalizeNotification(response)
-    setNotifications(current => current.some(entry => entry.id === incoming.id)
-      ? current
-      : [incoming, ...current])
-    if (WORKFLOW_NOTIFICATION_TYPES.has(incoming.type)) {
-      setWorkflowRefreshVersion(value => value + 1)
-      Promise.allSettled([
-        reloadRentals?.(),
-        reloadMyPage?.(),
-        reloadItems?.(),
-      ])
-    }
-  }, [reloadItems, reloadMyPage, reloadRentals])
+  const appNotifications = useAppNotifications({
+    accessToken,
+    enabled: USE_API && isLoggedIn && isProfileComplete && !isAdminPath,
+    initialNotifications: USE_API ? [] : createDemoNotifications(),
+    reloadItems,
+    reloadRentals,
+    reloadMyPage,
+    toast,
+  })
+  const clearNotifications = appNotifications.clear
   const chatData = useChatRooms({
     accessToken,
     currentUserId: savedUser?.id,
     realtime: USE_API && !isAdminPath,
     onChatListUpdate: handleChatListUpdate,
     onRoomRead: handleChatRoomRead,
-    onNotification: handleNotification,
+    onNotification: appNotifications.receive,
   })
   const recommendationData = useRecommendations({
     accessToken,
@@ -206,12 +186,12 @@ function App() {
   useEffect(() => subscribeUnauthorized(() => {
     clearSession()
     setChats([])
-    setNotifications([])
+    clearNotifications()
     setActiveChatRoom(null)
     setIsLoggedIn(false)
     setIsProfileComplete(false)
     setActiveTab('home')
-  }), [clearSession, setActiveChatRoom])
+  }), [clearNotifications, clearSession, setActiveChatRoom])
 
   useEffect(() => {
     if (!USE_API || !isLoggedIn || isAdminPath) return
@@ -236,26 +216,6 @@ function App() {
       ignore = true
     }
   }, [accessToken, isAdminPath, isLoggedIn, toast])
-
-  useEffect(() => {
-    if (!USE_API || !isLoggedIn || !isProfileComplete || !accessToken || isAdminPath) return
-
-    let ignore = false
-
-    getNotifications(accessToken)
-      .then(response => {
-        if (!ignore) setNotifications(response)
-      })
-      .catch(error => {
-        if (!ignore) {
-          toast.error(error.message || '알림 목록을 불러오지 못했습니다.')
-        }
-      })
-
-    return () => {
-      ignore = true
-    }
-  }, [accessToken, isAdminPath, isLoggedIn, isProfileComplete, toast])
 
   // Filter items based on: Location (Univ), Search Query
   const campusItems = useMemo(() => {
@@ -359,7 +319,7 @@ function App() {
     )
 
     setChats([])
-    setNotifications([])
+    clearNotifications()
     setActiveChatRoom(null)
     if (installSession) setSession(nextAuth)
     setMemberName(user?.name || '')
@@ -367,7 +327,7 @@ function App() {
     setMemberUniversityId(profileUniversityId)
     setIsProfileComplete(hasCompletedProfile)
     setIsLoggedIn(true)
-  }, [setActiveChatRoom, setSession])
+  }, [clearNotifications, setActiveChatRoom, setSession])
 
   useEffect(() => {
     if (!USE_API || DEV_AUTO_LOGIN || authStatus !== 'checking'
@@ -410,8 +370,7 @@ function App() {
     } finally {
       clearSession()
       setChats([])
-      setNotifications([])
-      setIsNotificationOpen(false)
+      clearNotifications()
       setActiveChatRoom(null)
       setIsLoggedIn(false)
       setIsProfileComplete(false)
@@ -476,40 +435,33 @@ function App() {
             <div className="relative">
               <button 
                 type="button"
-                onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                onClick={() => appNotifications.setIsOpen(!appNotifications.isOpen)}
                 aria-label="알림 열기"
-                aria-expanded={isNotificationOpen}
+                aria-expanded={appNotifications.isOpen}
                 className="p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors relative"
               >
                 <Bell className="w-6 h-6" />
-                {notifications.some(n => !n.read) && (
+                {appNotifications.notifications.some(n => !n.read) && (
                   <span aria-label="읽지 않은 알림 있음" className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white"></span>
                 )}
               </button>
 
               {/* Notifications Dropdown */}
-              {isNotificationOpen && (
+              {appNotifications.isOpen && (
                 <div role="dialog" aria-label="알림 목록" className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-100 rounded-2xl shadow-xl py-3 z-[100] max-h-96 overflow-y-auto">
                   <div className="px-4 pb-2 border-b border-slate-100 flex justify-between items-center">
                     <span className="font-bold text-slate-800 text-sm">알림</span>
                     <button 
-                      onClick={async () => {
-                        try {
-                          if (USE_API) await markAllNotificationsRead(accessToken)
-                          setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-                        } catch (error) {
-                          toast.error(error.message || '알림 읽음 처리에 실패했습니다.')
-                        }
-                      }}
+                      onClick={appNotifications.markAllRead}
                       className="text-xs text-indigo-600 hover:underline"
                     >
                       모두 읽음
                     </button>
                   </div>
-                  {notifications.length === 0 ? (
+                  {appNotifications.notifications.length === 0 ? (
                     <div className="px-4 py-6 text-center text-xs text-slate-400">새로운 알림이 없습니다.</div>
                   ) : (
-                    notifications.map(n => (
+                    appNotifications.notifications.map(n => (
                       <div key={n.id} className={`px-4 py-3 border-b border-slate-50 last:border-b-0 hover:bg-slate-50 transition-colors ${!n.read ? 'bg-indigo-50/20' : ''}`}>
                         <div className="flex justify-between items-start">
                           <span className="font-bold text-xs text-indigo-600">{n.title}</span>
@@ -729,7 +681,7 @@ function App() {
             userId={profileTarget.ownerId}
             accessToken={accessToken}
             enabled={USE_API}
-            refreshKey={workflowRefreshVersion}
+            refreshKey={appNotifications.workflowRefreshVersion}
             fallbackItem={profileTarget}
             fallbackItems={items.filter(item => profileTarget.ownerId
               ? item.ownerId === profileTarget.ownerId
