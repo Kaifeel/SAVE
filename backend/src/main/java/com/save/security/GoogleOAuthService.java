@@ -7,7 +7,8 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.save.common.BusinessException;
 import com.save.user.User;
 import com.save.user.UserRepository;
-import java.util.Collections;
+import java.util.Arrays;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -18,20 +19,29 @@ public class GoogleOAuthService {
     private final UserRepository userRepository;
     private final JwtTokenService jwtTokenService;
     private final PknuEmailPolicy emailPolicy;
-    private final String clientId;
+    private final List<String> clientIds;
 
     public GoogleOAuthService(UserRepository userRepository, JwtTokenService jwtTokenService,
                               PknuEmailPolicy emailPolicy,
-                              @Value("${google.oauth.client-id:}") String clientId) {
+                              @Value("${google.oauth.client-ids:}") String clientIds) {
         this.userRepository = userRepository;
         this.jwtTokenService = jwtTokenService;
         this.emailPolicy = emailPolicy;
-        this.clientId = clientId;
+        this.clientIds = parseClientIds(clientIds);
+    }
+
+    static List<String> parseClientIds(String configured) {
+        if (configured == null) return List.of();
+        return Arrays.stream(configured.split(","))
+                .map(String::trim)
+                .filter(clientId -> !clientId.isEmpty())
+                .distinct()
+                .toList();
     }
 
     @Transactional
     public AuthResponse login(String tokenValue) {
-        if (clientId == null || clientId.isBlank()) {
+        if (clientIds.isEmpty()) {
             throw new BusinessException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Google OAuth 클라이언트 ID가 설정되지 않았습니다.");
         }
@@ -67,7 +77,7 @@ public class GoogleOAuthService {
         try {
             GoogleIdTokenVerifier verifier = new GoogleIdTokenVerifier.Builder(
                     GoogleNetHttpTransport.newTrustedTransport(), GsonFactory.getDefaultInstance())
-                    .setAudience(Collections.singletonList(clientId))
+                    .setAudience(clientIds)
                     .build();
             GoogleIdToken token = verifier.verify(tokenValue);
             if (token == null) throw invalidToken();

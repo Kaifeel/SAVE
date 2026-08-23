@@ -9,7 +9,12 @@
     "lint": "eslint .",
     "test": "vitest",
     "test:run": "vitest run",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "app:start": "npm --prefix apps/save-app run start",
+    "app:android": "npm --prefix apps/save-app run android",
+    "app:lint": "npm --prefix apps/save-app run lint",
+    "app:typecheck": "npm --prefix apps/save-app run typecheck",
+    "app:test": "npm --prefix apps/save-app run test"
   },
   "dependencies": {
     "@stomp/stompjs": "^7.3.0",
