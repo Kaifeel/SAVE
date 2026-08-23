@@ -81,6 +81,10 @@ public class ExpoPushClient {
         return readTimeout;
     }
 
+    public boolean enabled() {
+        return enabled;
+    }
+
     private ExpoPushTicketResponse parseResult(JsonNode result) {
         String status = requiredText(result, "status");
         String id = optionalText(result, "id");

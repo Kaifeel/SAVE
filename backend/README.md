@@ -161,13 +161,11 @@ docker build -t save-chat-api .
 docker run --rm -p 8080:8080 save-chat-api
 ```
 
-Firebase까지 사용할 경우 서비스 계정 파일을 이미지에 포함하지 말고 실행 시 읽기 전용으로 마운트합니다.
+Expo Push 전송을 함께 확인하려면 전송 기능만 환경변수로 활성화합니다. 별도 Firebase 서비스 계정 파일은 사용하지 않습니다.
 
 ```powershell
 docker run --rm -p 8080:8080 `
-  -e FIREBASE_ENABLED=true `
-  -e FIREBASE_CREDENTIALS_PATH=/run/secrets/firebase.json `
-  -v "C:\secrets\firebase-service-account.json:/run/secrets/firebase.json:ro" `
+  -e EXPO_PUSH_ENABLED=true `
   save-chat-api
 ```
 
@@ -206,51 +204,33 @@ PATCH /api/v1/notifications/read-all
 `/user/queue/notifications`로 전달됩니다. 현재 앱 안 알림 유형은
 `RENTAL_REQUESTED`, `RENTAL_APPROVED`, `RENTAL_REJECTED`, `REVIEW_PUBLISHED`입니다.
 상호 후기가 공개되면 양쪽 참여자에게 `REVIEW_PUBLISHED`가 전달되어 대여 내역과
-프로필 후기가 새로고침 없이 갱신됩니다. Firebase 앱 밖 푸시 알림과는 별개이며,
-대여 상태 앱 밖 푸시는 아직 이 흐름에 연결하지 않았습니다.
+프로필 후기가 새로고침 없이 갱신됩니다. 같은 커밋 이후 경계에서 등록된 Expo Push
+Token으로 채팅과 대여·후기 앱 밖 알림도 전송됩니다. 푸시 제공자 장애는 원래 거래를
+롤백하지 않습니다.
 
-## Firebase Cloud Messaging 설정
+## Expo Push 설정
 
-### 1. Firebase 콘솔
+### 1. Spring Boot 환경변수
 
-1. Firebase Console에서 프로젝트를 생성합니다.
-2. React Native Android 앱을 등록하고 `google-services.json`을 `android/app/`에 둡니다.
-3. iOS도 사용한다면 iOS 앱 등록 후 `GoogleService-Info.plist`를 Xcode 프로젝트에 추가하고 APNs 키를 Firebase에 등록합니다.
-4. 프로젝트 설정 → 서비스 계정 → Firebase Admin SDK → 새 비공개 키 생성으로 서버용 JSON을 받습니다.
-
-서비스 계정 JSON은 앱이나 Git 저장소에 넣으면 안 됩니다. 서버의 안전한 위치에 보관합니다.
-
-### 2. Spring Boot 환경변수
-
-```powershell
-$env:FIREBASE_ENABLED = 'true'
-$env:FIREBASE_CREDENTIALS_PATH = 'C:\secrets\firebase-service-account.json'
-.\bootRun.ps1
+```bash
+EXPO_PUSH_ENABLED=true ./gradlew bootRun
 ```
 
-환경변수가 없거나 `FIREBASE_ENABLED=false`이면 채팅 기능은 정상 동작하고 푸시만 생략됩니다.
+환경변수가 없거나 `EXPO_PUSH_ENABLED=false`이면 채팅·대여 기능은 정상 동작하고 앱 밖
+푸시만 생략됩니다. 기본 전송 주소와 타임아웃은 `EXPO_PUSH_BASE_URL`,
+`EXPO_PUSH_CONNECT_TIMEOUT`, `EXPO_PUSH_READ_TIMEOUT`으로 조정할 수 있습니다.
 
-### 3. React Native 토큰 등록
+### 2. Expo 토큰 등록
 
-React Native에서 알림 권한을 받은 뒤 FCM 토큰을 백엔드에 등록합니다.
+Expo 앱에서 알림 권한을 받은 뒤 `getExpoPushTokenAsync`가 반환한 토큰을 등록합니다.
+백엔드는 `ExpoPushToken[...]`과 `ExponentPushToken[...]` 형식만 받습니다.
 
-```javascript
-import messaging from '@react-native-firebase/messaging'
+```http
+PUT /api/v1/device-tokens
+Authorization: Bearer {accessToken}
+Content-Type: application/json
 
-export async function registerPushToken(apiUrl, accessToken) {
-  await messaging().requestPermission()
-  const token = await messaging().getToken()
-
-  const response = await fetch(`${apiUrl}/api/v1/device-tokens`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify({ token, platform: 'ANDROID' }),
-  })
-  if (!response.ok) throw new Error('FCM 토큰 등록 실패')
-}
+{"token":"ExpoPushToken[...]","platform":"ANDROID"}
 ```
 
 토큰 갱신 시 새 토큰을 다시 등록합니다.

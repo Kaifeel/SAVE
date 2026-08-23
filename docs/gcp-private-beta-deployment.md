@@ -13,7 +13,7 @@ SAVE의 첫 비공개 베타와 전시회 백엔드는 Google Cloud Platform에 
 | 운영 데이터베이스 | Cloud SQL for PostgreSQL |
 | 물품 이미지 | Cloud Storage |
 | 운영 비밀값 | Secret Manager |
-| 푸시 알림 | Firebase Cloud Messaging |
+| 푸시 알림 | Expo Push Service |
 | 애플리케이션 로그 | Cloud Logging |
 
 Cloud Run은 현재 `backend/Dockerfile`이 노출하는 8080 포트와 맞고 HTTPS 및
@@ -30,7 +30,7 @@ Expo Android 앱
 Cloud Run (Spring Boot, prod 프로필)
         |---------------- Cloud SQL for PostgreSQL
         |---------------- Cloud Storage
-        |---------------- Firebase Cloud Messaging
+        |---------------- Expo Push Service
         `---------------- Secret Manager / Cloud Logging
 ```
 
@@ -72,8 +72,7 @@ JWT_SECRET=32자 이상의 무작위 비밀값
 CORS_ALLOWED_ORIGINS=https://관리자웹도메인
 GOOGLE_CLIENT_ID=운영용_Google_Client_ID
 GOOGLE_REDIRECT_SUCCESS_URI=https://관리자웹도메인
-FIREBASE_ENABLED=true
-FIREBASE_CREDENTIALS_PATH=/secrets/firebase-service-account.json
+EXPO_PUSH_ENABLED=true
 OPENAI_API_KEY=...
 S3_ENDPOINT=https://storage.googleapis.com
 S3_REGION=auto
@@ -84,8 +83,9 @@ S3_PUBLIC_BASE_URL=https://storage.googleapis.com/save-item-images
 S3_PATH_STYLE_ACCESS_ENABLED=true
 ```
 
-Google Client ID는 공개 식별자지만, DB 비밀번호, JWT Secret, Firebase 서비스
-계정, HMAC Secret, OpenAI API Key는 저장소에 커밋하지 않는다.
+Google Client ID는 공개 식별자지만, DB 비밀번호, JWT Secret, HMAC Secret,
+OpenAI API Key는 저장소에 커밋하지 않는다. Expo Push 기본 전송에는 별도
+서비스 계정 파일이 필요하지 않다.
 
 ## 구현 및 배포 순서
 

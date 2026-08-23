@@ -10,10 +10,6 @@ server:
   error:
     include-message: never
 
-firebase:
-  enabled: ${FIREBASE_ENABLED:false}
-  credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
-
 expo:
   push:
     enabled: ${EXPO_PUSH_ENABLED:false}
