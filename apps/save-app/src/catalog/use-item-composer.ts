@@ -72,7 +72,7 @@ export function useItemComposer(
 
   useEffect(() => {
     mounted.current = true;
-    void loadLocations();
+    void Promise.resolve().then(loadLocations);
     return () => {
       mounted.current = false;
       locationRequest.current += 1;
