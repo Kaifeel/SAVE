@@ -477,7 +477,11 @@ function App() {
     setIsProfileComplete(true)
   }
 
-  const applyAuth = useCallback((nextAuth, fallbackUniversityId = null) => {
+  const applyAuth = useCallback((
+    nextAuth,
+    fallbackUniversityId = null,
+    { installSession = true } = {},
+  ) => {
     const user = nextAuth?.user ?? null
     const profileUniversityId = user?.university_id
       ?? user?.universityId
@@ -490,7 +494,7 @@ function App() {
     setChats([])
     setNotifications([])
     setActiveChatRoom(null)
-    setSession(nextAuth)
+    if (installSession) setSession(nextAuth)
     setMemberName(user?.name || '')
     setMemberDepartment(user?.department || '')
     setMemberUniversityId(profileUniversityId)
@@ -517,7 +521,7 @@ function App() {
 
     const restore = code ? exchangeGoogleLogin(code) : refreshSession()
     restore
-      .then(applyAuth)
+      .then(nextAuth => applyAuth(nextAuth, null, { installSession: Boolean(code) }))
       .catch(error => {
         clearSession()
         setIsLoggedIn(false)

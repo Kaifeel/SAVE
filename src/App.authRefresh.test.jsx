@@ -51,6 +51,7 @@ afterEach(() => {
 })
 
 it('restores a completed Google profile after a browser refresh', async () => {
+  const setSession = vi.spyOn(useAuthStore.getState(), 'setSession')
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
     access_token: 'fresh-jwt',
     user: {
@@ -66,6 +67,7 @@ it('restores a completed Google profile after a browser refresh', async () => {
 
   expect(await screen.findByRole('button', { name: '알림 열기' })).toBeInTheDocument()
   expect(screen.queryByText('회원 정보 입력')).not.toBeInTheDocument()
+  expect(setSession).toHaveBeenCalledTimes(1)
   expect(useAuthStore.getState().accessToken).toBe('fresh-jwt')
   expect(localStorage).toHaveLength(0)
 })
