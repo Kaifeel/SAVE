@@ -18,7 +18,7 @@ This matrix tracks the canonical Expo app in `apps/save-app` against the web ref
 | Home | `implemented` | `src/pages/HomePage.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/index.tsx` | Popular/latest item lists and recommendation history/creation use the existing `/items` and `/recommendations` APIs with session refresh, loading, empty, error, retry, and pull-to-refresh states. | Pass: server data only; no product fallback or forbidden display values. | Not run; pull-to-refresh and remote images are not device-verified. |
 | Explore | `implemented` | `src/pages/SearchPage.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/explore.tsx` | Board, debounced query, availability, university, sort, and pagination parameters use the existing `/items` API. Empty and failed responses remain explicit. | Pass: server data only; missing location/university uses neutral copy rather than fixtures. | Not run; native switch and list behavior are not device-verified. |
 | Compose | `shell` | `src/components/ItemRegistrationModal.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/create.tsx` | Not connected; the route renders only a title placeholder. | Pass: no draft item, photo, or product fixture data. | Not run. |
-| Chats | `shell` | `src/pages/ChatPage.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/chat.tsx`; planned `apps/save-app/src/app/(authenticated)/chats/[id].tsx` is absent | Not connected; the tab renders only a title placeholder and no chat-room route exists. | Pass: no chat rooms, notifications, messages, or forbidden display values. | Not run. |
+| Chats | `implemented` | `src/pages/ChatPage.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/chat.tsx`; `apps/save-app/src/app/(authenticated)/chats/[id].tsx` | Room lists, cursor-paged messages, read clearing, REST-authoritative optimistic send/retry, STOMP room/list updates, reconnect restoration, and duplicate reconciliation use the shared backend. All successful room/message/page responses are runtime-validated. | Pass: production chat code contains no sample rooms, messages, users, mock tokens, or fabricated item metadata. | Not run; Android and iPhone Expo Go two-device delivery, reconnect, unread clearing, and 50+ message pagination still require physical devices. |
 | My | `shell` | `src/pages/MyPage.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/my.tsx` | Not connected; the route renders only a title placeholder. | Pass: no profile, rental, or notification fixture data. | Not run. |
 | Item detail | `implemented` | `src/ProductDetailPage.jsx` | `apps/save-app/src/app/(authenticated)/items/[id].tsx` | Detail uses `/items/{id}` and wishlist uses `POST`/`DELETE /items/{id}/wishlist`; responses are runtime-validated and a successful mutation is followed by an authoritative refetch. | Pass: photo counter derives from real images; fixed tags, photo count, trade count, and fallback owner/location values are absent. | Not run; horizontal image paging and Android system-back are not device-verified. |
 | Public profile | `shell` | `src/pages/UserProfilePage.jsx` | Planned `apps/save-app/src/app/(authenticated)/users/[id].tsx` is absent | Not connected; no Expo route exists. | Not applicable: no Expo public-profile UI or data exists to audit. | Not run. |
@@ -69,12 +69,25 @@ Latest results from 2026-08-18:
 
 The first Android export attempt found route tests under `src/app` and failed because Expo Router included them in its production route context. Moving those tests, without changing production route code, to `src/__tests__` made the focused tests, full checks, and export pass.
 
+### Expo chat milestone results from 2026-08-23
+
+| Check | Result |
+| --- | --- |
+| Backend tests | Pass: the full Gradle suite, including the authenticated real STOMP broker gate and cursor pagination integration test. |
+| Web regression tests | Pass: 42 files and 130 tests. |
+| Expo tests | Pass: 22 suites and 162 tests. |
+| TypeScript | Pass: `tsc --noEmit` exited 0. |
+| ESLint | Pass: `expo lint` exited 0. |
+| Android export | Pass: Metro bundled 1,318 modules and wrote `_expo/static/js/android/entry-dd2895f30e2c5c63faf74424860214dd.hbc` plus `metadata.json` under `/tmp/save-expo-chat-android`. |
+| Chat hardcoded-content audit | Pass: the production chat/app search returned no sample chat, fake-chat, mock-token, or fixed test-message matches. |
+| Physical Android/iPhone chat smoke | Not run: no physical devices were attached to this workspace. Do not promote Chats to `verified` until the two-account acceptance checks pass. |
+
 ## Follow-up delivery plans
 
 Create separate plans for:
 
 1. Item composition plus camera/gallery upload.
 2. Rental and profile workflows.
-3. Real-time chat and notifications.
+3. Push notifications and physical-device chat verification.
 
 Each plan must leave the app runnable and retain the same TDD, test, typecheck, lint, export, hardcoded-data, and physical-device verification gates.
