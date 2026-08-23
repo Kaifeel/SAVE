@@ -4,12 +4,16 @@ import com.save.common.BusinessException;
 import com.save.user.User;
 import com.save.user.UserRepository;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DeviceTokenService {
+    private static final int MAX_TOKEN_LENGTH = 512;
+    private static final Pattern EXPO_PUSH_TOKEN = Pattern.compile(
+            "^(?:Expo|Exponent)PushToken\\[[^\\]\\s]+]$");
     private final UserDeviceTokenRepository tokenRepository;
     private final UserRepository userRepository;
     public DeviceTokenService(UserDeviceTokenRepository tokenRepository, UserRepository userRepository) {
@@ -20,7 +24,7 @@ public class DeviceTokenService {
     public void register(Integer userId, DeviceTokenRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다."));
-        String token = request.token().trim();
+        String token = normalizeExpoPushToken(request.token());
         UserDeviceToken device = tokenRepository.findByToken(token)
                 .orElseGet(() -> new UserDeviceToken(user, token, request.platform()));
         device.reactivate(user, request.platform());
@@ -29,7 +33,8 @@ public class DeviceTokenService {
 
     @Transactional
     public void unregister(Integer userId, String token) {
-        tokenRepository.findByToken(token).ifPresent(device -> {
+        String normalizedToken = normalizeExpoPushToken(token);
+        tokenRepository.findByToken(normalizedToken).ifPresent(device -> {
             if (!device.getUser().getId().equals(userId)) {
                 throw new BusinessException(HttpStatus.FORBIDDEN, "기기 토큰을 삭제할 권한이 없습니다.");
             }
@@ -44,6 +49,17 @@ public class DeviceTokenService {
 
     @Transactional
     public void disable(String token) {
-        tokenRepository.findByToken(token).ifPresent(UserDeviceToken::disable);
+        tokenRepository.findByToken(normalizeExpoPushToken(token))
+                .ifPresent(UserDeviceToken::disable);
+    }
+
+    public String normalizeExpoPushToken(String token) {
+        String normalized = token == null ? "" : token.trim();
+        if (normalized.isEmpty()
+                || normalized.length() > MAX_TOKEN_LENGTH
+                || !EXPO_PUSH_TOKEN.matcher(normalized).matches()) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "유효한 Expo Push Token이 아닙니다.");
+        }
+        return normalized;
     }
 }
