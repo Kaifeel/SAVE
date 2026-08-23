@@ -1,6 +1,9 @@
 import { apiFetch } from './client'
 
-export function createOrGetChatRoom(itemId, accessToken) {
+export function createOrGetChatRoom(itemId, accessToken, { enabled = true } = {}) {
+  if (!enabled) {
+    return Promise.resolve({ chat_room_id: null, item_id: itemId })
+  }
   return apiFetch('/chats/rooms', {
     method: 'POST',
     accessToken,

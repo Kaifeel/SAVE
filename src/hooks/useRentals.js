@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import * as rentalApi from '../api/rentals'
 
+const MOCK_TRANSITION_STATUS = {
+  startRental: 'RENTING',
+  rejectRental: 'REJECTED',
+  cancelRental: 'CANCELED',
+  returnRental: 'RETURNED',
+}
+
 export function useRentals({
   accessToken,
   currentUserId,
@@ -47,6 +54,20 @@ export function useRentals({
   const transition = useCallback(async (id, action) => {
     setPendingAction(`${id}:${action}`)
     try {
+      if (!enabled) {
+        const status = MOCK_TRANSITION_STATUS[action]
+        let updated
+        setRentals(current => current.map(rental => {
+          if (rental.id !== id) return rental
+          updated = {
+            ...rental,
+            status: status || rental.status,
+            ...(status === 'RETURNED' ? { reviewState: 'AVAILABLE' } : {}),
+          }
+          return updated
+        }))
+        return updated
+      }
       const updated = await api[action](id, accessToken)
       setRentals(current => current.map(rental => rental.id === id ? updated : rental))
       await Promise.allSettled([reload(), onRentalChanged?.()])
@@ -54,11 +75,23 @@ export function useRentals({
     } finally {
       setPendingAction(null)
     }
-  }, [accessToken, api, onRentalChanged, reload])
+  }, [accessToken, api, enabled, onRentalChanged, reload])
 
   const create = useCallback(async payload => {
     setPendingAction('create')
     try {
+      if (!enabled) {
+        const created = {
+          id: `mock-rental-${Date.now()}`,
+          ...payload,
+          borrower_id: currentUserId,
+          lender_id: null,
+          status: 'REQUESTED',
+          reviewState: 'NOT_AVAILABLE',
+        }
+        setRentals(current => [created, ...current])
+        return created
+      }
       const created = await api.createRental(payload, accessToken)
       setRentals(current => [created, ...current])
       await Promise.allSettled([reload(), onRentalChanged?.()])
@@ -66,11 +99,18 @@ export function useRentals({
     } finally {
       setPendingAction(null)
     }
-  }, [accessToken, api, onRentalChanged, reload])
+  }, [accessToken, api, currentUserId, enabled, onRentalChanged, reload])
 
   const submitReview = useCallback(async (id, review) => {
     setPendingAction(`${id}:submitReview`)
     try {
+      if (!enabled) {
+        const result = { review_state: 'SUBMITTED_WAITING', review_deadline: null }
+        setRentals(current => current.map(rental => rental.id === id
+          ? { ...rental, reviewState: result.review_state, reviewDeadline: null, review }
+          : rental))
+        return result
+      }
       const result = await api.submitRentalReview(id, review, accessToken)
       setRentals(current => current.map(rental => rental.id === id
         ? {
@@ -85,7 +125,7 @@ export function useRentals({
     } finally {
       setPendingAction(null)
     }
-  }, [accessToken, api, onRentalChanged, reload])
+  }, [accessToken, api, enabled, onRentalChanged, reload])
 
   return {
     rentals,

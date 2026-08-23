@@ -35,6 +35,7 @@ export function useChatRooms({
   const [socketState, setSocketState] = useState('disconnected')
   const socketRef = useRef(null)
   const activeRoomRef = useRef(null)
+  const roomSelectionRequestRef = useRef(0)
 
   useEffect(() => {
     activeRoomRef.current = activeRoom
@@ -93,20 +94,23 @@ export function useChatRooms({
 
   const selectRoom = useCallback(async room => {
     const roomId = room.roomId || room.id
+    const requestId = roomSelectionRequestRef.current + 1
+    roomSelectionRequestRef.current = requestId
     setActiveRoom({ ...room, roomId })
     setLoadingMessages(true)
     setMessageError(null)
     try {
       const response = await api.getChatMessages(roomId, accessToken, { size: 50 })
+      if (roomSelectionRequestRef.current !== requestId) return
       setActiveRoom(current => current?.roomId === roomId
         ? { ...current, messages: normalizeMessagesResponse(response, currentUserId), unreadCount: 0 }
         : current)
       await api.markChatRoomRead(roomId, accessToken)
       onRoomRead?.(roomId)
     } catch (error) {
-      setMessageError(error)
+      if (roomSelectionRequestRef.current === requestId) setMessageError(error)
     } finally {
-      setLoadingMessages(false)
+      if (roomSelectionRequestRef.current === requestId) setLoadingMessages(false)
     }
   }, [accessToken, api, currentUserId, onRoomRead])
 

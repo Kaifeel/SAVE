@@ -1,6 +1,8 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, expect, it, vi } from 'vitest'
 import ChatPage from './ChatPage'
+
+afterEach(cleanup)
 
 it('links the active chat header to the item ID instead of a duplicate title', () => {
   const firstItem = {
@@ -141,4 +143,103 @@ it('shows a date separator only for the first message and date changes', () => {
   expect(view.getAllByText('2026년 8월 2일')).toHaveLength(1)
   expect(view.getAllByText('2026년 8월 3일')).toHaveLength(1)
   expect(view.queryByText('2026년 5월 23일')).not.toBeInTheDocument()
+})
+
+it('does not invent price, location, or availability when a room has no linked item', () => {
+  const { container } = render(<ChatPage
+    activeChatRoom={{
+      id: 9,
+      roomId: 9,
+      itemId: 404,
+      itemTitle: '삭제된 물품',
+      sender: 'Other user',
+      messages: [],
+    }}
+    items={[]}
+    setActiveChatRoom={vi.fn()}
+    setSelectedItem={vi.fn()}
+    chatInput=""
+    setChatInput={vi.fn()}
+    handleSendMessage={vi.fn()}
+    chats={[]}
+    loadingMessages={false}
+  />)
+
+  expect(container).toHaveTextContent('물품 정보 없음')
+  expect(screen.getByText('상태 확인 불가')).toBeInTheDocument()
+  expect(screen.queryByText('15,000원/일')).not.toBeInTheDocument()
+  expect(screen.queryByText('공학관 앞')).not.toBeInTheDocument()
+})
+
+it('shows the linked item actual rental status', () => {
+  render(<ChatPage
+    activeChatRoom={{
+      id: 9,
+      itemId: 2,
+      itemTitle: '카메라',
+      sender: '학생',
+      messages: [],
+    }}
+    items={[{
+      id: 2,
+      title: '카메라',
+      price: 2000,
+      priceType: '일',
+      location: '누리관 앞',
+      status: 'rented',
+    }]}
+    setActiveChatRoom={vi.fn()}
+    setSelectedItem={vi.fn()}
+    chatInput=""
+    setChatInput={vi.fn()}
+    handleSendMessage={vi.fn()}
+    chats={[]}
+    loadingMessages={false}
+  />)
+
+  expect(screen.getByText('대여 중')).toBeInTheDocument()
+  expect(screen.queryByText('대여 가능')).not.toBeInTheDocument()
+})
+
+it('uses a neutral status when the linked item status is unknown', () => {
+  render(<ChatPage
+    activeChatRoom={{ id: 9, itemId: 2, itemTitle: '카메라', sender: '학생', messages: [] }}
+    items={[{ id: 2, title: '카메라', price: 2000, priceType: '일', status: 'unknown' }]}
+    setActiveChatRoom={vi.fn()}
+    setSelectedItem={vi.fn()}
+    chatInput=""
+    setChatInput={vi.fn()}
+    handleSendMessage={vi.fn()}
+    chats={[]}
+    loadingMessages={false}
+  />)
+
+  expect(screen.getByText('상태 확인 불가')).toHaveClass('bg-slate-100')
+})
+
+it('opens a room from a keyboard-accessible chat-list control', () => {
+  const selectChatRoom = vi.fn()
+  const room = {
+    id: 9,
+    itemTitle: '우산',
+    sender: '학생',
+    lastMessage: '안녕하세요',
+    unreadCount: 0,
+  }
+  render(<ChatPage
+    activeChatRoom={null}
+    items={[]}
+    setActiveChatRoom={vi.fn()}
+    selectChatRoom={selectChatRoom}
+    setSelectedItem={vi.fn()}
+    chatInput=""
+    setChatInput={vi.fn()}
+    handleSendMessage={vi.fn()}
+    chats={[room]}
+    loadingMessages={false}
+  />)
+
+  fireEvent.click(screen.getByRole('button', { name: /학생.*우산.*안녕하세요/ }))
+
+  expect(selectChatRoom).toHaveBeenCalledWith(room)
 })

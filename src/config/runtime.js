@@ -10,5 +10,9 @@ export function parseApiMode(value) {
   return mode
 }
 
+export function isAutoLoginEnabled(useApi, value) {
+  return !useApi && value === 'true'
+}
+
 export const API_MODE = parseApiMode(import.meta.env.VITE_API_MODE)
 export const USE_API = API_MODE !== 'mock'

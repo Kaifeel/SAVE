@@ -1,6 +1,18 @@
 import { Fragment } from 'react'
 import { ArrowLeft, Camera, Send } from 'lucide-react'
 
+const ITEM_STATUS_META = {
+  available: ['대여 가능', 'bg-emerald-50 text-emerald-600'],
+  request_pending: ['요청 확인 중', 'bg-amber-50 text-amber-600'],
+  reserved: ['대여 예약', 'bg-indigo-50 text-indigo-600'],
+  rented: ['대여 중', 'bg-rose-50 text-rose-500'],
+}
+
+function itemStatusMeta(item) {
+  return ITEM_STATUS_META[item?.status]
+    || ['상태 확인 불가', 'bg-slate-100 text-slate-500']
+}
+
 const CHAT_TIME_FORMATTER = new Intl.DateTimeFormat('ko-KR', {
   hour: '2-digit',
   minute: '2-digit',
@@ -76,7 +88,8 @@ export default function ChatPage(props) {
                   const ActiveItemIcon = linkedItem?.imageIcon || Camera
                   const priceLabel = linkedItem
                     ? `${linkedItem.price.toLocaleString()}원/${linkedItem.priceType}`
-                    : '15,000원/일'
+                    : '물품 정보 없음'
+                  const [statusLabel, statusClassName] = itemStatusMeta(linkedItem)
 
                   return (
                     <div className="flex-1 flex flex-col h-full bg-slate-50">
@@ -102,11 +115,11 @@ export default function ChatPage(props) {
                             <div className="text-[11px] font-extrabold text-indigo-600 mt-0.5 truncate">
                               {priceLabel}
                               <span className="text-slate-300 mx-1">·</span>
-                              {linkedItem?.location || '공학관 앞'}
+                              {linkedItem?.location || '위치 정보 없음'}
                             </div>
                           </div>
-                          <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-extrabold">
-                            대여 가능
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${statusClassName}`}>
+                            {statusLabel}
                           </span>
                         </div>
                       </div>
@@ -197,10 +210,11 @@ export default function ChatPage(props) {
                       const unreadCount = chat.unreadCount ?? (chat.unread ? 1 : 0)
 
                       return (
-                        <div
+                        <button
+                          type="button"
                           key={chat.id}
                           onClick={() => selectChatRoom(chat)}
-                          className="bg-white border border-slate-100 rounded-2xl px-3.5 py-3 flex items-center gap-3 cursor-pointer hover:border-indigo-100 hover:shadow-md hover:shadow-indigo-50/50 transition-all"
+                          className="w-full text-left bg-white border border-slate-100 rounded-2xl px-3.5 py-3 flex items-center gap-3 cursor-pointer hover:border-indigo-100 hover:shadow-md hover:shadow-indigo-50/50 transition-all"
                         >
                           <div className={`w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm ${linkedItem?.iconColor || 'text-indigo-500 bg-indigo-50'}`}>
                             <ChatItemIcon className="w-7 h-7" />
@@ -230,7 +244,7 @@ export default function ChatPage(props) {
                               {unreadCount}
                             </div>
                           </div>
-                        </div>
+                        </button>
                       )
                     })}
                   </div>

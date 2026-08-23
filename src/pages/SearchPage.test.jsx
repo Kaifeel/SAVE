@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
+import { Camera } from 'lucide-react'
 import SearchPage from './SearchPage'
 
 afterEach(cleanup)
@@ -47,4 +48,37 @@ it.each([
   />)
 
   expect(screen.getByText(label)).toBeInTheDocument()
+})
+
+it('opens a search result through a keyboard-accessible control', async () => {
+  const user = userEvent.setup()
+  const item = {
+    id: 7,
+    title: '우산',
+    price: 1000,
+    priceType: '일',
+    location: '누리관 앞',
+    university: '부경대학교',
+    status: 'available',
+    badge: '신규',
+    imageIcon: Camera,
+    iconColor: 'bg-slate-100',
+  }
+  const setSelectedItem = vi.fn()
+  render(<SearchPage
+    activeBoard="lend"
+    setActiveBoard={vi.fn()}
+    searchQuery=""
+    setSearchQuery={vi.fn()}
+    availableOnly={false}
+    setAvailableOnly={vi.fn()}
+    filteredItems={[item]}
+    setSelectedItem={setSelectedItem}
+    loading={false}
+    error={null}
+  />)
+
+  await user.click(screen.getByRole('button', { name: /우산/ }))
+
+  expect(setSelectedItem).toHaveBeenCalledWith(item)
 })

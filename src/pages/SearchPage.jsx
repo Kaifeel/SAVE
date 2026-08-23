@@ -94,10 +94,11 @@ export default function SearchPage(props) {
                       ? 'bg-rose-50 text-rose-500'
                       : 'bg-emerald-50 text-emerald-600'
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={item.id}
                       onClick={() => setSelectedItem(item)}
-                      className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center space-x-4 cursor-pointer hover:shadow-md transition-shadow"
+                      className="w-full text-left bg-white border border-slate-100 rounded-2xl p-4 flex items-center space-x-4 cursor-pointer hover:shadow-md transition-shadow"
                     >
                       <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${item.iconColor}`}>
                         <ItemIcon className="w-7 h-7" />
@@ -129,7 +130,7 @@ export default function SearchPage(props) {
                           </span>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   )
                 })}
 

@@ -26,6 +26,7 @@ const baseProps = {
   newDescription: '',
   setNewDescription: vi.fn(),
   isSubmittingItem: false,
+  onClose: vi.fn(),
 }
 
 it('stores a pickup-location id instead of a location string', async () => {
@@ -45,4 +46,20 @@ it('does not offer free as a rental period unit', () => {
   render(<ItemRegistrationModal {...baseProps} />)
 
   expect(screen.queryByRole('option', { name: '무료' })).not.toBeInTheDocument()
+})
+
+it('uses one close path so the parent can discard an abandoned edit', async () => {
+  const user = userEvent.setup()
+  const onClose = vi.fn()
+  render(<ItemRegistrationModal {...baseProps} editingItemId={7} onClose={onClose} />)
+
+  await user.click(screen.getByRole('button', { name: '취소' }))
+
+  expect(onClose).toHaveBeenCalledOnce()
+})
+
+it('exposes the item form as a modal dialog', () => {
+  render(<ItemRegistrationModal {...baseProps} />)
+
+  expect(screen.getByRole('dialog', { name: '대여 물품 등록' })).toBeInTheDocument()
 })

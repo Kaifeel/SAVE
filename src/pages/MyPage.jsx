@@ -30,8 +30,10 @@ export default function MyPage(props) {
                   <User className="w-8 h-8 text-indigo-600" />
                 </div>
                 <div className="min-w-0">
-                  <h2 className="text-xl font-black text-slate-900 truncate">{memberName || '김부경'}</h2>
-                  <p className="text-xs font-bold text-indigo-600 mt-1">{memberDepartment || '컴퓨터공학과'}</p>
+                  <h2 className="text-xl font-black text-slate-900 truncate">{memberName || '사용자'}</h2>
+                  {memberDepartment && (
+                    <p className="text-xs font-bold text-indigo-600 mt-1">{memberDepartment}</p>
+                  )}
                 </div>
               </div>
 
@@ -105,7 +107,7 @@ export default function MyPage(props) {
                   <span>대여 내역</span>
                   <ChevronRight className="w-4 h-4 text-slate-400" />
                 </button>
-                <button className="w-full text-left px-4 py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-50 transition-colors flex justify-between items-center">
+                <button type="button" disabled className="w-full text-left px-4 py-3 text-sm font-extrabold text-slate-700 hover:bg-slate-50 transition-colors flex justify-between items-center">
                   <span>알림 설정</span>
                   <ChevronRight className="w-4 h-4 text-slate-400" />
                 </button>

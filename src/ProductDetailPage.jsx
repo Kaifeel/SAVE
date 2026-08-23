@@ -13,6 +13,8 @@ import {
 import { useNow } from './hooks/useNow'
 import { formatRelativeTime } from './utils/relativeTime'
 
+const COMMON_SAFETY_NOTICE = '분실 및 파손 시 수리비 전액 청구됩니다. 대여 전 상태 사진을 반드시 확인하세요.'
+
 export default function ProductDetailPage({
   item,
   onClose,
@@ -28,6 +30,12 @@ export default function ProductDetailPage({
   const ItemIcon = item.imageIcon
   const ownerName = item.owner?.split(' ')[0] || '대여자'
   const priceLabel = item.price === 0 ? '무료' : `${item.price.toLocaleString()}원/${item.priceType}`
+  const imageUrls = (item.photos || []).filter(
+    imageUrl => typeof imageUrl === 'string' && imageUrl.trim(),
+  )
+  const primaryImageUrl = typeof item.mainImageUrl === 'string' && item.mainImageUrl.trim()
+    ? item.mainImageUrl
+    : imageUrls[0] || null
   const now = useNow()
   const relativeTime = formatRelativeTime(item.createdAt, now)
 
@@ -49,6 +57,7 @@ export default function ProductDetailPage({
           <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
             <button
               type="button"
+              disabled
               className="w-9 h-9 rounded-full bg-white shadow-sm border border-slate-100 flex items-center justify-center text-slate-600 active:scale-95 transition"
               aria-label="공유하기"
             >
@@ -73,14 +82,20 @@ export default function ProductDetailPage({
           </div>
 
           <div className="absolute inset-0 flex items-center justify-center pt-4">
-            <div className={`w-16 h-16 rounded-xl flex items-center justify-center shadow-sm ${item.iconColor}`}>
-              <ItemIcon className="w-9 h-9" />
-            </div>
+            {primaryImageUrl ? (
+              <img src={primaryImageUrl} alt={`${item.title} 사진`} className="h-full w-full object-cover" />
+            ) : (
+              <div className={`w-16 h-16 rounded-xl flex items-center justify-center shadow-sm ${item.iconColor}`}>
+                <ItemIcon className="w-9 h-9" />
+              </div>
+            )}
           </div>
 
-          <div className="absolute right-3 bottom-3 px-2 py-0.5 rounded-full bg-slate-700 text-white text-[10px] font-extrabold">
-            1 / 3
-          </div>
+          {imageUrls.length > 0 && (
+            <div className="absolute right-3 bottom-3 px-2 py-0.5 rounded-full bg-slate-700 text-white text-[10px] font-extrabold">
+              1 / {imageUrls.length}
+            </div>
+          )}
         </section>
 
         <div className="px-4 pt-4">
@@ -109,16 +124,7 @@ export default function ProductDetailPage({
             </div>
             <div className="text-right flex-shrink-0">
               <div className="text-[15px] font-extrabold text-indigo-600">{priceLabel}</div>
-              <div className="text-[10px] text-slate-400 font-bold mt-0.5">보증금 없음</div>
             </div>
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {['#카메라', '#미러리스', '#촬영'].map(tag => (
-              <span key={tag} className="px-2 py-1 rounded-full bg-slate-100 text-[10px] text-slate-500 font-bold">
-                {tag}
-              </span>
-            ))}
           </div>
         </div>
 
@@ -136,7 +142,7 @@ export default function ProductDetailPage({
               <h2 className="text-sm font-bold text-slate-800">주의사항</h2>
             </div>
             <div className="rounded-xl bg-orange-50 px-3 py-3 text-[11px] leading-4 text-orange-600 font-bold">
-              분실 및 파손 시 수리비 전액 청구됩니다. 대여 전 상태 사진을 반드시 확인하세요.
+              {item.precautions || COMMON_SAFETY_NOTICE}
             </div>
           </section>
 
@@ -157,7 +163,6 @@ export default function ProductDetailPage({
                 <div className="mt-1 flex items-center gap-1 text-[11px]">
                   <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                   <span className="font-bold text-slate-700">{item.rating}</span>
-                  <span className="text-slate-400">거래 42회</span>
                 </div>
               </div>
               <span className="text-[11px] text-indigo-600 font-bold">프로필</span>

@@ -87,3 +87,40 @@ it('forwards personal notifications without removing room-read updates', async (
   await act(() => result.current.selectRoom({ roomId: 9, messages: [] }))
   expect(onRoomRead).toHaveBeenCalledWith(9)
 })
+
+it('ignores a stale room response while the newly selected room is still loading', async () => {
+  let resolveFirst
+  let resolveSecond
+  const firstMessages = new Promise(resolve => { resolveFirst = resolve })
+  const secondMessages = new Promise(resolve => { resolveSecond = resolve })
+  const api = {
+    getChatMessages: vi.fn()
+      .mockReturnValueOnce(firstMessages)
+      .mockReturnValueOnce(secondMessages),
+    markChatRoomRead: vi.fn().mockResolvedValue({ read_count: 1 }),
+    sendChatMessage: vi.fn(),
+  }
+  const { result } = renderHook(() => useChatRooms({
+    api,
+    accessToken: 'jwt',
+    currentUserId: 1,
+  }))
+
+  let firstSelection
+  let secondSelection
+  act(() => {
+    firstSelection = result.current.selectRoom({ roomId: 1, messages: [] })
+    secondSelection = result.current.selectRoom({ roomId: 2, messages: [] })
+  })
+
+  await act(async () => resolveFirst([{ id: 11, sender_id: 2, message: 'old room' }]))
+  expect(result.current.activeRoom.roomId).toBe(2)
+  expect(result.current.loadingMessages).toBe(true)
+  expect(api.markChatRoomRead).not.toHaveBeenCalledWith(1, 'jwt')
+
+  await act(async () => resolveSecond([{ id: 22, sender_id: 2, message: 'current room' }]))
+  await act(async () => Promise.all([firstSelection, secondSelection]))
+
+  expect(result.current.loadingMessages).toBe(false)
+  expect(result.current.activeRoom.messages[0].text).toBe('current room')
+})

@@ -113,3 +113,47 @@ it('omits the creation time when it is invalid', () => {
 
   expect(screen.queryByText(/분 전$/)).not.toBeInTheDocument()
 })
+
+it('renders item images and item-specific precautions without invented metadata', () => {
+  render(<ProductDetailPage
+    item={{
+      ...item,
+      photos: ['/uploads/umbrella-front.png', '/uploads/umbrella-back.png'],
+      precautions: '사용 후 물기를 닦아주세요.',
+    }}
+    onClose={vi.fn()}
+  />)
+
+  expect(screen.getByRole('img', { name: '우산 사진' })).toHaveAttribute(
+    'src',
+    '/uploads/umbrella-front.png',
+  )
+  expect(screen.getByText('1 / 2')).toBeInTheDocument()
+  expect(screen.getByText('사용 후 물기를 닦아주세요.')).toBeInTheDocument()
+  expect(screen.queryByText('#카메라')).not.toBeInTheDocument()
+  expect(screen.queryByText('보증금 없음')).not.toBeInTheDocument()
+  expect(screen.queryByText('거래 42회')).not.toBeInTheDocument()
+})
+
+it('keeps the common safety notice when an item has no specific precautions', () => {
+  render(<ProductDetailPage item={item} onClose={vi.fn()} />)
+
+  expect(screen.getByText(/분실 및 파손 시/)).toBeInTheDocument()
+  expect(screen.queryByText(/1 \/ 3/)).not.toBeInTheDocument()
+})
+
+it('does not treat local upload metadata as a public image URL', () => {
+  render(<ProductDetailPage
+    item={{ ...item, photos: [{ name: 'draft.png', size: 1024 }] }}
+    onClose={vi.fn()}
+  />)
+
+  expect(screen.queryByRole('img', { name: '우산 사진' })).not.toBeInTheDocument()
+  expect(screen.queryByText(/1 \/ 1/)).not.toBeInTheDocument()
+})
+
+it('does not expose the unfinished share control as an active action', () => {
+  render(<ProductDetailPage item={item} onClose={vi.fn()} />)
+
+  expect(screen.getByRole('button', { name: '공유하기' })).toBeDisabled()
+})

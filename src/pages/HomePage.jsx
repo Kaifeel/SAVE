@@ -65,10 +65,11 @@ export default function HomePage(props) {
                       : 'bg-emerald-50 text-emerald-600'
 
                     return (
-                      <div
+                      <button
+                        type="button"
                         key={item.id}
                         onClick={() => setSelectedItem(item)}
-                        className="bg-white border border-slate-100 hover:border-indigo-100 rounded-2xl p-3 flex items-center gap-3 cursor-pointer hover:shadow-md hover:shadow-indigo-50/50 transition-all"
+                        className="w-full text-left bg-white border border-slate-100 hover:border-indigo-100 rounded-2xl p-3 flex items-center gap-3 cursor-pointer hover:shadow-md hover:shadow-indigo-50/50 transition-all"
                       >
                         <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${item.iconColor}`}>
                           <ItemIcon className="w-6 h-6" />
@@ -88,7 +89,7 @@ export default function HomePage(props) {
                         <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-md flex-shrink-0 ${badgeClass}`}>
                           {item.badge}
                         </span>
-                      </div>
+                      </button>
                     )
                   })}
                 </div>
@@ -109,10 +110,11 @@ export default function HomePage(props) {
                     {homePopularItems.slice(0, 4).map((item) => {
                       const ItemIcon = item.imageIcon
                       return (
-                        <div
+                        <button
+                          type="button"
                           key={item.id}
                           onClick={() => setSelectedItem(item)}
-                          className="bg-white border border-slate-100 hover:border-indigo-100 rounded-2xl p-3 flex flex-col cursor-pointer hover:shadow-md hover:shadow-indigo-50/50 transition-all"
+                          className="w-full text-left bg-white border border-slate-100 hover:border-indigo-100 rounded-2xl p-3 flex flex-col cursor-pointer hover:shadow-md hover:shadow-indigo-50/50 transition-all"
                         >
                           <div className={`w-full aspect-square rounded-xl flex items-center justify-center mb-2.5 relative ${item.iconColor}`}>
                             <ItemIcon className="w-9 h-9" />
@@ -132,7 +134,7 @@ export default function HomePage(props) {
                               {item.location}
                             </span>
                           </div>
-                        </div>
+                        </button>
                       )
                     })}
                   </div>
@@ -155,10 +157,11 @@ export default function HomePage(props) {
                       const ItemIcon = item.imageIcon
                       const relativeTime = formatRelativeTime(item.createdAt, now)
                       return (
-                        <div
+                        <button
+                          type="button"
                           key={item.id}
                           onClick={() => setSelectedItem(item)}
-                          className="bg-white border border-slate-100 hover:border-indigo-100 rounded-2xl p-3 flex items-center space-x-3.5 cursor-pointer hover:shadow-md hover:shadow-indigo-50/50 transition-all"
+                          className="w-full text-left bg-white border border-slate-100 hover:border-indigo-100 rounded-2xl p-3 flex items-center space-x-3.5 cursor-pointer hover:shadow-md hover:shadow-indigo-50/50 transition-all"
                         >
                           <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 relative ${item.iconColor}`}>
                             <ItemIcon className="w-6 h-6" />
@@ -185,7 +188,7 @@ export default function HomePage(props) {
                               </span>
                             </div>
                           </div>
-                        </div>
+                        </button>
                       )
                     })}
                   </div>

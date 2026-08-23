@@ -29,6 +29,8 @@ describe('item API normalization', () => {
       wishlist_count: 4,
       owner_rating: 4.8,
       review_count: 12,
+      precautions: '사용 후 물기를 닦아주세요.',
+      view_count: 31,
       wishlisted: true,
       status: 'AVAILABLE',
       created_at: '2026-08-06T02:55:00Z',
@@ -47,9 +49,18 @@ describe('item API normalization', () => {
       wishlistCount: 4,
       rating: 4.8,
       reviews: 12,
+      precautions: '사용 후 물기를 닦아주세요.',
+      viewCount: 31,
       wishlisted: true,
       status: 'available',
       createdAt: '2026-08-06T02:55:00Z',
+    })
+  })
+
+  it('does not invent a university or pickup location when the API omits them', () => {
+    expect(normalizeItem({ id: 9, title: '우산' })).toMatchObject({
+      university: '',
+      location: '위치 정보 없음',
     })
   })
 

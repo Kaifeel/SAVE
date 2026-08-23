@@ -109,19 +109,19 @@ it('keeps Google redirect authentication in memory when rendered in StrictMode',
   expect(fetchMock).toHaveBeenCalledTimes(1)
 })
 
-it('starts a new Google user with the test profile name', async () => {
+it('does not invent a profile name for a new Google user', async () => {
   renderGoogleRedirect()
 
-  expect(await screen.findByDisplayValue('테스트')).toBeInTheDocument()
+  await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('학생'))
 })
 
-it('uses the test name for a returning Google user with an incomplete profile', async () => {
+it('does not invent a profile name for a returning user with an incomplete profile', async () => {
   renderGoogleRedirect({
     ...authResponse,
     is_new_user: false,
   })
 
-  expect(await screen.findByDisplayValue('테스트')).toBeInTheDocument()
+  await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('학생'))
 })
 
 it('restores an incomplete profile through the refresh cookie', async () => {
@@ -137,5 +137,5 @@ it('restores an incomplete profile through the refresh cookie', async () => {
     </StrictMode>,
   )
 
-  expect(await screen.findByDisplayValue('테스트')).toBeInTheDocument()
+  await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('학생'))
 })

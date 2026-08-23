@@ -85,9 +85,9 @@ export function useItems({
   }, [accessToken, api])
 
   const remove = useCallback(async itemId => {
-    await api.deleteItem(itemId, accessToken)
+    if (enabled) await api.deleteItem(itemId, accessToken)
     setItems(current => current.filter(item => item.id !== itemId))
-  }, [accessToken, api])
+  }, [accessToken, api, enabled])
 
   const updateStatus = useCallback(async (itemId, status) => {
     const item = normalizeItem(await api.updateItemStatus(itemId, status, accessToken))

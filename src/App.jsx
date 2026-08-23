@@ -35,7 +35,7 @@ import {
   toCreateItemPayload,
 } from './api/normalizers.js'
 import { subscribeUnauthorized } from './api/client.js'
-import { USE_API } from './config/runtime.js'
+import { isAutoLoginEnabled, USE_API } from './config/runtime.js'
 import { useReferenceData } from './hooks/useReferenceData.js'
 import { useItems } from './hooks/useItems.js'
 import { useChatRooms } from './hooks/useChatRooms.js'
@@ -54,7 +54,7 @@ import {
   PenTool,
 } from 'lucide-react'
 
-const DEV_AUTO_LOGIN = import.meta.env.VITE_AUTO_LOGIN === 'true'
+const DEV_AUTO_LOGIN = isAutoLoginEnabled(USE_API, import.meta.env.VITE_AUTO_LOGIN)
 const WORKFLOW_NOTIFICATION_TYPES = new Set([
   'RENTAL_REQUESTED',
   'RENTAL_APPROVED',
@@ -89,7 +89,7 @@ function App() {
   const [memberName, setMemberName] = useState(
     savedProfileComplete
       ? savedUser.name
-      : (accessToken ? '테스트' : (DEV_AUTO_LOGIN ? '홍길동' : '')),
+      : (DEV_AUTO_LOGIN ? '홍길동' : ''),
   )
   const [memberDepartment, setMemberDepartment] = useState(savedUser?.department || (DEV_AUTO_LOGIN ? '컴퓨터공학과' : ''))
   const [memberUniversityId, setMemberUniversityId] = useState(
@@ -106,7 +106,7 @@ function App() {
   const university = universities.find(entry => entry.id === memberUniversityId)?.name
     || savedUser?.university_name
     || savedUser?.universityName
-    || '부경대학교'
+    || (USE_API ? '대학교 정보 없음' : '부경대학교')
   const itemData = useItems({
     universityId: memberUniversityId,
     accessToken,
@@ -354,12 +354,24 @@ function App() {
   }
 
   const resetItemForm = () => {
+    setNewType('rent')
     setNewTitle('')
     setNewPrice('')
+    setNewPriceType('일')
     setNewPickupLocationId('')
     setNewDescription('')
     setNewPhotos([])
     setEditingItemId(null)
+  }
+
+  const closeItemForm = () => {
+    resetItemForm()
+    setIsWriteModalOpen(false)
+  }
+
+  const openCreateItemForm = () => {
+    resetItemForm()
+    setIsWriteModalOpen(true)
   }
 
   // Handle uploading new item
@@ -479,7 +491,7 @@ function App() {
     setNotifications([])
     setActiveChatRoom(null)
     setSession(nextAuth)
-    setMemberName(hasCompletedProfile ? user.name : '테스트')
+    setMemberName(user?.name || '')
     setMemberDepartment(user?.department || '')
     setMemberUniversityId(profileUniversityId)
     setIsProfileComplete(hasCompletedProfile)
@@ -725,7 +737,7 @@ function App() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           setActiveChatRoom={setActiveChatRoom}
-          setIsWriteModalOpen={setIsWriteModalOpen}
+          setIsWriteModalOpen={open => open ? openCreateItemForm() : closeItemForm()}
           chats={chats}
         />
 
@@ -765,7 +777,7 @@ function App() {
             onRental={async () => {
               try {
                 const room = normalizeChatRoom(
-                  await createOrGetChatRoom(selectedItem.id, accessToken),
+                  await createOrGetChatRoom(selectedItem.id, accessToken, { enabled: USE_API }),
                 )
                 setRentalRequest({ item: selectedItem, chatRoomId: room.roomId || room.id })
                 setSelectedItem(null)
@@ -786,9 +798,9 @@ function App() {
               setSelectedItem(optimistic)
               try {
                 if (item.wishlisted) {
-                  await removeWishlist(item.id, accessToken)
+                  await removeWishlist(item.id, accessToken, { enabled: USE_API })
                 } else {
-                  await addWishlist(item.id, accessToken)
+                  await addWishlist(item.id, accessToken, { enabled: USE_API })
                 }
                 setItems(current => current.map(entry => entry.id === item.id ? optimistic : entry))
               } catch (error) {
@@ -930,6 +942,7 @@ function App() {
           setNewDescription={setNewDescription}
           isSubmittingItem={isSubmittingItem}
           editingItemId={editingItemId}
+          onClose={closeItemForm}
         />
         {rentalRequest && (
           <div className="absolute inset-0 z-[60] flex items-end bg-black/50 p-4">

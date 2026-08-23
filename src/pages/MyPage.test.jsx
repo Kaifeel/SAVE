@@ -38,3 +38,25 @@ it.each(Object.entries(labels))('renders %s from the item status, not its array 
 
   expect(screen.getByText(label)).toBeInTheDocument()
 })
+
+it('uses a neutral label instead of inventing a member name and disables unfinished settings', () => {
+  render(<MyPage
+    memberName=""
+    memberDepartment=""
+    popularItems={[]}
+    recommendItems={[]}
+    setSelectedItem={vi.fn()}
+    onLogout={vi.fn()}
+    onOpenRentals={vi.fn()}
+    data={{
+      profile: { data: null, loading: false, error: null },
+      items: { data: [], loading: false, error: null },
+      wishlist: { data: [], loading: false, error: null },
+    }}
+  />)
+
+  expect(screen.getByRole('heading', { name: '사용자' })).toBeInTheDocument()
+  expect(screen.queryByText('김부경')).not.toBeInTheDocument()
+  expect(screen.queryByText('컴퓨터공학과')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '알림 설정' })).toBeDisabled()
+})

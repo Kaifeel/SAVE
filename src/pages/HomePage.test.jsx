@@ -1,4 +1,5 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { Camera } from 'lucide-react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import HomePage from './HomePage'
@@ -64,4 +65,15 @@ it('omits the age when a recent item has no valid creation time', () => {
   }]} />)
 
   expect(screen.queryByText(/전$/)).not.toBeInTheDocument()
+})
+
+it('opens a recent item through a keyboard-accessible control', async () => {
+  vi.useRealTimers()
+  const user = userEvent.setup()
+  const setSelectedItem = vi.fn()
+  render(<HomePage {...props} setSelectedItem={setSelectedItem} recentItems={[recentItem]} />)
+
+  await user.click(screen.getByRole('button', { name: /우산/ }))
+
+  expect(setSelectedItem).toHaveBeenCalledWith(recentItem)
 })
