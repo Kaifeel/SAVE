@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import ActivePage from './components/ActivePage.jsx'
 import AppFrame from './components/AppFrame.jsx'
 import AppOverlays from './components/AppOverlays.jsx'
@@ -8,16 +8,10 @@ import AdminPage, { AdminAccessDenied } from './pages/AdminPage.jsx'
 import { INITIAL_ITEMS } from './data/items.js'
 import { createDemoChats } from './data/demoChats.js'
 import { createDemoNotifications } from './data/demoNotifications.js'
-import { getChatRooms } from './api/chats.js'
-import {
-  mergeChatListUpdate,
-  mergeChatRoomSnapshot,
-} from './api/normalizers.js'
 import { subscribeUnauthorized } from './api/client.js'
 import { isAutoLoginEnabled, USE_API } from './config/runtime.js'
 import { useReferenceData } from './hooks/useReferenceData.js'
 import { useItems } from './hooks/useItems.js'
-import { useChatRooms } from './hooks/useChatRooms.js'
 import { useRentals } from './hooks/useRentals.js'
 import { useMyPageData } from './hooks/useMyPageData.js'
 import { useRecommendations } from './hooks/useRecommendations.js'
@@ -26,38 +20,26 @@ import { useAppNotifications } from './hooks/useAppNotifications.js'
 import { useAppSession } from './hooks/useAppSession.js'
 import { useItemActions } from './hooks/useItemActions.js'
 import { useReportFlow } from './hooks/useReportFlow.js'
+import { useMarketplaceCatalog } from './hooks/useMarketplaceCatalog.js'
+import { useAppChats } from './hooks/useAppChats.js'
 import { useToast } from './components/toast.js'
-import { availableItems } from './utils/itemVisibility.js'
 
 const DEV_AUTO_LOGIN = isAutoLoginEnabled(USE_API, import.meta.env.VITE_AUTO_LOGIN)
 function App() {
   const toast = useToast()
   const isAdminPath = window.location.pathname === '/admin'
     || window.location.pathname.startsWith('/admin/')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [activeBoard, setActiveBoard] = useState('borrow')
-  const [availableOnly, setAvailableOnly] = useState(false)
   const [activeTab, setActiveTab] = useState('home') // home, search, chat, my
-  const session = useAppSession({
-    apiEnabled: USE_API,
-    devAutoLogin: DEV_AUTO_LOGIN,
-    toast,
-  })
+  const session = useAppSession({ apiEnabled: USE_API, devAutoLogin: DEV_AUTO_LOGIN, toast })
   const {
-    accessToken,
-    user: savedUser,
-    authStatus,
-    isLoggedIn,
-    isProfileComplete,
+    accessToken, user: savedUser, authStatus, isLoggedIn, isProfileComplete,
   } = session
   const memberName = session.member.name
   const memberDepartment = session.member.department
   const memberUniversityId = session.member.universityId
   const clearSessionState = session.clear
   const {
-    universities,
-    pickupLocations,
-    error: referenceError,
+    universities, pickupLocations, error: referenceError,
   } = useReferenceData({
     universityId: memberUniversityId,
     enabled: USE_API,
@@ -74,34 +56,15 @@ function App() {
   })
   const { items, setItems, reload: reloadItems } = itemData
 
-  // Modals & Sheets
   const [selectedItem, setSelectedItem] = useState(null)
   const [profileTarget, setProfileTarget] = useState(null)
   const [rentalRequest, setRentalRequest] = useState(null)
   const reportFlow = useReportFlow({ accessToken, apiEnabled: USE_API, toast })
   const itemEditor = useItemEditor({
-    apiEnabled: USE_API,
-    itemData,
-    pickupLocations,
-    university,
-    setItems,
-    setSelectedItem,
-    toast,
+    apiEnabled: USE_API, itemData, pickupLocations, university,
+    setItems, setSelectedItem, toast,
   })
 
-  // Chat tab mock states
-  const [chats, setChats] = useState(() => (
-    USE_API ? [] : createDemoChats()
-  ))
-  const [chatInput, setChatInput] = useState('')
-  const handleChatListUpdate = useCallback((response, activeRoomId) => {
-    setChats(current => mergeChatListUpdate(current, response, activeRoomId))
-  }, [])
-  const handleChatRoomRead = useCallback(roomId => {
-    setChats(current => current.map(room => String(room.id) === String(roomId)
-      ? { ...room, unreadCount: 0, unread: false }
-      : room))
-  }, [])
   const myPageData = useMyPageData({
     accessToken,
     enabled: USE_API && isLoggedIn && Boolean(accessToken) && !isAdminPath,
@@ -128,14 +91,17 @@ function App() {
     toast,
   })
   const clearNotifications = appNotifications.clear
-  const chatData = useChatRooms({
+  const chatData = useAppChats({
     accessToken,
     currentUserId: savedUser?.id,
+    apiEnabled: USE_API,
+    enabled: USE_API && isLoggedIn && !isAdminPath,
     realtime: USE_API && !isAdminPath,
-    onChatListUpdate: handleChatListUpdate,
-    onRoomRead: handleChatRoomRead,
+    initialChats: USE_API ? [] : createDemoChats(),
     onNotification: appNotifications.receive,
+    toast,
   })
+  const { chats, setChats, chatInput, setChatInput } = chatData
   const itemActions = useItemActions({
     accessToken,
     apiEnabled: USE_API,
@@ -157,6 +123,18 @@ function App() {
     department: memberDepartment,
     interestItems: (myPageData.wishlist.data || []).map(item => item.title),
   })
+  const catalog = useMarketplaceCatalog({
+    items,
+    apiEnabled: USE_API,
+    memberUniversityId,
+    university,
+    recommendedItems: recommendationData.current?.items || [],
+  })
+  const {
+    searchQuery, setSearchQuery, activeBoard, setActiveBoard,
+    availableOnly, setAvailableOnly, filteredItems, recommendItems,
+    popularItems, homePopularItems, recentItems,
+  } = catalog
   const activeChatRoom = chatData.activeRoom
   const setActiveChatRoom = chatData.setActiveRoom
 
@@ -170,100 +148,7 @@ function App() {
     clearNotifications()
     setActiveChatRoom(null)
     setActiveTab('home')
-  }), [clearNotifications, clearSessionState, setActiveChatRoom])
-
-  useEffect(() => {
-    if (!USE_API || !isLoggedIn || isAdminPath) return
-
-    let ignore = false
-
-    async function loadApiData() {
-      try {
-        if (!accessToken) return
-        const roomResponse = await getChatRooms(accessToken)
-        if (!ignore) setChats(current => mergeChatRoomSnapshot(current, roomResponse))
-      } catch (error) {
-        if (!ignore) {
-          toast.error(error.message || '채팅방 목록을 불러오지 못했습니다.')
-        }
-      }
-    }
-
-    loadApiData()
-
-    return () => {
-      ignore = true
-    }
-  }, [accessToken, isAdminPath, isLoggedIn, toast])
-
-  // Filter items based on: Location (Univ), Search Query
-  const campusItems = useMemo(() => {
-    return items.filter(item => {
-      // Location Check
-      if (USE_API && memberUniversityId && item.universityId !== memberUniversityId) return false
-      if (!USE_API && item.university !== university) return false
-
-      // Search Query Check
-      if (searchQuery.trim() !== '') {
-        const query = searchQuery.toLowerCase()
-        const matchTitle = item.title.toLowerCase().includes(query)
-        const matchLoc = item.location.toLowerCase().includes(query)
-        return matchTitle || matchLoc
-      }
-
-      return true
-    })
-  }, [items, memberUniversityId, university, searchQuery])
-
-  // Search tab filters: board split and availability
-  const filteredItems = useMemo(() => {
-    const boardItems = campusItems.filter(item => {
-      const isWantPost = item.type === 'want'
-      if (activeBoard === 'borrow' && !isWantPost) return false
-      if (activeBoard === 'lend' && isWantPost) return false
-      if (availableOnly && item.status !== 'available') return false
-      return true
-    })
-
-    return [...boardItems].sort((a, b) => {
-      if (a.status === 'rented' && b.status !== 'rented') return -1
-      if (a.status !== 'rented' && b.status === 'rented') return 1
-      return 0
-    })
-  }, [campusItems, activeBoard, availableOnly])
-
-  // Split into sections
-  const recommendItems = availableItems(USE_API
-    ? (recommendationData.current?.items || [])
-    : campusItems.filter(i => i.section === 'recommend'))
-  const popularItems = useMemo(() => campusItems.filter(i => i.section === 'popular'), [campusItems])
-  const homePopularItems = useMemo(
-    () => availableItems(USE_API ? campusItems : popularItems).slice(0, 4),
-    [campusItems, popularItems],
-  )
-  const recentItems = useMemo(() => campusItems.filter(i => i.section === 'recent'), [campusItems])
-
-  // Handle sending chat message
-  const handleSendMessage = async () => {
-    if (!chatInput.trim() || !activeChatRoom) return
-    const messageText = chatInput.trim()
-    setChatInput('')
-    if (USE_API) {
-      await chatData.send(messageText)
-      return
-    }
-    const newMessage = {
-      id: Date.now(),
-      sender: 'me',
-      text: messageText,
-      time: '방금 전',
-      deliveryStatus: 'sent',
-    }
-    setActiveChatRoom(current => ({
-      ...current,
-      messages: [...current.messages, newMessage],
-    }))
-  }
+  }), [clearNotifications, clearSessionState, setActiveChatRoom, setChats])
 
   const handleLogout = async () => {
     try {
@@ -306,40 +191,24 @@ function App() {
   }
 
   const homeProps = {
-    searchQuery,
-    setSearchQuery,
-    recommendItems,
-    setSelectedItem,
-    homePopularItems,
-    setActiveTab,
-    recentItems,
-    filteredItems,
+    searchQuery, setSearchQuery, recommendItems, setSelectedItem,
+    homePopularItems, setActiveTab, recentItems, filteredItems,
     recommendationHeadline: recommendationData.current?.headline,
     recommendationError: recommendationData.error,
     onRefreshRecommendations: recommendationData.refresh,
   }
   const searchProps = {
-    activeBoard,
-    setActiveBoard,
-    searchQuery,
-    setSearchQuery,
-    availableOnly,
-    setAvailableOnly,
-    filteredItems,
-    setSelectedItem,
+    activeBoard, setActiveBoard, searchQuery, setSearchQuery,
+    availableOnly, setAvailableOnly, filteredItems, setSelectedItem,
     loading: itemData.loading,
     error: itemData.error || referenceError,
     onRetry: itemData.error ? itemData.reload : undefined,
   }
   const chatProps = {
-    activeChatRoom,
-    items,
-    setActiveChatRoom,
+    activeChatRoom, items, setActiveChatRoom,
     selectChatRoom: USE_API ? chatData.selectRoom : setActiveChatRoom,
-    setSelectedItem,
-    chatInput,
-    setChatInput,
-    handleSendMessage,
+    setSelectedItem, chatInput, setChatInput,
+    handleSendMessage: chatData.sendMessage,
     chats,
     loadingMessages: chatData.loadingMessages,
     loadingOlder: chatData.loadingOlder,
@@ -350,8 +219,7 @@ function App() {
     socketState: USE_API ? chatData.socketState : undefined,
   }
   const myProps = {
-    memberName,
-    memberDepartment,
+    memberName, memberDepartment,
     popularItems: USE_API ? [] : popularItems,
     setSelectedItem,
     recommendItems: USE_API ? [] : recommendItems,
@@ -400,34 +268,23 @@ function App() {
     },
   }
   const reportProps = {
-    target: reportFlow.target,
-    reason: reportFlow.reason,
-    setReason: reportFlow.setReason,
-    isSubmitting: reportFlow.isSubmitting,
-    onClose: reportFlow.close,
-    onSubmit: reportFlow.submit,
+    target: reportFlow.target, reason: reportFlow.reason,
+    setReason: reportFlow.setReason, isSubmitting: reportFlow.isSubmitting,
+    onClose: reportFlow.close, onSubmit: reportFlow.submit,
   }
   const itemEditorProps = {
-    isOpen: itemEditor.isOpen,
-    handleCreateItem: itemEditor.submit,
-    newType: itemEditor.fields.type,
-    setNewType: itemEditor.setters.setType,
-    newPhotos: itemEditor.fields.photos,
-    handlePhotoSelect: itemEditor.selectPhotos,
+    isOpen: itemEditor.isOpen, handleCreateItem: itemEditor.submit,
+    newType: itemEditor.fields.type, setNewType: itemEditor.setters.setType,
+    newPhotos: itemEditor.fields.photos, handlePhotoSelect: itemEditor.selectPhotos,
     handlePhotoRemove: itemEditor.removePhoto,
-    newTitle: itemEditor.fields.title,
-    setNewTitle: itemEditor.setters.setTitle,
-    newPrice: itemEditor.fields.price,
-    setNewPrice: itemEditor.setters.setPrice,
-    newPriceType: itemEditor.fields.priceType,
-    setNewPriceType: itemEditor.setters.setPriceType,
+    newTitle: itemEditor.fields.title, setNewTitle: itemEditor.setters.setTitle,
+    newPrice: itemEditor.fields.price, setNewPrice: itemEditor.setters.setPrice,
+    newPriceType: itemEditor.fields.priceType, setNewPriceType: itemEditor.setters.setPriceType,
     newPickupLocationId: itemEditor.fields.pickupLocationId,
     setNewPickupLocationId: itemEditor.setters.setPickupLocationId,
     pickupLocations,
-    newDescription: itemEditor.fields.description,
-    setNewDescription: itemEditor.setters.setDescription,
-    isSubmittingItem: itemEditor.isSubmitting,
-    editingItemId: itemEditor.editingItemId,
+    newDescription: itemEditor.fields.description, setNewDescription: itemEditor.setters.setDescription,
+    isSubmittingItem: itemEditor.isSubmitting, editingItemId: itemEditor.editingItemId,
     onClose: itemEditor.close,
   }
   const rentalRequestProps = {
