@@ -147,6 +147,7 @@ export function useMyPage(): MyPageState {
 
   useEffect(() => {
     mounted.current = true;
+    const generations = requestGeneration.current;
     void Promise.resolve().then(() => Promise.allSettled([
       loadProfile(),
       loadItems(),
@@ -154,9 +155,9 @@ export function useMyPage(): MyPageState {
     ]));
     return () => {
       mounted.current = false;
-      requestGeneration.current.profile += 1;
-      requestGeneration.current.items += 1;
-      requestGeneration.current.wishlist += 1;
+      generations.profile += 1;
+      generations.items += 1;
+      generations.wishlist += 1;
       refreshGeneration.current += 1;
     };
   }, [loadItems, loadProfile, loadWishlist]);

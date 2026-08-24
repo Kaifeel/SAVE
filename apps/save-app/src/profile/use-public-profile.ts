@@ -134,6 +134,7 @@ export function usePublicProfile(userId: number | null): PublicProfileState {
 
   useEffect(() => {
     mounted.current = true;
+    const generations = requestGeneration.current;
     void Promise.resolve().then(async () => {
       setResourceUserId(userId);
       setResources(initialResources());
@@ -144,9 +145,9 @@ export function usePublicProfile(userId: number | null): PublicProfileState {
     });
     return () => {
       mounted.current = false;
-      requestGeneration.current.profile += 1;
-      requestGeneration.current.items += 1;
-      requestGeneration.current.reviews += 1;
+      generations.profile += 1;
+      generations.items += 1;
+      generations.reviews += 1;
       refreshGeneration.current += 1;
     };
   }, [loadItems, loadProfile, loadReviews, userId]);

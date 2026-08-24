@@ -14,7 +14,7 @@ import {
   rentalStatusLabel,
   reviewStateLabel,
 } from '@/rentals/presentation';
-import type { Rental, RentalAction } from '@/rentals/types';
+import type { RentalAction } from '@/rentals/types';
 import { useRentalDetail } from '@/rentals/use-rental-detail';
 import { theme } from '@/theme';
 

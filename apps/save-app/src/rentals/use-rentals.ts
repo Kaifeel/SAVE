@@ -20,7 +20,8 @@ export function useRentals(currentUserId: number | null) {
 
   const load = useCallback(async (refresh = false) => {
     const generation = ++requestGeneration.current;
-    refresh ? setRefreshing(true) : setLoading(true);
+    if (refresh) setRefreshing(true);
+    else setLoading(true);
     setError(null);
     try {
       const data = await getMyRentals();
