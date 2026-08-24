@@ -23,6 +23,7 @@ security:
   jwt:
     # Local development default only. Set JWT_SECRET to a long random value in production.
     secret: ${JWT_SECRET:save-local-development-jwt-secret-change-me-2026}
+    issuer: ${JWT_ISSUER:save-api}
     expiration-seconds: ${JWT_EXPIRATION_SECONDS:900}
   refresh-token:
     expiration-seconds: ${REFRESH_TOKEN_EXPIRATION_SECONDS:1209600}

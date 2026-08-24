@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.save.user.User;
 import com.save.user.UserRepository;
 import jakarta.servlet.http.Cookie;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -168,6 +169,33 @@ class AuthRefreshIntegrationTest {
     void refreshRejectsMissingBrowserOrigin() throws Exception {
         mockMvc.perform(post("/api/v1/auth/refresh"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void suspendedUserCannotRotateARefreshToken() throws Exception {
+        MvcResult signup = mockMvc.perform(post("/api/v1/auth/signup")
+                        .header(HttpHeaders.ORIGIN, ORIGIN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"suspended-refresh@pukyong.ac.kr",
+                                 "password":"password123","name":"정지 학생"}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        Cookie cookie = responseCookie(signup);
+        User user = userRepository.findByEmailIgnoreCase(
+                "suspended-refresh@pukyong.ac.kr").orElseThrow();
+        user.sanction(LocalDateTime.now().plusDays(7), "테스트 정지");
+        userRepository.saveAndFlush(user);
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .header(HttpHeaders.ORIGIN, ORIGIN)
+                        .cookie(cookie))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                        .header(HttpHeaders.ORIGIN, ORIGIN)
+                        .cookie(cookie))
+                .andExpect(status().isUnauthorized());
     }
 
     private Cookie responseCookie(MvcResult result) {

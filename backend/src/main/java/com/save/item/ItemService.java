@@ -2,6 +2,7 @@ package com.save.item;
 
 import com.save.common.BusinessException;
 import com.save.review.ReviewQueryService;
+import com.save.security.CampusAccessPolicy;
 import com.save.user.User;
 import com.save.user.UserRepository;
 import com.save.wishlist.WishlistRepository;
@@ -21,28 +22,30 @@ public class ItemService {
     private final PhotoStorageService photoStorageService;
     private final PickupLocationRepository pickupLocationRepository;
     private final ReviewQueryService reviewQueryService;
+    private final CampusAccessPolicy campusAccessPolicy;
 
     public ItemService(ItemRepository itemRepository, UserRepository userRepository,
                        WishlistRepository wishlistRepository, PhotoStorageService photoStorageService,
                        PickupLocationRepository pickupLocationRepository,
-                       ReviewQueryService reviewQueryService) {
+                       ReviewQueryService reviewQueryService,
+                       CampusAccessPolicy campusAccessPolicy) {
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
         this.wishlistRepository = wishlistRepository;
         this.photoStorageService = photoStorageService;
         this.pickupLocationRepository = pickupLocationRepository;
         this.reviewQueryService = reviewQueryService;
+        this.campusAccessPolicy = campusAccessPolicy;
     }
 
     @Transactional(readOnly = true)
     public ItemPageResponse list(String type, String query, boolean onlyAvailable, String sort,
-                                 int page, int size, Integer universityId, Integer userId) {
+                                 int page, int size, Integer userId) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 100);
-        List<Item> items = universityId == null
-                ? itemRepository.findByStatusNotOrderByCreatedAtDesc(ItemStatus.DELETED)
-                : itemRepository.findByOwnerUniversityIdAndStatusNotOrderByCreatedAtDesc(
-                        universityId, ItemStatus.DELETED);
+        Integer campusId = campusAccessPolicy.requireCampusId(userId);
+        List<Item> items = itemRepository.findByOwnerUniversityIdAndStatusNotOrderByCreatedAtDesc(
+                campusId, ItemStatus.DELETED);
         Stream<Item> filtered = items.stream();
         if (type != null && !type.isBlank()) {
             String normalizedType = normalizeType(type);
@@ -69,6 +72,8 @@ public class ItemService {
     @Transactional
     public ItemResponse detail(Integer itemId, Integer userId) {
         Item item = findVisible(itemId);
+        campusAccessPolicy.requireSameCampus(
+                campusAccessPolicy.requireActiveUser(userId), item);
         item.increaseViewCount();
         return response(item, userId);
     }
@@ -78,6 +83,7 @@ public class ItemService {
         validate(request);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다."));
+        campusAccessPolicy.requireCampusId(user);
         PickupLocation pickupLocation = findPickupLocation(request.getPickupLocationId(), user);
         List<String> photoUrls = photoStorageService.store(request.getPhotos());
         Item item = new Item(user, normalizeType(request.getType()), request.getTitle().trim(),

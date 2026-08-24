@@ -2,6 +2,7 @@ package com.save.security;
 
 import com.save.common.BusinessException;
 import com.save.user.User;
+import com.save.user.UserStatus;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -45,6 +46,7 @@ public class RefreshTokenService {
 
     @Transactional
     public IssuedRefreshToken issue(User user) {
+        requireActive(user);
         Instant now = clock.instant();
         return issue(user, UUID.randomUUID().toString(), now, now.plus(lifetime));
     }
@@ -63,6 +65,12 @@ public class RefreshTokenService {
             current.revoke(now);
             repository.flush();
             throw new BusinessException(HttpStatus.UNAUTHORIZED, "로그인 세션이 만료되었습니다.");
+        }
+        if (current.getUser().getStatus() != UserStatus.ACTIVE) {
+            revokeFamily(current.getFamilyId(), now);
+            repository.flush();
+            throw new BusinessException(HttpStatus.FORBIDDEN,
+                    "정지된 사용자는 로그인할 수 없습니다.");
         }
 
         current.consume(now);
@@ -114,5 +122,12 @@ public class RefreshTokenService {
 
     private BusinessException invalidSession() {
         return new BusinessException(HttpStatus.UNAUTHORIZED, "다시 로그인해주세요.");
+    }
+
+    private void requireActive(User user) {
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new BusinessException(HttpStatus.FORBIDDEN,
+                    "정지된 사용자는 로그인할 수 없습니다.");
+        }
     }
 }

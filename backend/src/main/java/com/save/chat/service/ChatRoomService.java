@@ -11,6 +11,7 @@ import com.save.item.Item;
 import com.save.item.ItemRepository;
 import com.save.user.User;
 import com.save.user.UserRepository;
+import com.save.security.CampusAccessPolicy;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -24,14 +25,17 @@ public class ChatRoomService {
     private final UserRepository userRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final ChatMessageRepository chatMessageRepository;
+    private final CampusAccessPolicy campusAccessPolicy;
 
     public ChatRoomService(ItemRepository itemRepository, UserRepository userRepository,
                            ChatRoomRepository chatRoomRepository,
-                           ChatMessageRepository chatMessageRepository) {
+                           ChatMessageRepository chatMessageRepository,
+                           CampusAccessPolicy campusAccessPolicy) {
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
         this.chatRoomRepository = chatRoomRepository;
         this.chatMessageRepository = chatMessageRepository;
+        this.campusAccessPolicy = campusAccessPolicy;
     }
 
     @Transactional
@@ -45,14 +49,12 @@ public class ChatRoomService {
         if (lenderId.equals(borrowerId)) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "본인 물품에는 채팅할 수 없습니다.");
         }
-        if (!userRepository.existsById(borrowerId)) {
-            throw new BusinessException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다.");
-        }
+        User borrower = campusAccessPolicy.requireActiveUser(borrowerId);
+        campusAccessPolicy.requireSameCampus(borrower, item);
 
         return chatRoomRepository.findByItemIdAndBorrowerIdAndLenderId(itemId, borrowerId, lenderId)
                 .map(this::toResponse)
                 .orElseGet(() -> {
-                    User borrower = userRepository.getReferenceById(borrowerId);
                     User lender = userRepository.getReferenceById(lenderId);
                     return toResponse(chatRoomRepository.save(new ChatRoom(item, borrower, lender)));
                 });

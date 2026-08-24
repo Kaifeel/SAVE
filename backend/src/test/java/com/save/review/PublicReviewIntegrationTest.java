@@ -14,6 +14,8 @@ import com.save.rental.RentalRepository;
 import com.save.rental.RentalStatus;
 import com.save.user.User;
 import com.save.user.UserRepository;
+import com.save.university.University;
+import com.save.university.UniversityRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -41,6 +43,7 @@ class PublicReviewIntegrationTest {
 
     @Autowired MockMvc mockMvc;
     @Autowired UserRepository userRepository;
+    @Autowired UniversityRepository universityRepository;
     @Autowired ItemRepository itemRepository;
     @Autowired ChatRoomRepository chatRoomRepository;
     @Autowired RentalRepository rentalRepository;
@@ -92,8 +95,14 @@ class PublicReviewIntegrationTest {
     }
 
     private TestRental returnedRental(Instant returnedAt) {
-        User lender = userRepository.save(new User("공개 후기 주인"));
-        User borrower = userRepository.save(new User("공개 후기 신청자"));
+        University university = universityRepository.findByName("부경대학교")
+                .orElseGet(() -> universityRepository.save(new University("부경대학교")));
+        User lender = new User("공개 후기 주인");
+        lender.updateProfile("공개 후기 주인", null, university, null);
+        lender = userRepository.save(lender);
+        User borrower = new User("공개 후기 신청자");
+        borrower.updateProfile("공개 후기 신청자", null, university, null);
+        borrower = userRepository.save(borrower);
         Item item = itemRepository.save(new Item("공개 후기 물품", lender));
         ChatRoom room = chatRoomRepository.save(new ChatRoom(item, borrower, lender));
         Rental rental = new Rental(item, borrower, lender, room,

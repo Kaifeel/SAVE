@@ -7,6 +7,7 @@ import com.save.item.Item;
 import com.save.item.ItemRepository;
 import com.save.user.User;
 import com.save.user.UserRepository;
+import com.save.security.CampusAccessPolicy;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
@@ -20,13 +21,16 @@ public class ReportService {
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;
     private final ChatRoomRepository chatRoomRepository;
+    private final CampusAccessPolicy campusAccessPolicy;
 
     public ReportService(ReportRepository reportRepository, UserRepository userRepository,
-                         ItemRepository itemRepository, ChatRoomRepository chatRoomRepository) {
+                         ItemRepository itemRepository, ChatRoomRepository chatRoomRepository,
+                         CampusAccessPolicy campusAccessPolicy) {
         this.reportRepository = reportRepository;
         this.userRepository = userRepository;
         this.itemRepository = itemRepository;
         this.chatRoomRepository = chatRoomRepository;
+        this.campusAccessPolicy = campusAccessPolicy;
     }
 
     @Transactional
@@ -41,11 +45,48 @@ public class ReportService {
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
                         "신고할 사용자가 존재하지 않습니다."));
         ChatRoom chatRoom = request.chatRoomId() == null ? null
-                : chatRoomRepository.findById(request.chatRoomId())
+                : chatRoomRepository.findWithMembersById(request.chatRoomId())
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND,
                         "신고할 채팅방이 존재하지 않습니다."));
+        validateTargets(reporter, reportedUser, item, chatRoom);
         return ReportResponse.from(reportRepository.save(new Report(reporter, reportedUser,
                 item, chatRoom, request.reason().trim())));
+    }
+
+    private void validateTargets(User reporter, User reportedUser, Item item, ChatRoom chatRoom) {
+        if (reportedUser != null && reportedUser.getId().equals(reporter.getId())) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "본인을 신고할 수 없습니다.");
+        }
+        if (reportedUser != null) campusAccessPolicy.requireSameCampus(reporter, reportedUser);
+        if (item != null) {
+            campusAccessPolicy.requireSameCampus(reporter, item);
+            if (chatRoom == null && item.getOwner().getId().equals(reporter.getId())) {
+                throw new BusinessException(HttpStatus.BAD_REQUEST,
+                        "본인의 물품을 신고할 수 없습니다.");
+            }
+            if (chatRoom == null && reportedUser != null
+                    && !item.getOwner().getId().equals(reportedUser.getId())) {
+                throw new BusinessException(HttpStatus.BAD_REQUEST,
+                        "신고 대상 사용자와 물품 정보가 일치하지 않습니다.");
+            }
+        }
+        if (chatRoom == null) return;
+
+        boolean reporterIsBorrower = chatRoom.getBorrower().getId().equals(reporter.getId());
+        boolean reporterIsLender = chatRoom.getLender().getId().equals(reporter.getId());
+        if (!reporterIsBorrower && !reporterIsLender) {
+            throw new BusinessException(HttpStatus.FORBIDDEN,
+                    "참여한 채팅방만 신고할 수 있습니다.");
+        }
+        User opponent = reporterIsBorrower ? chatRoom.getLender() : chatRoom.getBorrower();
+        if (reportedUser != null && !opponent.getId().equals(reportedUser.getId())) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST,
+                    "신고 대상 사용자가 채팅 상대방과 일치하지 않습니다.");
+        }
+        if (item != null && !chatRoom.getItem().getId().equals(item.getId())) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST,
+                    "신고 대상 물품과 채팅방 정보가 일치하지 않습니다.");
+        }
     }
 
     @Transactional(readOnly = true)

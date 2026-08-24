@@ -38,12 +38,16 @@ class MarketplaceIntegrationTest {
     @Autowired PickupLocationRepository pickupLocationRepository;
     private Integer universityId;
     private Integer pickupLocationId;
+    private Integer otherUniversityId;
 
     @BeforeEach
     void setUpReferenceData() {
         University university = universityRepository.findByName("부경대학교")
                 .orElseGet(() -> universityRepository.save(new University("부경대학교")));
         universityId = university.getId();
+        otherUniversityId = universityRepository.findByName("다른대학교")
+                .orElseGet(() -> universityRepository.save(new University("다른대학교")))
+                .getId();
         pickupLocationId = pickupLocationRepository
                 .save(new PickupLocation(university, "대연캠퍼스")).getId();
     }
@@ -288,6 +292,65 @@ class MarketplaceIntegrationTest {
                 .andExpect(jsonPath("$[0].id").value(activeItemId));
     }
 
+    @Test
+    void marketplaceCampusIsDerivedFromAuthenticatedUser() throws Exception {
+        JsonNode owner = signUp("campus-owner@pukyong.ac.kr", "같은대학주인");
+        JsonNode sameCampusUser = signUp("campus-peer@pukyong.ac.kr", "같은대학학생");
+        JsonNode outsider = signUpAt(
+                "campus-outsider@pukyong.ac.kr", "다른대학학생", otherUniversityId);
+        String ownerToken = owner.get("access_token").asText();
+        String sameCampusToken = sameCampusUser.get("access_token").asText();
+        String outsiderToken = outsider.get("access_token").asText();
+        int itemId = createItem(ownerToken, "교내 전용 우산");
+
+        mockMvc.perform(get("/api/v1/items")
+                        .header("Authorization", bearer(sameCampusToken))
+                        .param("university_id", otherUniversityId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(itemId));
+        mockMvc.perform(get("/api/v1/items")
+                        .header("Authorization", bearer(outsiderToken))
+                        .param("university_id", universityId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(0));
+        mockMvc.perform(get("/api/v1/items/{itemId}", itemId)
+                        .header("Authorization", bearer(outsiderToken)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/items/{itemId}/wishlist", itemId)
+                        .header("Authorization", bearer(outsiderToken)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/chats/rooms")
+                        .header("Authorization", bearer(outsiderToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item_id\":" + itemId + "}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/v1/rentals")
+                        .header("Authorization", bearer(outsiderToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"item_id\":" + itemId + ",\"chat_room_id\":999,"
+                                + "\"start_date\":\"2026-07-21T10:00:00\","
+                                + "\"end_date\":\"2026-07-22T10:00:00\","
+                                + "\"total_price\":1000}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void reportRejectsAChatRoomTheReporterDidNotJoin() throws Exception {
+        JsonNode owner = signUp("report-owner@pukyong.ac.kr", "신고대상");
+        JsonNode participant = signUp("report-participant@pukyong.ac.kr", "채팅참여자");
+        JsonNode outsider = signUp("report-outsider@pukyong.ac.kr", "채팅외부인");
+        int itemId = createItem(owner.get("access_token").asText(), "신고 테스트 우산");
+        int roomId = createRoom(participant.get("access_token").asText(), itemId);
+
+        mockMvc.perform(post("/api/v1/reports")
+                        .header("Authorization", bearer(outsider.get("access_token").asText()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reported_user_id\":" + owner.get("user").get("id").asInt()
+                                + ",\"item_id\":" + itemId + ",\"chat_room_id\":" + roomId
+                                + ",\"reason\":\"참여하지 않은 채팅방 신고 시도입니다\"}"))
+                .andExpect(status().isForbidden());
+    }
+
     private int createItem(String ownerToken, String title) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/items")
                         .header("Authorization", bearer(ownerToken))
@@ -324,11 +387,16 @@ class MarketplaceIntegrationTest {
     }
 
     private JsonNode signUp(String email, String name) throws Exception {
+        return signUpAt(email, name, universityId);
+    }
+
+    private JsonNode signUpAt(String email, String name, Integer signupUniversityId)
+            throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"" + email + "\",\"password\":\"password123\","
                                 + "\"name\":\"" + name + "\",\"department\":\"컴퓨터공학과\","
-                                + "\"university_id\":" + universityId + "}"))
+                                + "\"university_id\":" + signupUniversityId + "}"))
                 .andExpect(status().isCreated()).andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString());
     }

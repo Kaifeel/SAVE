@@ -32,12 +32,16 @@ class PublicUserProfileIntegrationTest {
 
     private Integer universityId;
     private Integer pickupLocationId;
+    private Integer otherUniversityId;
 
     @BeforeEach
     void setUpReferenceData() {
         University university = universityRepository.findByName("부경대학교")
                 .orElseGet(() -> universityRepository.save(new University("부경대학교")));
         universityId = university.getId();
+        otherUniversityId = universityRepository.findByName("다른대학교")
+                .orElseGet(() -> universityRepository.save(new University("다른대학교")))
+                .getId();
         pickupLocationId = pickupLocationRepository
                 .save(new PickupLocation(university, "대연캠퍼스")).getId();
     }
@@ -90,12 +94,36 @@ class PublicUserProfileIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void deniesCrossCampusPublicProfileResources() throws Exception {
+        JsonNode owner = signUp("private-profile-owner@pukyong.ac.kr", "프로필주인");
+        JsonNode outsider = signUpAt(
+                "private-profile-outsider@pukyong.ac.kr", "다른대학조회자", otherUniversityId);
+        int ownerId = owner.get("user").get("id").asInt();
+        String outsiderToken = outsider.get("access_token").asText();
+
+        mockMvc.perform(get("/api/v1/users/{userId}/profile", ownerId)
+                        .header("Authorization", bearer(outsiderToken)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/users/{userId}/items", ownerId)
+                        .header("Authorization", bearer(outsiderToken)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/users/{userId}/reviews", ownerId)
+                        .header("Authorization", bearer(outsiderToken)))
+                .andExpect(status().isForbidden());
+    }
+
     private JsonNode signUp(String email, String name) throws Exception {
+        return signUpAt(email, name, universityId);
+    }
+
+    private JsonNode signUpAt(String email, String name, Integer signupUniversityId)
+            throws Exception {
         MvcResult result = mockMvc.perform(post("/api/v1/auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"" + email + "\",\"password\":\"password123\","
                                 + "\"name\":\"" + name + "\",\"department\":\"컴퓨터공학과\","
-                                + "\"university_id\":" + universityId + "}"))
+                                + "\"university_id\":" + signupUniversityId + "}"))
                 .andExpect(status().isCreated())
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString());

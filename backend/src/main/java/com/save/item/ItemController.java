@@ -22,11 +22,9 @@ public class ItemController {
                                    @RequestParam(defaultValue = "latest") String sort,
                                    @RequestParam(defaultValue = "0") int page,
                                    @RequestParam(defaultValue = "20") int size,
-                                   @RequestParam(name = "university_id", required = false)
-                                   Integer universityId,
                                    @AuthenticationPrincipal Jwt jwt) {
         return itemService.list(type, query, onlyAvailable, sort, page, size,
-                universityId, userId(jwt));
+                userId(jwt));
     }
 
     @GetMapping("/{itemId}")

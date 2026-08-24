@@ -6,6 +6,7 @@ import com.save.item.ItemRepository;
 import com.save.item.ItemStatus;
 import com.save.user.User;
 import com.save.user.UserRepository;
+import com.save.security.CampusAccessPolicy;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,12 +16,14 @@ public class WishlistService {
     private final WishlistRepository wishlistRepository;
     private final UserRepository userRepository;
     private final ItemRepository itemRepository;
+    private final CampusAccessPolicy campusAccessPolicy;
 
     public WishlistService(WishlistRepository wishlistRepository, UserRepository userRepository,
-                           ItemRepository itemRepository) {
+                           ItemRepository itemRepository, CampusAccessPolicy campusAccessPolicy) {
         this.wishlistRepository = wishlistRepository;
         this.userRepository = userRepository;
         this.itemRepository = itemRepository;
+        this.campusAccessPolicy = campusAccessPolicy;
     }
 
     @Transactional
@@ -35,6 +38,7 @@ public class WishlistService {
         if (item.getOwner().getId().equals(userId)) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "본인 물품은 찜할 수 없습니다.");
         }
+        campusAccessPolicy.requireSameCampus(user, item);
         return WishlistResponse.from(wishlistRepository.save(new Wishlist(user, item)));
     }
 

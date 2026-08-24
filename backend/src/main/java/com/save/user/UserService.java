@@ -11,6 +11,7 @@ import com.save.review.ReviewQueryService;
 import com.save.wishlist.WishlistRepository;
 import com.save.university.University;
 import com.save.university.UniversityRepository;
+import com.save.security.CampusAccessPolicy;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -24,18 +25,21 @@ public class UserService {
     private final UniversityRepository universityRepository;
     private final RentalRepository rentalRepository;
     private final ReviewQueryService reviewQueryService;
+    private final CampusAccessPolicy campusAccessPolicy;
 
     public UserService(UserRepository userRepository, ItemRepository itemRepository,
                        WishlistRepository wishlistRepository,
                        UniversityRepository universityRepository,
                        RentalRepository rentalRepository,
-                       ReviewQueryService reviewQueryService) {
+                       ReviewQueryService reviewQueryService,
+                       CampusAccessPolicy campusAccessPolicy) {
         this.userRepository = userRepository;
         this.itemRepository = itemRepository;
         this.wishlistRepository = wishlistRepository;
         this.universityRepository = universityRepository;
         this.rentalRepository = rentalRepository;
         this.reviewQueryService = reviewQueryService;
+        this.campusAccessPolicy = campusAccessPolicy;
     }
 
     @Transactional(readOnly = true)
@@ -74,8 +78,9 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public PublicUserProfileResponse getPublicProfile(Integer userId) {
+    public PublicUserProfileResponse getPublicProfile(Integer userId, Integer viewerId) {
         User user = findUser(userId);
+        requireSameCampusViewer(viewerId, user);
         long completedTradeCount = rentalRepository.countByLenderIdAndStatus(
                 userId, RentalStatus.RETURNED);
         return PublicUserProfileResponse.from(user, completedTradeCount,
@@ -83,14 +88,16 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public List<PublicReviewResponse> getPublicReviews(Integer userId) {
-        findUser(userId);
+    public List<PublicReviewResponse> getPublicReviews(Integer userId, Integer viewerId) {
+        User user = findUser(userId);
+        requireSameCampusViewer(viewerId, user);
         return reviewQueryService.visibleReviews(userId);
     }
 
     @Transactional(readOnly = true)
     public List<ItemResponse> getPublicItems(Integer userId, Integer viewerId) {
-        findUser(userId);
+        User user = findUser(userId);
+        requireSameCampusViewer(viewerId, user);
         return itemRepository.findByOwnerIdAndStatusNotOrderByCreatedAtDesc(
                         userId, ItemStatus.DELETED)
                 .stream()
@@ -101,6 +108,11 @@ public class UserService {
                         wishlistRepository.countByItemId(item.getId()),
                         reviewQueryService.summary(item.getOwner().getId())))
                 .toList();
+    }
+
+    private void requireSameCampusViewer(Integer viewerId, User target) {
+        User viewer = campusAccessPolicy.requireActiveUser(viewerId);
+        campusAccessPolicy.requireSameCampus(viewer, target);
     }
 
     private User findUser(Integer id) {

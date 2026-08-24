@@ -10,6 +10,7 @@ import com.save.notification.InAppNotificationService;
 import com.save.review.ReviewService;
 import com.save.user.User;
 import com.save.user.UserRepository;
+import com.save.security.CampusAccessPolicy;
 import java.util.List;
 import java.time.Clock;
 import java.time.Duration;
@@ -26,11 +27,12 @@ public class RentalService {
     private final InAppNotificationService notificationService;
     private final ReviewService reviewService;
     private final Clock clock;
+    private final CampusAccessPolicy campusAccessPolicy;
 
     public RentalService(RentalRepository rentalRepository, ItemRepository itemRepository,
                          UserRepository userRepository, ChatRoomRepository chatRoomRepository,
                          InAppNotificationService notificationService, ReviewService reviewService,
-                         Clock clock) {
+                         Clock clock, CampusAccessPolicy campusAccessPolicy) {
         this.rentalRepository = rentalRepository;
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
@@ -38,6 +40,7 @@ public class RentalService {
         this.notificationService = notificationService;
         this.reviewService = reviewService;
         this.clock = clock;
+        this.campusAccessPolicy = campusAccessPolicy;
     }
 
     @Transactional
@@ -64,6 +67,7 @@ public class RentalService {
         }
         User borrower = userRepository.findById(borrowerId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다."));
+        campusAccessPolicy.requireSameCampus(borrower, item);
         ChatRoom chatRoom = chatRoomRepository.findWithMembersById(request.chatRoomId())
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "채팅방이 존재하지 않습니다."));
         if (!chatRoom.getItem().getId().equals(item.getId())

@@ -20,8 +20,9 @@ public class PublicUserController {
     }
 
     @GetMapping("/{userId:\\d+}/profile")
-    public PublicUserProfileResponse profile(@PathVariable Integer userId) {
-        return userService.getPublicProfile(userId);
+    public PublicUserProfileResponse profile(@PathVariable Integer userId,
+                                             @AuthenticationPrincipal Jwt jwt) {
+        return userService.getPublicProfile(userId, viewerId(jwt));
     }
 
     @GetMapping("/{userId:\\d+}/items")
@@ -31,8 +32,9 @@ public class PublicUserController {
     }
 
     @GetMapping("/{userId:\\d+}/reviews")
-    public List<PublicReviewResponse> reviews(@PathVariable Integer userId) {
-        return userService.getPublicReviews(userId);
+    public List<PublicReviewResponse> reviews(@PathVariable Integer userId,
+                                              @AuthenticationPrincipal Jwt jwt) {
+        return userService.getPublicReviews(userId, viewerId(jwt));
     }
 
     private Integer viewerId(Jwt jwt) {

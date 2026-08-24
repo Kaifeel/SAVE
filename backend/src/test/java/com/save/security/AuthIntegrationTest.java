@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.save.user.User;
 import com.save.user.UserRepository;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -72,6 +73,23 @@ class AuthIntegrationTest {
                                 """))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("이메일 또는 비밀번호가 올바르지 않습니다."));
+    }
+
+    @Test
+    void suspendedUserCannotReceiveANewAccessToken() throws Exception {
+        User user = User.local("suspended-login@pukyong.ac.kr",
+                passwordEncoder.encode("password123"), "정지 학생", null);
+        user.sanction(LocalDateTime.now().plusDays(7), "테스트 정지");
+        userRepository.save(user);
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"suspended-login@pukyong.ac.kr",
+                                 "password":"password123"}
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("정지된 사용자는 로그인할 수 없습니다."));
     }
 
     @Test

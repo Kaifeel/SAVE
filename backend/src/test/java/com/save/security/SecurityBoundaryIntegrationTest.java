@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.save.user.User;
 import com.save.user.UserRepository;
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,11 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.security.oauth2.jwt.JwsHeader;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
@@ -26,6 +32,8 @@ class SecurityBoundaryIntegrationTest {
     @Autowired MockMvc mockMvc;
     @Autowired ObjectMapper objectMapper;
     @Autowired UserRepository userRepository;
+    @Autowired JwtTokenService jwtTokenService;
+    @Autowired JwtEncoder jwtEncoder;
 
     @Test
     void corsAllowsOnlyConfiguredOrigin() throws Exception {
@@ -86,5 +94,40 @@ class SecurityBoundaryIntegrationTest {
                         .header("Authorization",
                                 "Bearer " + auth.get("access_token").asText()))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void deletedOrUnknownJwtSubjectCannotAccessAuthenticatedApi() throws Exception {
+        User user = userRepository.save(new User(
+                "deleted-" + UUID.randomUUID() + "@pukyong.ac.kr",
+                "삭제 사용자", null, null, "GOOGLE", UUID.randomUUID().toString()));
+        String token = jwtTokenService.issue(user);
+        userRepository.delete(user);
+        userRepository.flush();
+
+        mockMvc.perform(get("/api/v1/users/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void jwtWithWrongIssuerIsRejected() throws Exception {
+        User user = userRepository.save(new User(
+                "issuer-" + UUID.randomUUID() + "@pukyong.ac.kr",
+                "발급자 검사", null, null, "GOOGLE", UUID.randomUUID().toString()));
+        Instant now = Instant.now();
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer("attacker-api")
+                .issuedAt(now)
+                .expiresAt(now.plusSeconds(900))
+                .subject(user.getId().toString())
+                .claim("role", "USER")
+                .build();
+        String token = jwtEncoder.encode(JwtEncoderParameters.from(
+                JwsHeader.with(MacAlgorithm.HS256).build(), claims)).getTokenValue();
+
+        mockMvc.perform(get("/api/v1/users/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
     }
 }
