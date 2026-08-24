@@ -26,8 +26,11 @@ const transitionMock = jest.mocked(transitionRental);
 const rental: Rental = {
   id: 41,
   itemId: 7,
+  itemTitle: '군화',
   borrowerId: 17,
+  borrowerName: '대여학생',
   lenderId: 3,
+  lenderName: '물품주인',
   chatRoomId: 12,
   status: 'REQUESTED',
   startDate: '2026-08-24T09:00:00',
@@ -61,7 +64,9 @@ it('renders API-provided detail and links to the real item and chat', async () =
   await render(<RentalDetailScreen />);
 
   expect(await screen.findByText('대여 #41')).toBeTruthy();
-  expect(screen.getByText('#7')).toBeTruthy();
+  expect(screen.getByText('군화')).toBeTruthy();
+  expect(screen.getByText('신청자')).toBeTruthy();
+  expect(screen.getByText('대여학생')).toBeTruthy();
   expect(screen.getByText('요청됨')).toBeTruthy();
   expect(screen.getByText('6,000원')).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: '물품 상세' }));

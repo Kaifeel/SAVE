@@ -40,18 +40,22 @@ export function RentalSection({
       {rentals.map(rental => {
         const actions = availableActions(rental, role);
         const busy = pendingAction?.startsWith(`${rental.id}:`) ?? false;
+        const counterpart = role === 'lender' ? rental.borrowerName : rental.lenderName;
         return (
           <View key={rental.id} style={styles.card}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`물품 ${rental.itemId} 대여 상세 보기`}
+              accessibilityLabel={`${rental.itemTitle} 대여 상세 보기`}
               onPress={() => onOpen(rental)}
               style={styles.summary}
             >
               <View style={styles.summaryTop}>
-                <Text style={styles.item}>물품 #{rental.itemId}</Text>
+                <Text numberOfLines={1} style={styles.item}>{rental.itemTitle}</Text>
                 <Text style={styles.status}>{rentalStatusLabel[rental.status]}</Text>
               </View>
+              <Text style={styles.counterpart}>
+                {role === 'lender' ? `${counterpart}님이 보낸 요청` : `${counterpart}님에게 보낸 요청`}
+              </Text>
               <Text style={styles.period}>
                 {formatRentalDate(rental.startDate)} ~ {formatRentalDate(rental.endDate)}
               </Text>
@@ -106,6 +110,7 @@ const styles = StyleSheet.create({
   item: { color: theme.colors.textStrong, fontSize: 14, fontWeight: '900' },
   status: { color: theme.colors.primary, fontSize: 12, fontWeight: '800' },
   period: { color: theme.colors.textSoft, fontSize: 12 },
+  counterpart: { color: theme.colors.textSoft, fontSize: 12, fontWeight: '700' },
   price: { color: theme.colors.text, fontSize: 13, fontWeight: '800' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   action: { backgroundColor: theme.colors.primary, borderRadius: 10, paddingHorizontal: 13, paddingVertical: 9 },

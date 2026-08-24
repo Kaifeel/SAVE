@@ -3,8 +3,11 @@ import { parseRental, parseRentals, parseReviewSubmission } from './schema';
 export const backendRental = {
   id: 41,
   item_id: 7,
+  item_title: '군화',
   borrower_id: 17,
+  borrower_name: '대여학생',
   lender_id: 3,
+  lender_name: '물품주인',
   chat_room_id: 12,
   status: 'APPROVED',
   start_date: '2026-08-24T09:00:00',
@@ -21,8 +24,11 @@ it('normalizes the complete snake_case rental response', () => {
   expect(parseRental(backendRental)).toEqual({
     id: 41,
     itemId: 7,
+    itemTitle: '군화',
     borrowerId: 17,
+    borrowerName: '대여학생',
     lenderId: 3,
+    lenderName: '물품주인',
     chatRoomId: 12,
     status: 'APPROVED',
     startDate: '2026-08-24T09:00:00',
@@ -55,6 +61,8 @@ it.each([
   ['id', { ...backendRental, id: '41' }],
   ['status', { ...backendRental, status: 'UNKNOWN' }],
   ['item_id', { ...backendRental, item_id: null }],
+  ['item_title', { ...backendRental, item_title: '' }],
+  ['borrower_name', { ...backendRental, borrower_name: null }],
   ['start_date', { ...backendRental, start_date: null }],
 ])('rejects a malformed %s instead of returning partial rental data', (_field, payload) => {
   expect(() => parseRental(payload)).toThrow('rental');

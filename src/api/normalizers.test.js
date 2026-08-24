@@ -137,8 +137,11 @@ describe('rental review normalization', () => {
     expect(normalizeRental({
       id: 3,
       item_id: 7,
+      item_title: '군화',
       borrower_id: 2,
+      borrower_name: '대여학생',
       lender_id: 1,
+      lender_name: '물품주인',
       status: 'RETURNED',
       returned_at: '2026-08-06T03:00:00Z',
       review_deadline: '2026-08-13T03:00:00Z',
@@ -146,8 +149,11 @@ describe('rental review normalization', () => {
     })).toMatchObject({
       id: 3,
       item_id: 7,
+      itemTitle: '군화',
       borrower_id: 2,
+      borrowerName: '대여학생',
       lender_id: 1,
+      lenderName: '물품주인',
       returnedAt: '2026-08-06T03:00:00Z',
       reviewDeadline: '2026-08-13T03:00:00Z',
       reviewState: 'AVAILABLE',

@@ -68,7 +68,11 @@ export default function RentalDetailScreen() {
           <Text style={styles.status}>{rentalStatusLabel[rental.status]}</Text>
         </View>
         <View style={styles.card}>
-          <Row label="물품" value={`#${rental.itemId}`} />
+          <Row label="물품" value={rental.itemTitle} />
+          <Row
+            label={role === 'lender' ? '신청자' : '소유자'}
+            value={role === 'lender' ? rental.borrowerName : rental.lenderName}
+          />
           <Row label="시작" value={formatRentalDate(rental.startDate)} />
           <Row label="종료" value={formatRentalDate(rental.endDate)} />
           <Row label="총 금액" value={`${rental.totalPrice.toLocaleString('ko-KR')}원`} />

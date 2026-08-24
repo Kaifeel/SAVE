@@ -17,8 +17,11 @@ export type ReviewState =
 export type Rental = {
   id: number;
   itemId: number;
+  itemTitle: string;
   borrowerId: number;
+  borrowerName: string;
   lenderId: number;
+  lenderName: string;
   chatRoomId: number;
   status: RentalStatus;
   startDate: string;

@@ -21,6 +21,11 @@ function string(value: unknown, field: string): string {
   return typeof value === 'string' ? value : protocolError(field);
 }
 
+function nonBlankString(value: unknown, field: string): string {
+  const parsed = string(value, field);
+  return parsed.trim() ? parsed : protocolError(field);
+}
+
 function nullableString(value: unknown, field: string): string | null {
   return value === null ? null : string(value, field);
 }
@@ -52,8 +57,11 @@ export function parseRental(value: unknown): Rental {
   return {
     id: integer(rental.id, 'id'),
     itemId: integer(rental.item_id, 'item_id'),
+    itemTitle: nonBlankString(rental.item_title, 'item_title'),
     borrowerId: integer(rental.borrower_id, 'borrower_id'),
+    borrowerName: nonBlankString(rental.borrower_name, 'borrower_name'),
     lenderId: integer(rental.lender_id, 'lender_id'),
+    lenderName: nonBlankString(rental.lender_name, 'lender_name'),
     chatRoomId: integer(rental.chat_room_id, 'chat_room_id'),
     status: rentalStatus(rental.status),
     startDate: string(rental.start_date, 'start_date'),
