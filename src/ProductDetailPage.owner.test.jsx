@@ -152,8 +152,12 @@ it('does not treat local upload metadata as a public image URL', () => {
   expect(screen.queryByText(/1 \/ 1/)).not.toBeInTheDocument()
 })
 
-it('does not expose the unfinished share control as an active action', () => {
-  render(<ProductDetailPage item={item} onClose={vi.fn()} />)
+it('passes the displayed item to the share handler', async () => {
+  const user = userEvent.setup()
+  const onShare = vi.fn()
+  render(<ProductDetailPage item={item} onClose={vi.fn()} onShare={onShare} />)
 
-  expect(screen.getByRole('button', { name: '공유하기' })).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: '공유하기' }))
+
+  expect(onShare).toHaveBeenCalledWith(item)
 })

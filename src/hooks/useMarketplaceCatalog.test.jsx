@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { useMarketplaceCatalog } from './useMarketplaceCatalog.js'
 
 const items = [
-  { id: 1, title: '우산', location: '누리관', universityId: 1, university: '부경대학교', type: 'rent', status: 'available', section: 'popular' },
-  { id: 2, title: '계산기', location: '도서관', universityId: 1, university: '부경대학교', type: 'want', status: 'rented', section: 'recent' },
+  { id: 1, title: '우산', location: '누리관', universityId: 1, university: '부경대학교', type: 'rent', status: 'available', section: 'popular', viewCount: 5 },
+  { id: 2, title: '계산기', location: '도서관', universityId: 1, university: '부경대학교', type: 'want', status: 'rented', section: 'recent', viewCount: 0 },
   { id: 3, title: '충전기', location: '학생회관', universityId: 2, university: '다른대학교', type: 'rent', status: 'available', section: 'recommend' },
 ]
 
@@ -52,5 +52,22 @@ describe('useMarketplaceCatalog', () => {
     expect(result.current.recommendItems.map(item => item.id)).toEqual([1])
     expect(result.current.homePopularItems.map(item => item.id)).toEqual([1])
     expect(result.current.recentItems.map(item => item.id)).toEqual([2])
+  })
+
+  it('orders API popular items by views and excludes new zero-view posts', () => {
+    const apiItems = [
+      { ...items[0], id: 10, title: '방금 등록', viewCount: 0 },
+      { ...items[0], id: 11, title: '인기 우산', viewCount: 30 },
+      { ...items[0], id: 12, title: '인기 계산기', viewCount: 8 },
+    ]
+    const { result } = renderHook(() => useMarketplaceCatalog({
+      items: apiItems,
+      apiEnabled: true,
+      memberUniversityId: 1,
+      university: '부경대학교',
+      recommendedItems: [],
+    }))
+
+    expect(result.current.homePopularItems.map(item => item.id)).toEqual([11, 12])
   })
 })

@@ -22,7 +22,9 @@ import { useItemActions } from './hooks/useItemActions.js'
 import { useReportFlow } from './hooks/useReportFlow.js'
 import { useMarketplaceCatalog } from './hooks/useMarketplaceCatalog.js'
 import { useAppChats } from './hooks/useAppChats.js'
+import { useSharedItemRoute } from './hooks/useSharedItemRoute.js'
 import { useToast } from './components/toast.js'
+import { clearSharedItemId, shareItem } from './utils/itemShare.js'
 
 const DEV_AUTO_LOGIN = isAutoLoginEnabled(USE_API, import.meta.env.VITE_AUTO_LOGIN)
 function App() {
@@ -135,6 +137,15 @@ function App() {
     availableOnly, setAvailableOnly, filteredItems, recommendItems,
     popularItems, homePopularItems, recentItems,
   } = catalog
+  const handleSharedItemError = useCallback(message => toast.error(message), [toast])
+  useSharedItemRoute({
+    enabled: isLoggedIn && isProfileComplete && !isAdminPath,
+    apiEnabled: USE_API,
+    accessToken,
+    items,
+    onSelect: setSelectedItem,
+    onError: handleSharedItemError,
+  })
   const activeChatRoom = chatData.activeRoom
   const setActiveChatRoom = chatData.setActiveRoom
 
@@ -236,6 +247,7 @@ function App() {
   const itemDetailProps = {
     item: selectedItem,
     onClose: () => {
+      clearSharedItemId()
       setProfileTarget(null)
       setSelectedItem(null)
     },
@@ -247,6 +259,14 @@ function App() {
     onToggleWishlist: itemActions.toggleWishlist,
     onReport: reportFlow.open,
     onChat: itemActions.openChat,
+    onShare: async item => {
+      try {
+        const result = await shareItem(item)
+        if (result === 'copied') toast.success('게시글 링크를 복사했습니다.')
+      } catch (error) {
+        toast.error(error.message || '게시글을 공유하지 못했습니다.')
+      }
+    },
   }
   const profileProps = {
     target: profileTarget,

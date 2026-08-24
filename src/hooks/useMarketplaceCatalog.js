@@ -46,7 +46,11 @@ export function useMarketplaceCatalog({
     [campusItems],
   )
   const homePopularItems = useMemo(
-    () => availableItems(apiEnabled ? campusItems : popularItems).slice(0, 4),
+    () => availableItems(apiEnabled
+      ? campusItems
+        .filter(item => Number(item.viewCount) > 0)
+        .sort((left, right) => Number(right.viewCount) - Number(left.viewCount))
+      : popularItems).slice(0, 4),
     [apiEnabled, campusItems, popularItems],
   )
   const recentItems = useMemo(
