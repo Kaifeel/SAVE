@@ -1,4 +1,4 @@
-import type { Rental, RentalStatus, ReviewState } from './types';
+import type { Rental, RentalStatus, ReviewState, ReviewSubmission } from './types';
 
 function protocolError(field: string): never {
   throw new Error(`Invalid rental response: ${field}`);
@@ -64,5 +64,18 @@ export function parseRental(value: unknown): Rental {
     returnedAt: nullableString(rental.returned_at, 'returned_at'),
     reviewDeadline: nullableString(rental.review_deadline, 'review_deadline'),
     reviewState: reviewState(rental.review_state),
+  };
+}
+
+export function parseRentals(value: unknown): Rental[] {
+  if (!Array.isArray(value)) protocolError('rentals');
+  return value.map(parseRental);
+}
+
+export function parseReviewSubmission(value: unknown): ReviewSubmission {
+  const submission = record(value);
+  return {
+    reviewState: reviewState(submission.review_state),
+    reviewDeadline: nullableString(submission.review_deadline, 'review_deadline'),
   };
 }

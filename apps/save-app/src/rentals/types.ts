@@ -30,3 +30,15 @@ export type Rental = {
   reviewDeadline: string | null;
   reviewState: ReviewState;
 };
+
+export type RentalAction = 'start' | 'reject' | 'cancel' | 'return';
+
+export type RentalReviewInput = {
+  rating: number;
+  content: string;
+};
+
+export type ReviewSubmission = {
+  reviewState: ReviewState;
+  reviewDeadline: string | null;
+};
