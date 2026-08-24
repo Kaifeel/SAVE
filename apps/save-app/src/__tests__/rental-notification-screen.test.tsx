@@ -1,27 +1,35 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Alert } from 'react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
-import RentalNotificationScreen from '@/app/(authenticated)/rentals/[id]';
+import RentalDetailScreen from '@/app/(authenticated)/rentals/[id]';
 import { ApiError } from '@/api/client';
-import { getRental } from '@/rentals/api';
+import { useAuthStore } from '@/auth/store';
+import { getRental, submitRentalReview, transitionRental } from '@/rentals/api';
 import type { Rental } from '@/rentals/types';
 
 const mockBack = jest.fn();
+const mockPush = jest.fn();
 let mockRouteId = '41';
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: mockRouteId }),
-  useRouter: () => ({ back: mockBack }),
+  useRouter: () => ({ back: mockBack, push: mockPush }),
 }));
-jest.mock('@/rentals/api', () => ({ getRental: jest.fn() }));
+jest.mock('@/rentals/api', () => ({
+  getRental: jest.fn(),
+  submitRentalReview: jest.fn(),
+  transitionRental: jest.fn(),
+}));
 
 const getRentalMock = jest.mocked(getRental);
+const transitionMock = jest.mocked(transitionRental);
 const rental: Rental = {
   id: 41,
   itemId: 7,
   borrowerId: 17,
   lenderId: 3,
   chatRoomId: 12,
-  status: 'APPROVED',
+  status: 'REQUESTED',
   startDate: '2026-08-24T09:00:00',
   endDate: '2026-08-26T18:00:00',
   totalPrice: 6000,
@@ -35,40 +43,67 @@ const rental: Rental = {
 beforeEach(() => {
   jest.clearAllMocks();
   mockRouteId = '41';
+  useAuthStore.setState({
+    status: 'authenticated',
+    user: {
+      id: 3, email: 'lender@example.com', name: '대여자', department: null,
+      universityId: 1, universityName: '부경대학교', profileImageUrl: null, role: 'USER',
+    },
+  });
   getRentalMock.mockResolvedValue(rental);
+  transitionMock.mockResolvedValue({ ...rental, status: 'RENTING' });
+  jest.mocked(submitRentalReview).mockResolvedValue({
+    reviewState: 'SUBMITTED_WAITING', reviewDeadline: null,
+  });
 });
 
-it('renders only the real item, status, and rental period', async () => {
-  await render(<RentalNotificationScreen />);
+it('renders API-provided detail and links to the real item and chat', async () => {
+  await render(<RentalDetailScreen />);
 
-  expect(await screen.findByText('물품 #7')).toBeTruthy();
-  expect(screen.getByText('승인됨')).toBeTruthy();
-  expect(screen.getByText('2026. 8. 24.')).toBeTruthy();
-  expect(screen.getByText('2026. 8. 26.')).toBeTruthy();
-  expect(screen.queryByText('승인하기')).toBeNull();
+  expect(await screen.findByText('대여 #41')).toBeTruthy();
+  expect(screen.getByText('#7')).toBeTruthy();
+  expect(screen.getByText('요청됨')).toBeTruthy();
+  expect(screen.getByText('6,000원')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: '물품 상세' }));
+  await fireEvent.press(screen.getByRole('button', { name: '거래 채팅' }));
+  expect(mockPush).toHaveBeenNthCalledWith(1, { pathname: '/items/[id]', params: { id: '7' } });
+  expect(mockPush).toHaveBeenNthCalledWith(2, { pathname: '/chats/[id]', params: { id: '12' } });
+});
+
+it('confirms and performs only a role-allowed transition', async () => {
+  let confirm: (() => void) | undefined;
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+    confirm = buttons?.[1]?.onPress;
+  });
+  await render(<RentalDetailScreen />);
+  await screen.findByText('대여 #41');
+
+  await fireEvent.press(screen.getByRole('button', { name: '거래 시작' }));
+  await act(async () => { confirm?.(); });
+  await waitFor(() => expect(transitionMock).toHaveBeenCalledWith(41, 'start'));
+  expect(await screen.findByText('대여 중')).toBeTruthy();
+  alert.mockRestore();
 });
 
 it('shows a neutral not-found state for an invalid route or 404', async () => {
   mockRouteId = 'invalid';
-  const view = await render(<RentalNotificationScreen />);
+  const view = await render(<RentalDetailScreen />);
   expect(await screen.findByText('대여 정보를 찾을 수 없습니다.')).toBeTruthy();
   expect(getRentalMock).not.toHaveBeenCalled();
 
   mockRouteId = '41';
   getRentalMock.mockRejectedValue(new ApiError('missing', 404));
   await view.unmount();
-  await render(<RentalNotificationScreen />);
+  await render(<RentalDetailScreen />);
   expect(await screen.findByText('대여 정보를 찾을 수 없습니다.')).toBeTruthy();
 });
 
 it('offers a retry after a temporary loading failure', async () => {
-  getRentalMock
-    .mockRejectedValueOnce(new Error('offline'))
-    .mockResolvedValueOnce(rental);
-  await render(<RentalNotificationScreen />);
+  getRentalMock.mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(rental);
+  await render(<RentalDetailScreen />);
 
-  expect(await screen.findByRole('alert')).toHaveTextContent('대여 정보를 불러오지 못했습니다.');
+  expect(await screen.findByRole('alert')).toHaveTextContent('offline');
   await fireEvent.press(screen.getByRole('button', { name: '다시 시도' }));
-  expect(await screen.findByText('물품 #7')).toBeTruthy();
+  expect(await screen.findByText('대여 #41')).toBeTruthy();
   expect(getRentalMock).toHaveBeenCalledTimes(2);
 });

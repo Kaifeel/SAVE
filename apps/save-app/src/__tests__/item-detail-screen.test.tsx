@@ -6,11 +6,12 @@ import { getItem, setWishlist } from '@/catalog/api';
 import { catalogItem } from '@/test-utils/catalog-fixtures';
 
 const mockBack = jest.fn();
+const mockPush = jest.fn();
 let mockRouteId = '7';
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: mockRouteId }),
-  useRouter: () => ({ back: mockBack }),
+  useRouter: () => ({ back: mockBack, push: mockPush }),
 }));
 
 jest.mock('@/catalog/api', () => ({
@@ -89,4 +90,15 @@ it('keeps server truth and displays a non-destructive error when wishlist fails'
 
   expect(await screen.findByRole('alert')).toBeTruthy();
   expect(screen.getByRole('button', { name: '찜하기' })).toBeTruthy();
+});
+
+it('opens the API-provided owner public profile', async () => {
+  await render(<ItemDetailScreen />);
+  await screen.findByText(catalogItem.title);
+
+  await fireEvent.press(screen.getByRole('button', { name: `${catalogItem.ownerName} 프로필 보기` }));
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: '/users/[id]',
+    params: { id: String(catalogItem.ownerId) },
+  });
 });

@@ -1,4 +1,4 @@
-import { parseRental } from './schema';
+import { parseRental, parseRentals, parseReviewSubmission } from './schema';
 
 export const backendRental = {
   id: 41,
@@ -34,6 +34,21 @@ it('normalizes the complete snake_case rental response', () => {
     reviewDeadline: null,
     reviewState: 'NOT_AVAILABLE',
   });
+});
+
+it('validates rental lists and review workflow responses', () => {
+  expect(parseRentals([backendRental])).toEqual([expect.objectContaining({ id: 41 })]);
+  expect(parseReviewSubmission({
+    review_state: 'SUBMITTED_WAITING',
+    review_deadline: '2026-09-01T10:00:00Z',
+    review: null,
+  })).toEqual({
+    reviewState: 'SUBMITTED_WAITING',
+    reviewDeadline: '2026-09-01T10:00:00Z',
+  });
+  expect(() => parseRentals({ content: [] })).toThrow('rentals');
+  expect(() => parseReviewSubmission({ review_state: 'UNKNOWN', review_deadline: null }))
+    .toThrow('review_state');
 });
 
 it.each([
