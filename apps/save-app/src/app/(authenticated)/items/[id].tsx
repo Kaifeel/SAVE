@@ -124,14 +124,22 @@ export default function ItemDetailScreen() {
         ) : null}
 
         <Section title="대여자 정보">
-          <View style={styles.ownerCard}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${item.ownerName} 프로필 보기`}
+            onPress={() => router.push({
+              pathname: '/users/[id]',
+              params: { id: String(item.ownerId) },
+            })}
+            style={styles.ownerCard}
+          >
             <View style={styles.avatar}><Text style={styles.avatarText}>{item.ownerName.slice(0, 1)}</Text></View>
             <View style={styles.ownerBody}>
               <Text style={styles.ownerName}>{item.ownerName}</Text>
               {item.ownerUniversityName ? <Text style={styles.meta}>{item.ownerUniversityName}</Text> : null}
               <Text style={styles.rating}>★ {item.ownerRating.toFixed(1)} · 후기 {item.reviewCount}개</Text>
             </View>
-          </View>
+          </Pressable>
         </Section>
 
         {detail.wishlistError ? <Text accessibilityRole="alert" style={styles.error}>{detail.wishlistError}</Text> : null}
