@@ -51,6 +51,11 @@ Entity는 item, borrower, lender, chatRoom 외래키와 기간/금액/상태/tim
 
 `RentalResponse.from(rental, workflow)`은 현재 사용자의 후기 deadline/state까지 포함한다. 같은 Rental도 조회 사용자에 따라 후기 상태가 다를 수 있어 workflow를 Service가 계산해 전달한다.
 
+대여 내역 카드가 추가 조회 없이 실제 정보를 표시하도록 응답에는 기존 연관
+객체에서 읽은 `item_title`, `borrower_name`, `lender_name`도 포함한다. 이 값들은
+`items.title`과 `users.name`을 응답 DTO에 투영한 것이며 Rental 테이블에 중복
+저장하지 않으므로 ERD나 마이그레이션은 변경되지 않는다.
+
 ## 상호 후기 정책
 
 반납 후 7일 안에 borrower와 lender가 서로에게 하나씩 작성한다.

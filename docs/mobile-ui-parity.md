@@ -126,11 +126,11 @@ Combined verification on 2026-08-24:
 
 | Check | Result |
 | --- | --- |
-| Expo tests | Pass: 38 suites and 286 tests. |
+| Expo tests | Pass: 38 suites and 294 tests. |
 | Expo TypeScript | Pass: `tsc --noEmit` exited 0. |
 | Expo ESLint | Pass: `expo lint` exited 0 with no warnings. |
 | Android export | Pass: Metro bundled 1,425 modules and wrote `_expo/static/js/android/entry-30b33c26af60e6f1b76a912c8a2441c1.hbc` under `/tmp/save-expo-parity-20260824`. |
-| Web regression | Pass: 55 files and 176 tests, ESLint, and production Vite build. |
+| Web regression | Pass: 55 files and 177 tests, ESLint, and production Vite build. |
 | Backend regression | Pass: full Gradle test task (`BUILD SUCCESSFUL`). |
 | Hardcoded-content audit | Pass: no mock token, fake chat, sample rental/item, fixed trade count, fixed tag, or fixed photo-count match in Expo production source. |
 | Physical Android/iPhone | Not run: no physical device was attached to this workspace. |
