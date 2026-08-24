@@ -21,7 +21,7 @@ This matrix tracks the canonical Expo app in `apps/save-app` against the web ref
 | Chats | `implemented` | `src/pages/ChatPage.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/chat.tsx`; `apps/save-app/src/app/(authenticated)/chats/[id].tsx` | Room lists, cursor-paged messages, read clearing, REST-authoritative optimistic send/retry, STOMP room/list updates, reconnect restoration, and duplicate reconciliation use the shared backend. All successful room/message/page responses are runtime-validated. | Pass: production chat code contains no sample rooms, messages, users, mock tokens, or fabricated item metadata. | Not run; Android and iPhone Expo Go two-device delivery, reconnect, unread clearing, and 50+ message pagination still require physical devices. |
 | My | `implemented` (combined verification pending) | `src/pages/MyPage.jsx` | `apps/save-app/src/app/(authenticated)/(tabs)/my.tsx` | Authenticated profile, owned items, and wishlist use validated `/users/me`, `/users/me/items`, and `/users/me/wishlist` responses with independent loading, partial-error, empty, retry, stale-request, and pull-to-refresh state. Real items open detail, the rental action targets `/rentals`, and logout uses the secure auth-store cleanup with duplicate-tap protection. | Pass: session identity may bridge the profile loading state, but no fabricated profile, item, wishlist, rental, setting, counter, or token is used; the nonfunctional web notification-settings row is omitted. | Not run; combined automated verification is deferred until public profile and rental management are implemented, and physical Android/iPhone checks still require devices. |
 | Item detail | `implemented` | `src/ProductDetailPage.jsx` | `apps/save-app/src/app/(authenticated)/items/[id].tsx` | Detail uses `/items/{id}` and wishlist uses `POST`/`DELETE /items/{id}/wishlist`; responses are runtime-validated and a successful mutation is followed by an authoritative refetch. | Pass: photo counter derives from real images; fixed tags, photo count, trade count, and fallback owner/location values are absent. | Not run; horizontal image paging and Android system-back are not device-verified. |
-| Public profile | `shell` | `src/pages/UserProfilePage.jsx` | Planned `apps/save-app/src/app/(authenticated)/users/[id].tsx` is absent | Not connected; no Expo route exists. | Not applicable: no Expo public-profile UI or data exists to audit. | Not run. |
+| Public profile | `implemented` (combined verification pending) | `src/pages/UserProfilePage.jsx` | `apps/save-app/src/app/(authenticated)/users/[id].tsx` | Public identity, trade metrics, registered items, and received reviews use validated `/users/{id}/profile`, `/users/{id}/items`, and `/users/{id}/reviews` responses with independent loading, partial-error, empty, retry, stale-request, and pull-to-refresh state. Item owner cards open this route. | Pass: no fabricated profile, metric, item, review, user, or image fallback data is used. | Not run; combined automated verification is deferred until rental management is implemented, and physical Android/iPhone checks still require devices. |
 | Rentals | `implemented` (notification landing only) | `src/pages/RentalsPage.jsx` | `apps/save-app/src/app/(authenticated)/rentals/[id].tsx` | Notification deep links load and runtime-validate the authorized `/rentals/{id}` response. The screen is intentionally read-only; rental lists and transition actions remain unimplemented. | Pass: item ID, status, and dates come from the validated response; no sample rental is rendered in production. | Not run; Android notification opening and iPhone direct route opening require physical devices. |
 
 The hardcoded-data audit covers the prohibited fixed tags, photo counter, trade total, and mock session tokens within `apps/save-app`, excluding `node_modules`. A passing audit means only that these forbidden values are absent; it does not prove an unimplemented screen has live data.
@@ -105,10 +105,10 @@ Each plan must leave the app runnable and retain the same TDD, test, typecheck, 
 
 ### Expo remaining-parity implementation batch from 2026-08-24
 
-The Compose and My production implementations are committed. Per the requested
+The Compose, My, and public-profile production implementations are committed. Per the requested
 code-first sequence, their combined automated verification is intentionally
-deferred until the public-profile and rental-management production code is also
-complete. No test, typecheck, lint, bundle, or physical-device success is
+deferred until the rental-management production code is also complete. No
+test, typecheck, lint, bundle, or physical-device success is
 claimed by this section.
 
 - Compose now owns validated JSON/multipart item creation, server pickup
@@ -116,5 +116,8 @@ claimed by this section.
   authoritative detail navigation.
 - My now owns validated profile/owned/wishlist resources, partial failures,
   retry and refresh, item/rental navigation, and secure logout.
-- Public profile and full rental management remain the next implementation
-  stages before the combined verification gate.
+- Public profile now owns validated public identity, trade metrics, registered
+  items, received reviews, partial failures, retry and refresh, and item-owner
+  navigation.
+- Full rental management remains the final implementation stage before the
+  combined verification gate.
