@@ -229,6 +229,7 @@ function App() {
   }
   const rentalProps = {
     data: rentalData,
+    items,
     onBack: () => setActiveTab('my'),
     onError: message => toast.error(message),
   }
