@@ -86,7 +86,7 @@ it('shows published reviews with the transaction role', async () => {
   expect(screen.getByRole('heading', { name: '받은 후기' })).toBeInTheDocument()
   expect(screen.getByText('좋은 거래였어요.')).toBeInTheDocument()
   expect(screen.getByText('김학생 · 튼튼한 우산')).toBeInTheDocument()
-  expect(screen.getByText('물품 주인으로 받은 후기')).toBeInTheDocument()
+  expect(screen.getByText('물품을 빌려주고 받은 후기')).toBeInTheDocument()
 })
 
 it('renders malicious review markup as inert text', async () => {

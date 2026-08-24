@@ -43,7 +43,9 @@ export function PublicReviewSection({
           <Text style={styles.content}>{review.content}</Text>
           <Text style={styles.meta}>{review.reviewerName} · {review.itemTitle}</Text>
           <Text style={styles.role}>
-            {review.revieweeRole === 'LENDER' ? '물품 주인으로 받은 후기' : '빌린 사람으로 받은 후기'}
+            {review.revieweeRole === 'LENDER'
+              ? '물품을 빌려주고 받은 후기'
+              : '물품을 빌리고 받은 후기'}
           </Text>
         </View>
       ))}
