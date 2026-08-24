@@ -126,6 +126,9 @@ class MarketplaceIntegrationTest {
                                 + "\"end_date\":\"2026-07-22T10:00:00\",\"total_price\":1000}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("REQUESTED"))
+                .andExpect(jsonPath("$.item_title").value("테스트 우산"))
+                .andExpect(jsonPath("$.borrower_name").value("대여학생"))
+                .andExpect(jsonPath("$.lender_name").value("물품주인"))
                 .andReturn();
         int rentalId = objectMapper.readTree(rentalResult.getResponse().getContentAsString())
                 .get("id").asInt();
