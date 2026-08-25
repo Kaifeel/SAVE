@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Feather from '@expo/vector-icons/Feather';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Dimensions,
@@ -12,7 +13,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ItemVisual } from '@/catalog/components/item-visual';
 import { COMMON_SAFETY_NOTICE } from '@/catalog/constants';
@@ -30,6 +31,7 @@ const imageWidth = Dimensions.get('window').width;
 
 export default function ItemDetailScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const rawId = Array.isArray(params.id) ? params.id[0] : params.id;
   const parsedId = rawId ? Number(rawId) : Number.NaN;
@@ -119,11 +121,11 @@ export default function ItemDetailScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'left', 'right', 'bottom']}>
-      <View style={styles.header}>
+      <View testID="item-detail-header" style={{ ...styles.header, top: insets.top + 12 }}>
         <BackButton onPress={router.back} />
         <View style={styles.headerActions}>
           <Pressable accessibilityRole="button" accessibilityLabel="게시글 공유" onPress={() => void shareItem()} style={styles.roundButton}>
-            <Text style={styles.shareIcon}>↗</Text>
+            <Feather color={theme.colors.textSoft} name="share-2" size={16} />
           </Pressable>
           <Pressable
             accessibilityRole="button"
@@ -132,7 +134,11 @@ export default function ItemDetailScreen() {
             onPress={detail.toggleWishlist}
             style={styles.roundButton}
           >
-            <Text style={[styles.roundIcon, item.wishlisted && styles.wishlisted]}>{item.wishlisted ? '♥' : '♡'}</Text>
+            <Feather
+              color={item.wishlisted ? theme.colors.danger : theme.colors.textSoft}
+              name="heart"
+              size={16}
+            />
           </Pressable>
         </View>
       </View>
@@ -259,7 +265,7 @@ export default function ItemDetailScreen() {
 function BackButton({ onPress }: { onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" accessibilityLabel="뒤로가기" onPress={onPress} style={styles.roundButton}>
-      <Text style={styles.roundIcon}>←</Text>
+      <Feather color={theme.colors.text} name="arrow-left" size={16} />
     </Pressable>
   );
 }
@@ -280,12 +286,23 @@ function statusLabel(status: string): string {
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: theme.colors.surface, flex: 1 },
-  header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', left: 12, position: 'absolute', right: 12, top: 12, zIndex: 2 },
-  roundButton: { alignItems: 'center', backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderRadius: 20, borderWidth: 1, height: 40, justifyContent: 'center', width: 40 },
-  roundIcon: { color: theme.colors.text, fontSize: 20, fontWeight: '800' },
+  header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', left: 12, position: 'absolute', right: 12, zIndex: 2 },
+  roundButton: {
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    borderColor: '#f1f5f9',
+    borderRadius: 18,
+    borderWidth: 1,
+    elevation: 2,
+    height: 36,
+    justifyContent: 'center',
+    shadowColor: '#0f172a',
+    shadowOffset: { height: 1, width: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    width: 36,
+  },
   headerActions: { flexDirection: 'row', gap: 8 },
-  shareIcon: { color: theme.colors.text, fontSize: 21, fontWeight: '800' },
-  wishlisted: { color: theme.colors.danger },
   content: { paddingBottom: 72 },
   visualArea: { backgroundColor: '#f1f5f9', minHeight: 220, position: 'relative' },
   detailImage: { backgroundColor: '#f8fafc', height: 260, resizeMode: 'contain', width: imageWidth },

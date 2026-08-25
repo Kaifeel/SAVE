@@ -14,11 +14,17 @@ const mockBack = jest.fn();
 const mockPush = jest.fn();
 const mockNavigate = jest.fn();
 let mockRouteId = '7';
+const mockSafeAreaInsets = { top: 24, right: 0, bottom: 0, left: 0 };
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: mockRouteId }),
   useRouter: () => ({ back: mockBack, navigate: mockNavigate, push: mockPush }),
 }));
+
+jest.mock('react-native-safe-area-context', () => {
+  const actual = jest.requireActual('react-native-safe-area-context');
+  return { ...actual, useSafeAreaInsets: () => mockSafeAreaInsets };
+});
 
 jest.mock('@/catalog/api', () => ({
   getItem: jest.fn(),
@@ -162,4 +168,22 @@ it('opens the native share sheet for the current item', async () => {
   expect(share).toHaveBeenCalledWith(expect.objectContaining({
     message: expect.stringContaining(`saveapp://items/${catalogItem.id}`),
   }));
+});
+
+it('places the detail header below the Android status bar inset', async () => {
+  await render(<ItemDetailScreen />);
+  await screen.findByText(catalogItem.title);
+
+  expect(screen.getByTestId('item-detail-header').props.style).toEqual(expect.objectContaining({
+    top: 36,
+  }));
+});
+
+it('uses vector icons instead of mismatched text glyphs for header actions', async () => {
+  await render(<ItemDetailScreen />);
+  await screen.findByText(catalogItem.title);
+
+  expect(screen.queryByText('←')).toBeNull();
+  expect(screen.queryByText('↗')).toBeNull();
+  expect(screen.queryByText('♡')).toBeNull();
 });

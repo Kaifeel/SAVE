@@ -82,7 +82,7 @@ export function parseCatalogItem(value: unknown): CatalogItem {
     rentalUnit: string(item.rental_unit, 'rental_unit'),
     pickupLocationId: nullableInteger(item.pickup_location_id, 'pickup_location_id'),
     pickupLocationName: nullableString(item.pickup_location_name, 'pickup_location_name'),
-    description: string(item.description, 'description'),
+    description: item.description === null ? '' : string(item.description, 'description'),
     precautions: nullableString(item.precautions, 'precautions'),
     status: itemStatus(item.status),
     imageUrls: stringArray(item.image_urls, 'image_urls').map(value => resolveAssetUrl(value)),

@@ -55,6 +55,10 @@ describe('catalog schema', () => {
     expect(item.imageUrls).toEqual(['one.jpg', 'two.jpg']);
   });
 
+  it('normalizes a null item description from the API to an empty string', () => {
+    expect(parseCatalogItem({ ...backendItem, description: null }).description).toBe('');
+  });
+
   it.each([
     ['id', { ...backendItem, id: 'seven' }],
     ['type', { ...backendItem, type: 'OTHER' }],
