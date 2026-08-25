@@ -3,7 +3,12 @@ import * as SecureStore from 'expo-secure-store';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 
-import { registerForPushNotifications, unregisterCurrentPushToken } from './registration';
+import {
+  pushNotificationsEnabled,
+  registerForPushNotifications,
+  setPushNotificationsEnabled,
+  unregisterCurrentPushToken,
+} from './registration';
 import { registerDeviceToken, unregisterDeviceToken } from './api';
 
 jest.mock('expo-device', () => ({ isDevice: true }));
@@ -145,4 +150,33 @@ it('deletes the server token and local copy during logout', async () => {
   expect(unregisterToken).toHaveBeenCalledWith('ExpoPushToken[stored]', 'access-token');
   expect(deleteItem).toHaveBeenCalledWith('save.expoPushToken');
   expect(unregisterToken.mock.invocationCallOrder[0]).toBeLessThan(deleteItem.mock.invocationCallOrder[0]);
+});
+
+it('treats a missing preference as enabled and preserves an explicit disabled choice', async () => {
+  getItem.mockResolvedValueOnce(null).mockResolvedValueOnce('false');
+
+  await expect(pushNotificationsEnabled()).resolves.toBe(true);
+  await expect(pushNotificationsEnabled()).resolves.toBe(false);
+});
+
+it('disables the current device token and persists the choice', async () => {
+  getItem.mockImplementation(async key => key === 'save.expoPushToken'
+    ? 'ExpoPushToken[stored]'
+    : 'false');
+
+  const settings = await setPushNotificationsEnabled(false, 'access-token');
+
+  expect(unregisterToken).toHaveBeenCalledWith('ExpoPushToken[stored]', 'access-token');
+  expect(setItem).toHaveBeenCalledWith('save.pushNotificationsEnabled', 'false');
+  expect(settings.preferenceEnabled).toBe(false);
+});
+
+it('enables push only after permission and token registration succeed', async () => {
+  getItem.mockImplementation(async key => key === 'save.pushNotificationsEnabled' ? 'true' : null);
+
+  const settings = await setPushNotificationsEnabled(true, 'access-token');
+
+  expect(registerToken).toHaveBeenCalledWith('ExpoPushToken[first]', 'ANDROID', 'access-token');
+  expect(setItem).toHaveBeenCalledWith('save.pushNotificationsEnabled', 'true');
+  expect(settings).toMatchObject({ preferenceEnabled: true, permissionGranted: true });
 });

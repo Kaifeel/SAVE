@@ -23,6 +23,15 @@ export function useAppChats({
       ? { ...room, unreadCount: 0, unread: false }
       : room))
   }, [])
+  const reloadChats = useCallback(async () => {
+    if (!accessToken) return
+    try {
+      const response = await getChatRooms(accessToken)
+      setChats(current => mergeChatRoomSnapshot(current, response))
+    } catch (error) {
+      toast.error(error.message || '채팅방 목록을 불러오지 못했습니다.')
+    }
+  }, [accessToken, toast])
   const chatData = useChatRooms({
     accessToken,
     currentUserId,
@@ -30,6 +39,7 @@ export function useAppChats({
     onChatListUpdate: handleChatListUpdate,
     onRoomRead: handleRoomRead,
     onNotification,
+    onReconnect: reloadChats,
   })
 
   useEffect(() => {

@@ -114,7 +114,8 @@ it('omits the creation time when it is invalid', () => {
   expect(screen.queryByText(/분 전$/)).not.toBeInTheDocument()
 })
 
-it('renders item images and item-specific precautions without invented metadata', () => {
+it('moves through every item image and shows item-specific precautions', async () => {
+  const user = userEvent.setup()
   render(<ProductDetailPage
     item={{
       ...item,
@@ -128,7 +129,24 @@ it('renders item images and item-specific precautions without invented metadata'
     'src',
     '/uploads/umbrella-front.png',
   )
-  expect(screen.getByText('1 / 2')).toBeInTheDocument()
+  expect(screen.getByRole('img', { name: '우산 사진' })).toHaveClass('object-contain')
+  expect(screen.getByRole('img', { name: '우산 사진' })).not.toHaveClass('object-cover')
+  expect(screen.getByLabelText('사진 1/2')).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: '다음 사진' }))
+  expect(screen.getByRole('img', { name: '우산 사진' })).toHaveAttribute(
+    'src',
+    '/uploads/umbrella-back.png',
+  )
+  expect(screen.getByLabelText('사진 2/2')).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: '이전 사진' }))
+  expect(screen.getByRole('img', { name: '우산 사진' })).toHaveAttribute(
+    'src',
+    '/uploads/umbrella-front.png',
+  )
+  expect(screen.getByLabelText('사진 1/2')).toBeInTheDocument()
+
   expect(screen.getByText('사용 후 물기를 닦아주세요.')).toBeInTheDocument()
   expect(screen.queryByText('#카메라')).not.toBeInTheDocument()
   expect(screen.queryByText('보증금 없음')).not.toBeInTheDocument()
@@ -140,6 +158,7 @@ it('keeps the common safety notice when an item has no specific precautions', ()
 
   expect(screen.getByText(/분실 및 파손 시/)).toBeInTheDocument()
   expect(screen.queryByText(/1 \/ 3/)).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '다음 사진' })).not.toBeInTheDocument()
 })
 
 it('does not treat local upload metadata as a public image URL', () => {

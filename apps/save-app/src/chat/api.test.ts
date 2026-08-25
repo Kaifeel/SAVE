@@ -1,5 +1,6 @@
 import { apiRequest } from '@/api/client';
 import {
+  createOrGetChatRoom,
   listChatRooms,
   loadChatMessages,
   markChatRoomRead,
@@ -21,6 +22,15 @@ describe('chat API', () => {
       expect.objectContaining({ id: 7, unreadCount: 2 }),
     ]);
     expect(apiRequestMock).toHaveBeenCalledWith('/chats/rooms');
+  });
+
+  it('creates or gets a room for an item', async () => {
+    apiRequestMock.mockResolvedValue({ chat_room_id: 44, item: { id: 7 } });
+    await expect(createOrGetChatRoom(7)).resolves.toEqual({ id: 44, itemId: 7 });
+    expect(apiRequestMock).toHaveBeenCalledWith('/chats/rooms', {
+      method: 'POST',
+      body: JSON.stringify({ item_id: 7 }),
+    });
   });
 
   it('loads 50 messages and omits a null cursor', async () => {

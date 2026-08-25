@@ -1,4 +1,5 @@
 import { ChevronRight, User } from 'lucide-react'
+import ItemPhoto from '../components/ItemPhoto'
 
 const STATUS_META = {
   available: ['대여 가능', 'text-emerald-600 bg-emerald-50'],
@@ -52,8 +53,12 @@ export default function MyPage(props) {
                         onClick={() => setSelectedItem(item)}
                         className="w-full bg-white border border-slate-100 rounded-2xl p-3 flex items-center gap-3 text-left hover:border-indigo-100 hover:shadow-md hover:shadow-indigo-50/50 transition-all"
                       >
-                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${item.iconColor}`}>
-                          <MyItemIcon className="w-7 h-7" />
+                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden ${item.iconColor}`}>
+                          <ItemPhoto
+                            item={item}
+                            alt={`${item.title} 사진`}
+                            fallback={<MyItemIcon className="w-7 h-7" />}
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-extrabold text-slate-800 truncate">{item.title}</div>
@@ -84,8 +89,12 @@ export default function MyPage(props) {
                         onClick={() => setSelectedItem(item)}
                         className="w-full bg-white border border-slate-100 rounded-2xl p-3 flex items-center gap-3 text-left hover:border-indigo-100 hover:shadow-md hover:shadow-indigo-50/50 transition-all"
                       >
-                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${item.iconColor}`}>
-                          <FavoriteIcon className="w-7 h-7" />
+                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden ${item.iconColor}`}>
+                          <ItemPhoto
+                            item={item}
+                            alt={`${item.title} 사진`}
+                            fallback={<FavoriteIcon className="w-7 h-7" />}
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-extrabold text-slate-800 truncate">{item.title}</div>

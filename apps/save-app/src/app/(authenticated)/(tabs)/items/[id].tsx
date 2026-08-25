@@ -6,6 +6,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
+  Share,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,9 +15,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ItemVisual } from '@/catalog/components/item-visual';
+import { COMMON_SAFETY_NOTICE } from '@/catalog/constants';
 import { ScreenState } from '@/catalog/components/screen-state';
 import { formatFee, formatRelativeTime } from '@/catalog/format';
 import { useItemDetail } from '@/catalog/use-item-detail';
+import { createOrGetChatRoom } from '@/chat/api';
+import { useChatStore } from '@/chat/store';
+import { createRental } from '@/rentals/api';
+import { RentalRequestDialog, type RentalPeriod } from '@/rentals/components/rental-request-dialog';
+import { useAuthStore } from '@/auth/store';
 import { theme } from '@/theme';
 
 const imageWidth = Dimensions.get('window').width;
@@ -29,6 +36,11 @@ export default function ItemDetailScreen() {
   const itemId = Number.isInteger(parsedId) && parsedId > 0 ? parsedId : null;
   const detail = useItemDetail(itemId);
   const [photoIndex, setPhotoIndex] = useState(0);
+  const currentUserId = useAuthStore(state => state.user?.id ?? null);
+  const [actionPending, setActionPending] = useState<'chat' | 'rental' | 'submit' | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [chatRoomId, setChatRoomId] = useState<number | null>(null);
+  const [rentalVisible, setRentalVisible] = useState(false);
 
   if (detail.loading) {
     return <SafeAreaView style={styles.screen}><ScreenState loading /></SafeAreaView>;
@@ -51,23 +63,78 @@ export default function ItemDetailScreen() {
   }
 
   const item = detail.item;
+  const isOwner = currentUserId === item.ownerId;
+  const canRequestRental = !isOwner && item.type === 'LEND' && item.status === 'AVAILABLE';
   const onPhotoScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     setPhotoIndex(Math.round(event.nativeEvent.contentOffset.x / imageWidth));
   };
+  const prepareRoom = async (): Promise<number | null> => {
+    try {
+      const room = await createOrGetChatRoom(item.id);
+      void useChatStore.getState().loadRooms();
+      return room.id;
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : '채팅방을 준비하지 못했습니다.');
+      return null;
+    }
+  };
+  const openChat = async () => {
+    setActionPending('chat');
+    setActionError(null);
+    const roomId = await prepareRoom();
+    setActionPending(null);
+    if (roomId) router.push({ pathname: '/chats/[id]', params: { id: String(roomId) } });
+  };
+  const openRental = async () => {
+    setActionPending('rental');
+    setActionError(null);
+    const roomId = await prepareRoom();
+    setActionPending(null);
+    if (roomId) { setChatRoomId(roomId); setRentalVisible(true); }
+  };
+  const submitRental = async (period: RentalPeriod) => {
+    if (!chatRoomId) return;
+    setActionPending('submit');
+    setActionError(null);
+    try {
+      const rental = await createRental({ itemId: item.id, chatRoomId, ...period });
+      setRentalVisible(false);
+      router.push({ pathname: '/rentals/[id]', params: { id: String(rental.id) } });
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : '대여 요청을 보내지 못했습니다.');
+    } finally {
+      setActionPending(null);
+    }
+  };
+  const shareItem = async () => {
+    try {
+      await Share.share({
+        message: `${item.title} · ${formatFee(item)}\nSAVE에서 확인해 보세요: saveapp://items/${item.id}`,
+        title: item.title,
+      });
+    } catch {
+      setActionError('게시글을 공유하지 못했습니다.');
+    }
+  };
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.screen} edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.header}>
         <BackButton onPress={router.back} />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={item.wishlisted ? '찜 해제' : '찜하기'}
-          disabled={detail.wishlistPending}
-          onPress={detail.toggleWishlist}
-          style={styles.roundButton}
-        >
-          <Text style={[styles.roundIcon, item.wishlisted && styles.wishlisted]}>{item.wishlisted ? '♥' : '♡'}</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable accessibilityRole="button" accessibilityLabel="게시글 공유" onPress={() => void shareItem()} style={styles.roundButton}>
+            <Text style={styles.shareIcon}>↗</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={item.wishlisted ? '찜 해제' : '찜하기'}
+            disabled={detail.wishlistPending}
+            onPress={detail.toggleWishlist}
+            style={styles.roundButton}
+          >
+            <Text style={[styles.roundIcon, item.wishlisted && styles.wishlisted]}>{item.wishlisted ? '♥' : '♡'}</Text>
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -92,7 +159,27 @@ export default function ItemDetailScreen() {
             <View style={styles.placeholderWrap}><ItemVisual /></View>
           )}
           {item.imageUrls.length ? (
-            <Text style={styles.photoCounter}>{photoIndex + 1} / {item.imageUrls.length}</Text>
+            <View
+              accessibilityLabel={`사진 ${photoIndex + 1}/${item.imageUrls.length}`}
+              accessibilityLiveRegion="polite"
+              style={styles.photoPagination}
+            >
+              {item.imageUrls.length > 1 ? (
+                <View accessibilityElementsHidden style={styles.photoDots}>
+                  {item.imageUrls.map((uri, index) => (
+                    <View
+                      key={`${uri}-${index}`}
+                      style={[styles.photoDot, index === photoIndex && styles.photoDotActive]}
+                    />
+                  ))}
+                </View>
+              ) : null}
+              <Text style={styles.photoCounter}>
+                <Text style={styles.photoCounterActive}>{photoIndex + 1}</Text>
+                <Text style={styles.photoCounterDivider}> / </Text>
+                {item.imageUrls.length}
+              </Text>
+            </View>
           ) : null}
         </View>
 
@@ -117,11 +204,9 @@ export default function ItemDetailScreen() {
           <Text style={styles.body}>{item.description || '등록된 설명이 없습니다.'}</Text>
         </Section>
 
-        {item.precautions ? (
-          <Section title="주의사항">
-            <View style={styles.precaution}><Text style={styles.precautionText}>{item.precautions}</Text></View>
-          </Section>
-        ) : null}
+        <Section title="주의사항">
+          <View style={styles.precaution}><Text style={styles.precautionText}>{item.precautions || COMMON_SAFETY_NOTICE}</Text></View>
+        </Section>
 
         <Section title="대여자 정보">
           <Pressable
@@ -143,12 +228,30 @@ export default function ItemDetailScreen() {
         </Section>
 
         {detail.wishlistError ? <Text accessibilityRole="alert" style={styles.error}>{detail.wishlistError}</Text> : null}
+        {actionError && !rentalVisible ? <Text accessibilityRole="alert" style={styles.error}>{actionError}</Text> : null}
         <View style={styles.bottomSpace} />
       </ScrollView>
 
-      <View style={styles.bottomNotice}>
-        <Text style={styles.bottomNoticeText}>채팅과 대여 요청은 다음 단계에서 연결됩니다.</Text>
+      <View style={styles.bottomArea}>
+        {isOwner ? <Text style={styles.ownerNotice}>내가 등록한 물품입니다.</Text> : (
+          <View style={styles.actionRow}>
+            <Pressable accessibilityRole="button" disabled={actionPending !== null} onPress={() => void openChat()} style={styles.chatButton}>
+              <Text style={styles.chatButtonText}>{actionPending === 'chat' ? '준비 중...' : '채팅하기'}</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" disabled={!canRequestRental || actionPending !== null} onPress={() => void openRental()} style={[styles.rentalButton, !canRequestRental && styles.disabledButton]}>
+              <Text style={styles.rentalButtonText}>{actionPending === 'rental' ? '준비 중...' : '대여 요청'}</Text>
+            </Pressable>
+          </View>
+        )}
       </View>
+      <RentalRequestDialog
+        item={item}
+        onClose={() => { if (actionPending !== 'submit') { setRentalVisible(false); setActionError(null); } }}
+        onSubmit={period => void submitRental(period)}
+        pending={actionPending === 'submit'}
+        serverError={actionError}
+        visible={rentalVisible}
+      />
     </SafeAreaView>
   );
 }
@@ -180,12 +283,39 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', left: 12, position: 'absolute', right: 12, top: 12, zIndex: 2 },
   roundButton: { alignItems: 'center', backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderRadius: 20, borderWidth: 1, height: 40, justifyContent: 'center', width: 40 },
   roundIcon: { color: theme.colors.text, fontSize: 20, fontWeight: '800' },
+  headerActions: { flexDirection: 'row', gap: 8 },
+  shareIcon: { color: theme.colors.text, fontSize: 21, fontWeight: '800' },
   wishlisted: { color: theme.colors.danger },
-  content: { paddingBottom: 78 },
+  content: { paddingBottom: 72 },
   visualArea: { backgroundColor: '#f1f5f9', minHeight: 220, position: 'relative' },
-  detailImage: { backgroundColor: theme.colors.border, height: 260, resizeMode: 'cover', width: imageWidth },
+  detailImage: { backgroundColor: '#f8fafc', height: 260, resizeMode: 'contain', width: imageWidth },
   placeholderWrap: { alignSelf: 'center', height: 220, justifyContent: 'center', width: 220 },
-  photoCounter: { backgroundColor: '#334155', borderRadius: 12, bottom: 12, color: theme.colors.surface, fontSize: 10, fontWeight: '800', paddingHorizontal: 9, paddingVertical: 4, position: 'absolute', right: 12 },
+  photoPagination: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 18,
+    borderWidth: 1,
+    bottom: 12,
+    elevation: 3,
+    flexDirection: 'row',
+    gap: 8,
+    left: '50%',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    position: 'absolute',
+    shadowColor: '#0f172a',
+    shadowOffset: { height: 2, width: 0 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    transform: [{ translateX: '-50%' }],
+  },
+  photoDots: { alignItems: 'center', flexDirection: 'row', gap: 4 },
+  photoDot: { backgroundColor: '#cbd5e1', borderRadius: 3, height: 6, width: 6 },
+  photoDotActive: { backgroundColor: theme.colors.primary, width: 16 },
+  photoCounter: { color: theme.colors.textSoft, fontSize: 10, fontWeight: '800' },
+  photoCounterActive: { color: theme.colors.primary },
+  photoCounterDivider: { color: '#cbd5e1' },
   mainInfo: { paddingHorizontal: 18, paddingVertical: 18 },
   titleRow: { alignItems: 'flex-start', flexDirection: 'row', gap: 12, justifyContent: 'space-between' },
   titleBody: { flex: 1, gap: 5 },
@@ -208,6 +338,12 @@ const styles = StyleSheet.create({
   rating: { color: theme.colors.textSoft, fontSize: 11 },
   error: { color: theme.colors.danger, fontSize: 12, fontWeight: '700', paddingHorizontal: 18, textAlign: 'center' },
   bottomSpace: { height: 10 },
-  bottomNotice: { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border, borderTopWidth: 1, bottom: 0, left: 0, paddingHorizontal: 18, paddingVertical: 15, position: 'absolute', right: 0 },
-  bottomNoticeText: { color: theme.colors.textSoft, fontSize: 12, fontWeight: '700', textAlign: 'center' },
+  bottomArea: { bottom: 0, left: 0, position: 'absolute', right: 0 },
+  actionRow: { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border, borderTopWidth: 1, flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingVertical: 9 },
+  chatButton: { alignItems: 'center', borderColor: theme.colors.primary, borderRadius: 11, borderWidth: 1, flex: 1, justifyContent: 'center', minHeight: 44 },
+  chatButtonText: { color: theme.colors.primary, fontSize: 13, fontWeight: '900' },
+  rentalButton: { alignItems: 'center', backgroundColor: theme.colors.primary, borderRadius: 11, flex: 1, justifyContent: 'center', minHeight: 44 },
+  rentalButtonText: { color: theme.colors.surface, fontSize: 13, fontWeight: '900' },
+  disabledButton: { opacity: 0.45 },
+  ownerNotice: { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border, borderTopWidth: 1, color: theme.colors.textSoft, fontSize: 12, fontWeight: '700', paddingVertical: 13, textAlign: 'center' },
 });

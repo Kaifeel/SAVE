@@ -1,3 +1,5 @@
+import Constants from 'expo-constants';
+
 export interface PublicEnvironment {
   EXPO_PUBLIC_API_BASE_URL?: string;
   EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?: string;
@@ -21,9 +23,30 @@ const requiredProductionFields = [
   'EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID',
 ] as const;
 
-export function readRuntime(env: PublicEnvironment, dev: boolean): RuntimeConfig {
+function developmentApiBaseUrl(hostUri?: string): string {
+  if (!hostUri?.trim()) return '';
+  try {
+    const url = new URL(hostUri.includes('://') ? hostUri : `http://${hostUri}`);
+    const host = url.hostname.toLowerCase();
+    const privateIpv4 = /^10\./.test(host)
+      || /^192\.168\./.test(host)
+      || /^172\.(1[6-9]|2\d|3[01])\./.test(host);
+    const local = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+    return privateIpv4 || local ? `http://${host}:8080/api/v1` : '';
+  } catch {
+    return '';
+  }
+}
+
+export function readRuntime(
+  env: PublicEnvironment,
+  dev: boolean,
+  developmentHostUri?: string,
+): RuntimeConfig {
+  const configuredApiBaseUrl = (env.EXPO_PUBLIC_API_BASE_URL?.trim() ?? '').replace(/\/$/, '');
   const values = {
-    EXPO_PUBLIC_API_BASE_URL: (env.EXPO_PUBLIC_API_BASE_URL?.trim() ?? '').replace(/\/$/, ''),
+    EXPO_PUBLIC_API_BASE_URL: configuredApiBaseUrl
+      || (dev ? developmentApiBaseUrl(developmentHostUri) : ''),
     EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() ?? '',
     EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() ?? '',
     EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID: env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() ?? '',
@@ -62,4 +85,5 @@ export const runtime = readRuntime(
     EXPO_PUBLIC_API_MODE: process.env.EXPO_PUBLIC_API_MODE,
   },
   __DEV__,
+  Constants.expoConfig?.hostUri,
 );

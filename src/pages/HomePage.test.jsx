@@ -46,6 +46,16 @@ it('shows the actual age of each recent item', () => {
   expect(screen.getByText('5분 전')).toBeInTheDocument()
 })
 
+it('shows an uploaded photo in a home item card', () => {
+  render(<HomePage {...props} recentItems={[{
+    ...recentItem,
+    photos: ['https://cdn.example/umbrella.png'],
+  }]} />)
+
+  expect(screen.getByRole('img', { name: '우산 사진' }))
+    .toHaveAttribute('src', 'https://cdn.example/umbrella.png')
+})
+
 it('updates the visible age after one minute', () => {
   render(<HomePage {...props} recentItems={[recentItem]} />)
 

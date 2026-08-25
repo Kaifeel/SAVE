@@ -36,6 +36,10 @@ function multipartItemBody(input: CreateItemInput): FormData {
   body.append('description', input.description);
   body.append('precautions', input.precautions);
   input.photos.forEach(photo => {
+    if (photo.file) {
+      body.append('photos', photo.file, photo.fileName);
+      return;
+    }
     body.append('photos', {
       uri: photo.uri,
       name: photo.fileName,

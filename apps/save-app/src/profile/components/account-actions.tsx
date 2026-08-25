@@ -6,6 +6,7 @@ type Props = {
   loggingOut: boolean;
   logoutError: string | null;
   onOpenRentals: () => void;
+  onOpenNotificationSettings: () => void;
   onLogout: () => void;
 };
 
@@ -13,6 +14,7 @@ export function AccountActions({
   loggingOut,
   logoutError,
   onOpenRentals,
+  onOpenNotificationSettings,
   onLogout,
 }: Props) {
   return (
@@ -29,9 +31,19 @@ export function AccountActions({
       </Pressable>
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel="알림 설정"
+        disabled={loggingOut}
+        onPress={onOpenNotificationSettings}
+        style={({ pressed }) => [styles.row, styles.dividedRow, pressed && styles.pressed]}
+      >
+        <Text style={styles.rowLabel}>알림 설정</Text>
+        <Text style={styles.chevron}>›</Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
         disabled={loggingOut}
         onPress={onLogout}
-        style={({ pressed }) => [styles.row, styles.logoutRow, pressed && styles.pressed, loggingOut && styles.disabled]}
+        style={({ pressed }) => [styles.row, styles.dividedRow, pressed && styles.pressed, loggingOut && styles.disabled]}
       >
         <Text style={styles.logoutLabel}>{loggingOut ? '로그아웃 중...' : '로그아웃'}</Text>
       </Pressable>
@@ -43,7 +55,7 @@ export function AccountActions({
 const styles = StyleSheet.create({
   container: { backgroundColor: theme.colors.surface, borderColor: '#f1f5f9', borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
   row: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', minHeight: 52, paddingHorizontal: 16 },
-  logoutRow: { borderTopColor: theme.colors.border, borderTopWidth: 1 },
+  dividedRow: { borderTopColor: theme.colors.border, borderTopWidth: 1 },
   rowLabel: { color: theme.colors.text, fontSize: 14, fontWeight: '800' },
   chevron: { color: theme.colors.muted, fontSize: 25 },
   logoutLabel: { color: theme.colors.danger, fontSize: 14, fontWeight: '800' },

@@ -9,6 +9,11 @@ export type ChatRoom = {
   unreadCount: number;
 };
 
+export type ChatRoomCreation = {
+  id: number;
+  itemId: number;
+};
+
 export type ChatMessage = {
   id: number;
   roomId: number;

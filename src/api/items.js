@@ -2,15 +2,23 @@ import { apiFetch } from './client'
 
 function buildItemFormData(data) {
   const formData = new FormData()
-  const { photos = [], ...fields } = data
+  const fields = {
+    type: data.type,
+    title: data.title,
+    rentalFee: data.rental_fee,
+    rentalUnit: data.rental_unit,
+    pickupLocationId: data.pickup_location_id,
+    description: data.description,
+    precautions: data.precautions,
+  }
 
   Object.entries(fields).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
-      formData.append(key, value)
+      formData.append(key, String(value))
     }
   })
 
-  photos.forEach(photo => {
+  data.photos.forEach(photo => {
     if (photo instanceof File) {
       formData.append('photos', photo)
     }

@@ -18,7 +18,8 @@ apps/save-app/.expo/
 apps/save-app/node_modules/
 apps/save-app/.env.local
 apps/save-app/dist/
-!apps/save-app/.env.example
+
+backend/uploads/
 
 # Editor directories and files
 .vscode/*

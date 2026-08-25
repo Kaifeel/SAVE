@@ -18,11 +18,13 @@ import { PickupLocationSelector } from './pickup-location-selector';
 type Props = {
   composer: UseItemComposerResult;
   permissionNotice: string | null;
-  onAddPhotos: () => void;
+  onChoosePhotos: () => void;
+  onTakePhoto: () => void;
+  onOpenPhotoSettings: () => void;
   onSubmit: () => void;
 };
 
-export function ItemComposeForm({ composer, permissionNotice, onAddPhotos, onSubmit }: Props) {
+export function ItemComposeForm({ composer, permissionNotice, onChoosePhotos, onTakePhoto, onOpenPhotoSettings, onSubmit }: Props) {
   const blocked = composer.locationsLoading || Boolean(composer.locationError) || composer.locations.length === 0;
   const notice = permissionNotice ?? composer.photoNotice;
 
@@ -61,7 +63,9 @@ export function ItemComposeForm({ composer, permissionNotice, onAddPhotos, onSub
             photos={composer.draft.photos}
             notice={notice}
             disabled={composer.submitting}
-            onAdd={onAddPhotos}
+            onChoosePhotos={onChoosePhotos}
+            onTakePhoto={onTakePhoto}
+            onOpenSettings={onOpenPhotoSettings}
             onRemove={composer.removePhoto}
           />
 

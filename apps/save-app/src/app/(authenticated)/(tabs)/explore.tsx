@@ -1,5 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthStore } from '@/auth/store';
 import { ItemCard } from '@/catalog/components/item-card';
@@ -13,10 +14,20 @@ export default function ExploreScreen() {
   const initialQuery = Array.isArray(params.query) ? params.query[0] ?? '' : params.query ?? '';
   const universityId = useAuthStore(state => state.user?.universityId);
   const catalog = useExploreCatalog(initialQuery, universityId);
+  const goBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  };
 
   return (
-    <View style={styles.screen}>
-      <Text style={styles.heading}>물품 탐색</Text>
+    <SafeAreaView edges={['top']} style={styles.screen}>
+      <View style={styles.headingRow}>
+        <Pressable accessibilityRole="button" accessibilityLabel="뒤로가기" onPress={goBack} style={styles.back}>
+          <Text style={styles.backText}>‹</Text>
+        </Pressable>
+        <Text style={styles.heading}>물품 탐색</Text>
+        <View style={styles.back} />
+      </View>
       <View style={styles.tabs}>
         <BoardButton active={catalog.type === 'LEND'} label="물품 빌려주기" onPress={() => catalog.setType('LEND')} />
         <BoardButton active={catalog.type === 'BORROW'} label="물품 빌리기" onPress={() => catalog.setType('BORROW')} />
@@ -66,7 +77,7 @@ export default function ExploreScreen() {
           )}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -80,7 +91,10 @@ function BoardButton({ active, label, onPress }: { active: boolean; label: strin
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: theme.colors.canvas, flex: 1, paddingHorizontal: 20, paddingTop: 18 },
-  heading: { color: theme.colors.text, fontSize: 20, fontWeight: '900', marginBottom: 14 },
+  headingRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 14 },
+  heading: { color: theme.colors.text, fontSize: 20, fontWeight: '900' },
+  back: { alignItems: 'center', height: 38, justifyContent: 'center', width: 38 },
+  backText: { color: theme.colors.text, fontSize: 32, lineHeight: 34 },
   tabs: { backgroundColor: '#f1f5f9', borderRadius: 16, flexDirection: 'row', gap: 4, marginBottom: 12, padding: 4 },
   tab: { alignItems: 'center', borderRadius: 12, flex: 1, paddingVertical: 10 },
   tabActive: { backgroundColor: theme.colors.surface },

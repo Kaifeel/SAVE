@@ -1,5 +1,6 @@
 import { Camera } from 'lucide-react'
 import { findLinkedItem, formatChatTime } from '../../chat/presentation.js'
+import ItemPhoto from '../ItemPhoto.jsx'
 
 export default function ChatRoomList({ chats, items, selectChatRoom }) {
   return (
@@ -18,8 +19,12 @@ export default function ChatRoomList({ chats, items, selectChatRoom }) {
               onClick={() => selectChatRoom(chat)}
               className="w-full text-left bg-white border border-slate-100 rounded-2xl px-3.5 py-3 flex items-center gap-3 cursor-pointer hover:border-indigo-100 hover:shadow-md hover:shadow-indigo-50/50 transition-all"
             >
-              <div className={`w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm ${linkedItem?.iconColor || 'text-indigo-500 bg-indigo-50'}`}>
-                <ChatItemIcon className="w-7 h-7" />
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm ${linkedItem?.iconColor || 'text-indigo-500 bg-indigo-50'}`}>
+                <ItemPhoto
+                  item={linkedItem}
+                  alt={linkedItem ? `${linkedItem.title} 사진` : ''}
+                  fallback={<ChatItemIcon className="w-7 h-7" />}
+                />
               </div>
               <div className="flex-1 min-w-0 leading-tight">
                 <div className="text-[13px] font-extrabold text-slate-900 truncate">{chat.sender}</div>

@@ -10,7 +10,34 @@ import type {
   ChatMessagePage,
   ChatReadResult,
   ChatRoom,
+  ChatRoomCreation,
 } from './types';
+
+function parseChatRoomCreation(value: unknown): ChatRoomCreation {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new Error('Invalid chat room creation response');
+  }
+  const response = value as Record<string, unknown>;
+  const item = response.item;
+  const id = response.chat_room_id;
+  const itemId = typeof item === 'object' && item !== null && !Array.isArray(item)
+    ? (item as Record<string, unknown>).id
+    : null;
+  if (!Number.isInteger(id) || (id as number) <= 0
+      || !Number.isInteger(itemId) || (itemId as number) <= 0) {
+    throw new Error('Invalid chat room creation response');
+  }
+  return { id: id as number, itemId: itemId as number };
+}
+
+export async function createOrGetChatRoom(itemId: number): Promise<ChatRoomCreation> {
+  if (!Number.isInteger(itemId) || itemId <= 0) throw new Error('Invalid item id');
+  const response = await apiRequest<unknown>('/chats/rooms', {
+    method: 'POST',
+    body: JSON.stringify({ item_id: itemId }),
+  });
+  return parseChatRoomCreation(response);
+}
 
 export async function listChatRooms(): Promise<ChatRoom[]> {
   return parseChatRoomList(await apiRequest<unknown>('/chats/rooms'));

@@ -83,6 +83,19 @@ function deduplicate(messages: TimelineMessage[]): TimelineMessage[] {
   });
 }
 
+function mergeMessageSnapshot(
+  snapshot: TimelineMessage[],
+  current: TimelineMessage[],
+): TimelineMessage[] {
+  return deduplicate([...snapshot, ...current]).sort((left, right) => {
+    const leftTime = Date.parse(left.createdAt);
+    const rightTime = Date.parse(right.createdAt);
+    const safeLeftTime = Number.isNaN(leftTime) ? Number.POSITIVE_INFINITY : leftTime;
+    const safeRightTime = Number.isNaN(rightTime) ? Number.POSITIVE_INFINITY : rightTime;
+    return safeLeftTime - safeRightTime;
+  });
+}
+
 function replaceOptimistic(
   messages: TimelineMessage[],
   clientId: string,
@@ -169,6 +182,35 @@ export const useChatStore = create<ChatState>((set, get) => {
     }
   };
 
+  const resynchronizeActiveRoom = async () => {
+    const roomId = get().activeRoomId;
+    if (roomId === null) return;
+    const requestId = roomRequestId + 1;
+    roomRequestId = requestId;
+
+    try {
+      const page = await loadChatMessages(roomId, null);
+      if (roomRequestId !== requestId || get().activeRoomId !== roomId) return;
+      set(state => ({
+        messages: mergeMessageSnapshot(
+          page.messages.map(timelineMessage),
+          state.messages,
+        ),
+        nextBefore: page.nextBefore,
+        hasOlder: page.hasMore,
+        messagesError: null,
+        rooms: state.rooms.map(room => room.id === roomId
+          ? { ...room, unreadCount: 0 }
+          : room),
+      }));
+      void markChatRoomRead(roomId).catch(() => undefined);
+    } catch {
+      if (roomRequestId === requestId && get().activeRoomId === roomId) {
+        set({ messagesError: '메시지를 다시 불러오지 못했습니다.' });
+      }
+    }
+  };
+
   return {
     ...initialChatState,
     loadRooms,
@@ -189,7 +231,10 @@ export const useChatStore = create<ChatState>((set, get) => {
         const page = await loadChatMessages(roomId, null);
         if (roomRequestId !== requestId || get().activeRoomId !== roomId) return;
         set(state => ({
-          messages: page.messages.map(timelineMessage),
+          messages: mergeMessageSnapshot(
+            page.messages.map(timelineMessage),
+            state.messages,
+          ),
           nextBefore: page.nextBefore,
           hasOlder: page.hasMore,
           loadingMessages: false,
@@ -284,11 +329,20 @@ export const useChatStore = create<ChatState>((set, get) => {
       unsubscribeRoom = null;
       unsubscribeChatList = null;
       unsubscribeNotifications = null;
+      let connectedOnce = false;
       socket = createChatSocket({
         accessToken,
         onStateChange: state => {
           set({ socketState: state });
-          if (state === 'connected') void get().loadRooms();
+          if (state !== 'connected') return;
+
+          void get().loadRooms();
+          if (!connectedOnce) {
+            connectedOnce = true;
+            return;
+          }
+
+          void resynchronizeActiveRoom();
         },
         onProtocolError: () => set({ socketState: 'error' }),
       });

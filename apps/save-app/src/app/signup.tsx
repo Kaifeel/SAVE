@@ -187,7 +187,7 @@ export default function SignupScreen() {
 
           <View style={styles.form}>
             <Field
-              icon={{ ios: 'person', android: 'person_outline', web: 'person_outline' }}
+              icon={{ fallback: '○', name: 'person' }}
               label="이름"
               value={name}
               onChangeText={setName}
@@ -226,7 +226,7 @@ export default function SignupScreen() {
             </View>
             <Field label="학과" value={department} onChangeText={setDepartment} maxLength={100} />
             <Field
-              icon={{ ios: 'envelope', android: 'mail_outline', web: 'mail_outline' }}
+              icon={{ fallback: '@', name: 'envelope' }}
               label="이메일"
               value={email}
               onChangeText={setEmail}
@@ -236,7 +236,7 @@ export default function SignupScreen() {
               inputMode="email"
             />
             <Field
-              icon={{ ios: 'lock', android: 'lock_outline', web: 'lock_outline' }}
+              icon={{ fallback: '●', name: 'lock' }}
               label="비밀번호"
               value={password}
               onChangeText={setPassword}
@@ -305,7 +305,10 @@ export default function SignupScreen() {
 }
 
 type FieldProps = {
-  icon?: SymbolViewProps['name'];
+  icon?: {
+    fallback: string;
+    name: SymbolViewProps['name'];
+  };
   label: string;
   value: string;
   onChangeText: (value: string) => void;
@@ -324,8 +327,9 @@ function Field({ icon, label, ...inputProps }: FieldProps) {
         {icon ? (
           <SymbolView
             accessibilityElementsHidden
+            fallback={<Text style={[styles.inputIcon, styles.fallbackIcon]}>{icon.fallback}</Text>}
             importantForAccessibility="no-hide-descendants"
-            name={icon}
+            name={icon.name}
             size={20}
             style={styles.inputIcon}
             tintColor="#94a3b8"
@@ -366,6 +370,7 @@ const styles = StyleSheet.create({
   input: { borderColor: '#cbd5e1', borderRadius: 7, borderWidth: 1, color: theme.colors.text, fontSize: 14, height: 48, paddingHorizontal: 14, width: '100%' },
   inputWithIcon: { paddingLeft: 44 },
   inputIcon: { left: 14, position: 'absolute', top: 14, zIndex: 1 },
+  fallbackIcon: { color: '#94a3b8', fontSize: 15, fontWeight: '800' },
   catalogStatus: { color: '#64748b', fontSize: 14, height: 48, paddingVertical: 14 },
   catalogError: { gap: 10 },
   retryButton: { alignItems: 'center', borderColor: theme.colors.primary, borderRadius: 7, borderWidth: 1, minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 },

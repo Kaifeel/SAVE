@@ -82,3 +82,35 @@ it('opens a search result through a keyboard-accessible control', async () => {
 
   expect(setSelectedItem).toHaveBeenCalledWith(item)
 })
+
+it('shows an uploaded photo in a search result', () => {
+  const item = {
+    id: 8,
+    title: '카메라',
+    price: 2000,
+    priceType: '일',
+    location: '누리관 앞',
+    university: '부경대학교',
+    status: 'available',
+    badge: '신규',
+    imageIcon: Camera,
+    iconColor: 'bg-slate-100',
+    photos: ['https://cdn.example/camera.png'],
+  }
+
+  render(<SearchPage
+    activeBoard="lend"
+    setActiveBoard={vi.fn()}
+    searchQuery=""
+    setSearchQuery={vi.fn()}
+    availableOnly={false}
+    setAvailableOnly={vi.fn()}
+    filteredItems={[item]}
+    setSelectedItem={vi.fn()}
+    loading={false}
+    error={null}
+  />)
+
+  expect(screen.getByRole('img', { name: '카메라 사진' }))
+    .toHaveAttribute('src', 'https://cdn.example/camera.png')
+})

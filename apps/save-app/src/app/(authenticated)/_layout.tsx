@@ -19,11 +19,11 @@ export default function AuthenticatedLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="items/[id]" />
       <Stack.Screen name="users/[id]" />
       <Stack.Screen name="chats/[id]" />
       <Stack.Screen name="rentals/index" />
       <Stack.Screen name="rentals/[id]" />
+      <Stack.Screen name="notification-settings" />
     </Stack>
   );
 }

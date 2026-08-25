@@ -14,8 +14,12 @@ jest.mock('expo-router', () => ({
 }));
 
 jest.mock('expo-image-picker', () => ({
+  getPendingResultAsync: jest.fn(),
+  requestCameraPermissionsAsync: jest.fn(),
   requestMediaLibraryPermissionsAsync: jest.fn(),
+  launchCameraAsync: jest.fn(),
   launchImageLibraryAsync: jest.fn(),
+  UIImagePickerPreferredAssetRepresentationMode: { Compatible: 'compatible' },
 }));
 
 jest.mock('@/auth/store', () => ({ useAuthStore: jest.fn() }));
@@ -26,6 +30,8 @@ const useAuthStoreMock = jest.mocked(useAuthStore);
 const createItemMock = jest.mocked(createItem);
 const getPickupLocationsMock = jest.mocked(getPickupLocations);
 const requestPermissionMock = jest.mocked(ImagePicker.requestMediaLibraryPermissionsAsync);
+const requestCameraPermissionMock = jest.mocked(ImagePicker.requestCameraPermissionsAsync);
+const launchCameraMock = jest.mocked(ImagePicker.launchCameraAsync);
 const launchPickerMock = jest.mocked(ImagePicker.launchImageLibraryAsync);
 const locations = [
   { id: 4, name: '도서관 앞' },
@@ -40,6 +46,8 @@ beforeEach(() => {
   getPickupLocationsMock.mockResolvedValue(locations);
   createItemMock.mockResolvedValue(catalogItem);
   requestPermissionMock.mockResolvedValue({ granted: true } as never);
+  requestCameraPermissionMock.mockResolvedValue({ granted: true } as never);
+  launchCameraMock.mockResolvedValue({ canceled: true, assets: null });
   launchPickerMock.mockResolvedValue({ canceled: true, assets: null });
 });
 
@@ -88,7 +96,7 @@ it('keeps composing when gallery permission is denied', async () => {
   requestPermissionMock.mockResolvedValue({ granted: false } as never);
   await render(<CreateScreen />);
 
-  await fireEvent.press(screen.getByRole('button', { name: '사진 추가' }));
+  await fireEvent.press(screen.getByRole('button', { name: '갤러리 선택' }));
 
   expect(await screen.findByText('사진 없이도 물품을 등록할 수 있습니다.')).toBeTruthy();
   expect(screen.getByLabelText('물품 이름')).toBeTruthy();
@@ -109,11 +117,22 @@ it('adds and removes a selected gallery photo without fixed photo data', async (
   } as never);
   await render(<CreateScreen />);
 
-  await fireEvent.press(screen.getByRole('button', { name: '사진 추가' }));
+  await fireEvent.press(screen.getByRole('button', { name: '갤러리 선택' }));
 
   expect(await screen.findByLabelText('선택한 사진 selected.png')).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: 'selected.png 삭제' }));
   expect(screen.queryByLabelText('선택한 사진 selected.png')).toBeNull();
+});
+
+it('takes a photo with the native camera and adds its preview', async () => {
+  launchCameraMock.mockResolvedValue({
+    canceled: false,
+    assets: [{ uri: 'file:///camera.jpg', fileName: 'camera.jpg', mimeType: 'image/jpeg', width: 100, height: 100, type: 'image' }],
+  } as never);
+  await render(<CreateScreen />);
+  await fireEvent.press(screen.getByRole('button', { name: '카메라 촬영' }));
+  expect(requestCameraPermissionMock).toHaveBeenCalledTimes(1);
+  expect(await screen.findByLabelText('선택한 사진 camera.jpg')).toBeTruthy();
 });
 
 it('shows a pickup loading error and retries without fallback locations', async () => {

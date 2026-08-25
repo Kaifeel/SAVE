@@ -1,5 +1,6 @@
 import { Camera, PenTool } from 'lucide-react'
 import { unwrapList, unwrapObject } from './shared.js'
+import { resolveAssetUrl } from '../../utils/assetUrl.js'
 
 export function normalizeItem(apiItem) {
   const item = unwrapObject(apiItem)
@@ -31,8 +32,11 @@ export function normalizeItem(apiItem) {
     imageIcon: ItemIcon,
     iconColor: isWantPost ? 'text-blue-500 bg-blue-50' : 'text-rose-500 bg-rose-50',
     status,
-    photos: item.image_urls || item.photos || item.images || item.imageUrls || [],
-    mainImageUrl: item.main_image_url || item.mainImageUrl || null,
+    photos: (item.image_urls || item.photos || item.images || item.imageUrls || [])
+      .filter(photo => typeof photo === 'string')
+      .map(photo => resolveAssetUrl(photo))
+      .filter(Boolean),
+    mainImageUrl: resolveAssetUrl(item.main_image_url || item.mainImageUrl) || null,
     viewCount: Number(item.view_count ?? item.viewCount ?? 0),
     wishlistCount: Number(item.wishlist_count ?? item.wishlistCount ?? 0),
     wishlisted: Boolean(item.wishlisted),

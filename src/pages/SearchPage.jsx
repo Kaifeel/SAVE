@@ -1,5 +1,6 @@
 import { MapPin, Search } from 'lucide-react'
 import AsyncState from '../components/AsyncState'
+import ItemPhoto from '../components/ItemPhoto'
 
 export default function SearchPage(props) {
   const {
@@ -100,8 +101,12 @@ export default function SearchPage(props) {
                       onClick={() => setSelectedItem(item)}
                       className="w-full text-left bg-white border border-slate-100 rounded-2xl p-4 flex items-center space-x-4 cursor-pointer hover:shadow-md transition-shadow"
                     >
-                      <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${item.iconColor}`}>
-                        <ItemIcon className="w-7 h-7" />
+                      <div className={`relative w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden ${item.iconColor}`}>
+                        <ItemPhoto
+                          item={item}
+                          alt={`${item.title} 사진`}
+                          fallback={<ItemIcon className="w-7 h-7" />}
+                        />
                         {item.status === 'rented' && (
                           <span className="absolute -top-1.5 -right-1.5 bg-slate-700 text-white text-[8px] font-extrabold px-1.5 py-0.5 rounded-md shadow-sm">
                             대여중

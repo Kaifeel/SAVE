@@ -3,7 +3,11 @@ import * as Notifications from 'expo-notifications';
 
 import { NotificationCoordinator, notificationRoute } from './coordinator';
 import { runLogoutCleanup } from '@/auth/logout-cleanup';
-import { registerForPushNotifications, unregisterCurrentPushToken } from './registration';
+import {
+  pushNotificationsEnabled,
+  registerForPushNotifications,
+  unregisterCurrentPushToken,
+} from './registration';
 
 const mockPush = jest.fn();
 let mockResponseListener: ((response: Notifications.NotificationResponse) => void) | undefined;
@@ -21,10 +25,12 @@ jest.mock('expo-notifications', () => ({
   }),
 }));
 jest.mock('./registration', () => ({
+  pushNotificationsEnabled: jest.fn(),
   registerForPushNotifications: jest.fn(),
   unregisterCurrentPushToken: jest.fn(),
 }));
 
+const preferenceEnabled = jest.mocked(pushNotificationsEnabled);
 const register = jest.mocked(registerForPushNotifications);
 const unregister = jest.mocked(unregisterCurrentPushToken);
 const mockRegistrationRemove = jest.fn();
@@ -32,6 +38,7 @@ const mockRegistrationRemove = jest.fn();
 beforeEach(() => {
   jest.clearAllMocks();
   mockResponseListener = undefined;
+  preferenceEnabled.mockResolvedValue(true);
   register.mockResolvedValue({ token: 'ExpoPushToken[demo]', remove: mockRegistrationRemove });
 });
 
@@ -97,6 +104,17 @@ it('keeps notification routing mounted when token registration fails', async () 
   const view = await render(<NotificationCoordinator accessToken="access-token" />);
   await new Promise<void>(resolve => setImmediate(resolve));
 
+  expect(Notifications.addNotificationResponseReceivedListener).toHaveBeenCalledTimes(1);
+  await view.unmount();
+});
+
+it('does not register a token when push notifications are disabled', async () => {
+  preferenceEnabled.mockResolvedValue(false);
+
+  const view = await render(<NotificationCoordinator accessToken="access-token" />);
+  await new Promise<void>(resolve => setImmediate(resolve));
+
+  expect(register).not.toHaveBeenCalled();
   expect(Notifications.addNotificationResponseReceivedListener).toHaveBeenCalledTimes(1);
   await view.unmount();
 });

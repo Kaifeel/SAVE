@@ -1,4 +1,5 @@
 import { ChevronRight, Info, MapPin, Search, X } from 'lucide-react'
+import ItemPhoto from '../components/ItemPhoto'
 import { useNow } from '../hooks/useNow'
 import { formatRelativeTime } from '../utils/relativeTime'
 
@@ -71,8 +72,12 @@ export default function HomePage(props) {
                         onClick={() => setSelectedItem(item)}
                         className="w-full text-left bg-white border border-slate-100 hover:border-indigo-100 rounded-2xl p-3 flex items-center gap-3 cursor-pointer hover:shadow-md hover:shadow-indigo-50/50 transition-all"
                       >
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${item.iconColor}`}>
-                          <ItemIcon className="w-6 h-6" />
+                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden ${item.iconColor}`}>
+                          <ItemPhoto
+                            item={item}
+                            alt={`${item.title} 사진`}
+                            fallback={<ItemIcon className="w-6 h-6" />}
+                          />
                         </div>
 
                         <div className="flex-1 min-w-0">
@@ -116,8 +121,12 @@ export default function HomePage(props) {
                           onClick={() => setSelectedItem(item)}
                           className="w-full text-left bg-white border border-slate-100 hover:border-indigo-100 rounded-2xl p-3 flex flex-col cursor-pointer hover:shadow-md hover:shadow-indigo-50/50 transition-all"
                         >
-                          <div className={`w-full aspect-square rounded-xl flex items-center justify-center mb-2.5 relative ${item.iconColor}`}>
-                            <ItemIcon className="w-9 h-9" />
+                          <div className={`w-full aspect-square rounded-xl flex items-center justify-center mb-2.5 relative overflow-hidden ${item.iconColor}`}>
+                            <ItemPhoto
+                              item={item}
+                              alt={`${item.title} 사진`}
+                              fallback={<ItemIcon className="w-9 h-9" />}
+                            />
                             <span className="absolute top-2 right-2 bg-white/95 backdrop-blur-sm shadow-sm px-2 py-0.5 text-[9px] font-extrabold text-rose-500 rounded-md">
                               {item.badge}
                             </span>
@@ -163,8 +172,12 @@ export default function HomePage(props) {
                           onClick={() => setSelectedItem(item)}
                           className="w-full text-left bg-white border border-slate-100 hover:border-indigo-100 rounded-2xl p-3 flex items-center space-x-3.5 cursor-pointer hover:shadow-md hover:shadow-indigo-50/50 transition-all"
                         >
-                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 relative ${item.iconColor}`}>
-                            <ItemIcon className="w-6 h-6" />
+                          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 relative overflow-hidden ${item.iconColor}`}>
+                            <ItemPhoto
+                              item={item}
+                              alt={`${item.title} 사진`}
+                              fallback={<ItemIcon className="w-6 h-6" />}
+                            />
                             {item.type === 'want' && (
                               <span className="absolute -top-1 -left-1 bg-amber-500 text-white font-bold text-[8px] px-1 rounded-sm">구해요</span>
                             )}

@@ -5,6 +5,7 @@ export type ItemPhotoAsset = {
   uri: string;
   fileName: string;
   mimeType: string;
+  file?: Blob;
 };
 
 export type CreateItemInput = {

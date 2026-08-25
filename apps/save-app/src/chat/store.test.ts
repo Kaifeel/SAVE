@@ -152,6 +152,19 @@ it('reconciles one optimistic message with REST and STOMP copies', async () => {
   expect(useChatStore.getState().messages).toHaveLength(1);
 });
 
+it('keeps a realtime message when the room snapshot arrives later', async () => {
+  let resolveSnapshot: ((value: Awaited<ReturnType<typeof loadChatMessages>>) => void) | undefined;
+  loadChatMessages.mockReturnValue(new Promise(resolve => { resolveSnapshot = resolve; }));
+  useChatStore.getState().connectRealtime('jwt');
+
+  const opening = useChatStore.getState().openRoom(7);
+  roomHandler?.(message(6, '실시간 메시지'));
+  resolveSnapshot?.({ messages: [message(5, '이전 메시지')], nextBefore: null, hasMore: false });
+  await opening;
+
+  expect(useChatStore.getState().messages.map(entry => entry.id)).toEqual([5, 6]);
+});
+
 it('keeps a failed optimistic message and retries it', async () => {
   sendChatMessage
     .mockRejectedValueOnce(new Error('offline'))
@@ -180,7 +193,13 @@ it('keeps the active room unread count at zero and reloads snapshots on reconnec
   socketStateHandler?.('connected');
   await Promise.resolve();
 
+  socketStateHandler?.('disconnected');
+  socketStateHandler?.('connected');
+  await Promise.resolve();
+  await Promise.resolve();
+
   expect(useChatStore.getState().rooms[0].unreadCount).toBe(0);
   expect(listChatRooms).toHaveBeenCalled();
+  expect(loadChatMessages).toHaveBeenCalledTimes(2);
   expect(useChatStore.getState().socketState).toBe('connected');
 });

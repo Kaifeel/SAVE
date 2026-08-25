@@ -5,6 +5,7 @@ import type {
   CatalogPage,
   RecommendationSummary,
 } from './types';
+import { resolveAssetUrl } from '@/config/asset-url';
 
 function protocolError(field: string): never {
   throw new Error(`Invalid catalog response: ${field}`);
@@ -84,7 +85,7 @@ export function parseCatalogItem(value: unknown): CatalogItem {
     description: string(item.description, 'description'),
     precautions: nullableString(item.precautions, 'precautions'),
     status: itemStatus(item.status),
-    imageUrls: stringArray(item.image_urls, 'image_urls'),
+    imageUrls: stringArray(item.image_urls, 'image_urls').map(value => resolveAssetUrl(value)),
     viewCount: integer(item.view_count, 'view_count'),
     wishlistCount: integer(item.wishlist_count, 'wishlist_count'),
     wishlisted: boolean(item.wishlisted, 'wishlisted'),

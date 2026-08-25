@@ -7,7 +7,9 @@ type Props = {
   photos: ItemPhotoAsset[];
   notice: string | null;
   disabled: boolean;
-  onAdd: () => void;
+  onChoosePhotos: () => void;
+  onTakePhoto: () => void;
+  onOpenSettings: () => void;
   onRemove: (uri: string) => void;
 };
 
@@ -15,7 +17,9 @@ export function ItemPhotoSelector({
   photos,
   notice,
   disabled,
-  onAdd,
+  onChoosePhotos,
+  onTakePhoto,
+  onOpenSettings,
   onRemove,
 }: Props) {
   return (
@@ -24,23 +28,19 @@ export function ItemPhotoSelector({
         <Text style={styles.label}>사진 (선택)</Text>
         <Text style={styles.count}>{photos.length}/5</Text>
       </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="사진 추가"
-        disabled={disabled || photos.length >= 5}
-        onPress={onAdd}
-        style={({ pressed }) => [
-          styles.addButton,
-          pressed && styles.pressed,
-          (disabled || photos.length >= 5) && styles.disabled,
-        ]}
-      >
-        <Text style={styles.addIcon}>＋</Text>
-        <Text style={styles.addLabel}>사진 추가</Text>
-        <Text style={styles.help}>갤러리에서 최대 5장</Text>
-      </Pressable>
+      <View style={styles.addRow}>
+        <PhotoButton disabled={disabled || photos.length >= 5} icon="◎" label="카메라 촬영" onPress={onTakePhoto} />
+        <PhotoButton disabled={disabled || photos.length >= 5} icon="▧" label="갤러리 선택" onPress={onChoosePhotos} />
+      </View>
 
-      {notice ? <Text accessibilityRole="alert" style={styles.notice}>{notice}</Text> : null}
+      {notice ? (
+        <View style={styles.noticeRow}>
+          <Text accessibilityRole="alert" style={styles.notice}>{notice}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="사진 권한 설정 열기" onPress={onOpenSettings}>
+            <Text style={styles.settings}>설정 열기</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {photos.length > 0 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photos}>
@@ -68,12 +68,28 @@ export function ItemPhotoSelector({
   );
 }
 
+function PhotoButton({ disabled, icon, label, onPress }: {
+  disabled: boolean;
+  icon: string;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={onPress} style={({ pressed }) => [styles.addButton, pressed && styles.pressed, disabled && styles.disabled]}>
+      <Text style={styles.addIcon}>{icon}</Text>
+      <Text style={styles.addLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   section: { gap: 10 },
   headingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   label: { color: theme.colors.textSoft, fontSize: 13, fontWeight: '700' },
   count: { color: theme.colors.muted, fontSize: 12, fontWeight: '700' },
+  addRow: { flexDirection: 'row', gap: 10 },
   addButton: {
+    flex: 1,
     minHeight: 88,
     alignItems: 'center',
     justifyContent: 'center',
@@ -85,8 +101,9 @@ const styles = StyleSheet.create({
   },
   addIcon: { color: theme.colors.primary, fontSize: 24, lineHeight: 26 },
   addLabel: { color: theme.colors.text, fontSize: 13, fontWeight: '800' },
-  help: { color: theme.colors.muted, fontSize: 11, marginTop: 2 },
-  notice: { color: theme.colors.warning, fontSize: 12, lineHeight: 18 },
+  noticeRow: { alignItems: 'center', flexDirection: 'row', gap: 8, justifyContent: 'space-between' },
+  notice: { color: theme.colors.warning, flex: 1, fontSize: 12, lineHeight: 18 },
+  settings: { color: theme.colors.primary, fontSize: 12, fontWeight: '800' },
   photos: { gap: 10, paddingVertical: 2 },
   photoCard: { width: 96, height: 96, position: 'relative' },
   photo: { width: 96, height: 96, borderRadius: 14, backgroundColor: theme.colors.canvas },

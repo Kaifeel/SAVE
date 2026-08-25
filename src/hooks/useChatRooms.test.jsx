@@ -164,3 +164,142 @@ it('ignores a stale room response while the newly selected room is still loading
   expect(result.current.loadingMessages).toBe(false)
   expect(result.current.activeRoom.messages[0].text).toBe('current room')
 })
+
+it('keeps a websocket message when an older message snapshot arrives later', async () => {
+  let resolveMessages
+  let roomMessageHandler
+  const socketFactory = vi.fn(options => ({
+    connect: () => options.onStateChange('connected'),
+    disconnect: vi.fn(),
+    subscribe: vi.fn((_roomId, handler) => {
+      roomMessageHandler = handler
+      return vi.fn()
+    }),
+    subscribeToChatList: vi.fn(() => vi.fn()),
+    subscribeToNotifications: vi.fn(() => vi.fn()),
+  }))
+  const api = {
+    getChatMessages: vi.fn().mockReturnValue(new Promise(resolve => {
+      resolveMessages = resolve
+    })),
+    markChatRoomRead: vi.fn().mockResolvedValue({ read_count: 1 }),
+    sendChatMessage: vi.fn(),
+  }
+  const { result } = renderHook(() => useChatRooms({
+    api,
+    accessToken: 'jwt',
+    currentUserId: 1,
+    realtime: true,
+    socketFactory,
+  }))
+
+  act(() => {
+    result.current.selectRoom({
+      roomId: 9,
+      messages: [{
+        id: 4,
+        sender: 'other',
+        text: '더 이전 메시지',
+        time: '2026-08-21T14:59:00',
+      }],
+    })
+  })
+  await waitFor(() => expect(roomMessageHandler).toBeTypeOf('function'))
+  act(() => {
+    roomMessageHandler({
+      id: 6,
+      sender_id: 2,
+      message: '실시간 메시지',
+      created_at: '2026-08-21T15:01:00',
+    })
+  })
+  await act(async () => {
+    resolveMessages([{
+      id: 5,
+      sender_id: 2,
+      message: '이전 메시지',
+      created_at: '2026-08-21T15:00:00',
+    }])
+  })
+
+  expect(result.current.activeRoom.messages).toEqual([
+    expect.objectContaining({ id: 4, text: '더 이전 메시지' }),
+    expect.objectContaining({ id: 5, text: '이전 메시지' }),
+    expect.objectContaining({ id: 6, text: '실시간 메시지' }),
+  ])
+})
+
+it('resynchronizes the active room and notifies consumers after reconnecting', async () => {
+  let changeSocketState
+  const onReconnect = vi.fn()
+  const socketFactory = vi.fn(options => {
+    changeSocketState = options.onStateChange
+    return {
+      connect: () => options.onStateChange('connected'),
+      disconnect: vi.fn(),
+      subscribe: vi.fn(() => vi.fn()),
+      subscribeToChatList: vi.fn(() => vi.fn()),
+      subscribeToNotifications: vi.fn(() => vi.fn()),
+    }
+  })
+  const api = {
+    getChatMessages: vi.fn().mockResolvedValue([]),
+    markChatRoomRead: vi.fn().mockResolvedValue({ read_count: 0 }),
+    sendChatMessage: vi.fn(),
+  }
+  const { result } = renderHook(() => useChatRooms({
+    api,
+    accessToken: 'jwt',
+    currentUserId: 1,
+    realtime: true,
+    socketFactory,
+    onReconnect,
+  }))
+
+  await act(() => result.current.selectRoom({ roomId: 9, messages: [] }))
+  expect(api.getChatMessages).toHaveBeenCalledTimes(1)
+  act(() => changeSocketState('disconnected'))
+  act(() => changeSocketState('connected'))
+
+  await waitFor(() => expect(onReconnect).toHaveBeenCalledTimes(1))
+  await waitFor(() => expect(api.getChatMessages).toHaveBeenCalledTimes(2))
+})
+
+it('ignores state changes from a socket replaced after token rotation', async () => {
+  const sockets = []
+  const socketFactory = vi.fn(options => {
+    const socket = {
+      options,
+      connect: () => options.onStateChange('connected'),
+      disconnect: vi.fn(),
+      subscribe: vi.fn(() => vi.fn()),
+      subscribeToChatList: vi.fn(() => vi.fn()),
+      subscribeToNotifications: vi.fn(() => vi.fn()),
+    }
+    sockets.push(socket)
+    return socket
+  })
+  const api = {
+    getChatMessages: vi.fn().mockResolvedValue([]),
+    markChatRoomRead: vi.fn().mockResolvedValue({ read_count: 0 }),
+    sendChatMessage: vi.fn(),
+  }
+  const { result, rerender } = renderHook(
+    ({ accessToken }) => useChatRooms({
+      api,
+      accessToken,
+      currentUserId: 1,
+      realtime: true,
+      socketFactory,
+    }),
+    { initialProps: { accessToken: 'old-jwt' } },
+  )
+  await waitFor(() => expect(result.current.socketState).toBe('connected'))
+
+  rerender({ accessToken: 'new-jwt' })
+  await waitFor(() => expect(sockets).toHaveLength(2))
+  await waitFor(() => expect(result.current.socketState).toBe('connected'))
+  act(() => sockets[0].options.onStateChange('disconnected'))
+
+  expect(result.current.socketState).toBe('connected')
+})

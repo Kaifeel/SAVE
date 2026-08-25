@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  ChevronLeft,
   ChevronRight,
   Flag,
   Heart,
@@ -10,7 +11,9 @@ import {
   Star,
   User
 } from 'lucide-react'
+import { useState } from 'react'
 import { useNow } from './hooks/useNow'
+import ItemPhoto from './components/ItemPhoto'
 import { formatRelativeTime } from './utils/relativeTime'
 
 const COMMON_SAFETY_NOTICE = '분실 및 파손 시 수리비 전액 청구됩니다. 대여 전 상태 사진을 반드시 확인하세요.'
@@ -28,17 +31,34 @@ export default function ProductDetailPage({
   onOwnerProfile,
   onShare,
 }) {
+  const [photoSelection, setPhotoSelection] = useState({ key: '', index: 0 })
   const ItemIcon = item.imageIcon
   const ownerName = item.owner?.split(' ')[0] || '대여자'
   const priceLabel = item.price === 0 ? '무료' : `${item.price.toLocaleString()}원/${item.priceType}`
-  const imageUrls = (item.photos || []).filter(
+  const imageUrls = [...new Set([item.mainImageUrl, ...(item.photos || [])].filter(
     imageUrl => typeof imageUrl === 'string' && imageUrl.trim(),
-  )
-  const primaryImageUrl = typeof item.mainImageUrl === 'string' && item.mainImageUrl.trim()
-    ? item.mainImageUrl
-    : imageUrls[0] || null
+  ))]
+  const imageSetKey = `${item.id ?? ''}\n${imageUrls.join('\n')}`
+  const selectedIndex = photoSelection.key === imageSetKey ? photoSelection.index : 0
+  const currentPhotoIndex = Math.min(selectedIndex, Math.max(imageUrls.length - 1, 0))
+  const currentPhotoUrl = imageUrls[currentPhotoIndex]
+  const hasMultiplePhotos = imageUrls.length > 1
   const now = useNow()
   const relativeTime = formatRelativeTime(item.createdAt, now)
+
+  const showPreviousPhoto = () => {
+    setPhotoSelection({
+      key: imageSetKey,
+      index: (currentPhotoIndex - 1 + imageUrls.length) % imageUrls.length,
+    })
+  }
+
+  const showNextPhoto = () => {
+    setPhotoSelection({
+      key: imageSetKey,
+      index: (currentPhotoIndex + 1) % imageUrls.length,
+    })
+  }
 
   return (
     <div className="absolute inset-0 z-50 bg-white flex flex-col animate-in fade-in duration-200">
@@ -83,18 +103,65 @@ export default function ProductDetailPage({
           </div>
 
           <div className="absolute inset-0 flex items-center justify-center pt-4">
-            {primaryImageUrl ? (
-              <img src={primaryImageUrl} alt={`${item.title} 사진`} className="h-full w-full object-cover" />
-            ) : (
-              <div className={`w-16 h-16 rounded-xl flex items-center justify-center shadow-sm ${item.iconColor}`}>
-                <ItemIcon className="w-9 h-9" />
-              </div>
-            )}
+            <ItemPhoto
+              item={item}
+              src={currentPhotoUrl}
+              alt={`${item.title} 사진`}
+              className="h-full w-full object-contain"
+              fallback={(
+                <div className={`w-16 h-16 rounded-xl flex items-center justify-center shadow-sm ${item.iconColor}`}>
+                  <ItemIcon className="w-9 h-9" />
+                </div>
+              )}
+            />
           </div>
 
+          {hasMultiplePhotos && (
+            <>
+              <button
+                type="button"
+                onClick={showPreviousPhoto}
+                aria-label="이전 사진"
+                className="absolute left-3 top-1/2 z-10 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 shadow-sm flex items-center justify-center text-slate-700 active:scale-95 transition"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={showNextPhoto}
+                aria-label="다음 사진"
+                className="absolute right-3 top-1/2 z-10 -translate-y-1/2 w-8 h-8 rounded-full bg-white/90 shadow-sm flex items-center justify-center text-slate-700 active:scale-95 transition"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </>
+          )}
+
           {imageUrls.length > 0 && (
-            <div className="absolute right-3 bottom-3 px-2 py-0.5 rounded-full bg-slate-700 text-white text-[10px] font-extrabold">
-              1 / {imageUrls.length}
+            <div
+              aria-live="polite"
+              aria-label={`사진 ${currentPhotoIndex + 1}/${imageUrls.length}`}
+              className="absolute left-1/2 bottom-3 -translate-x-1/2 flex items-center gap-2 rounded-full border border-white/80 bg-white/85 px-2.5 py-1.5 text-[10px] font-extrabold text-slate-400 shadow-lg shadow-slate-900/10 backdrop-blur-md"
+            >
+              {hasMultiplePhotos && (
+                <span className="flex items-center gap-1" aria-hidden="true">
+                  {imageUrls.map((imageUrl, index) => (
+                    <span
+                      key={imageUrl}
+                      className={`h-1.5 rounded-full transition-all duration-200 ${
+                        index === currentPhotoIndex
+                          ? 'w-4 bg-indigo-500'
+                          : 'w-1.5 bg-slate-300'
+                      }`}
+                    />
+                  ))}
+                </span>
+              )}
+              <span className="tabular-nums">
+                <span className="text-indigo-600">{currentPhotoIndex + 1}</span>
+                <span className="mx-1 text-slate-300">/</span>
+                <span>{imageUrls.length}</span>
+              </span>
             </div>
           )}
         </section>

@@ -86,6 +86,7 @@ export default function MyScreen() {
           loggingOut={loggingOut}
           logoutError={logoutError}
           onOpenRentals={() => router.push('/rentals')}
+          onOpenNotificationSettings={() => router.push('/notification-settings')}
           onLogout={() => { void runLogout(); }}
         />
       </ScrollView>

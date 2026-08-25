@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { Text } from 'react-native';
 
 import { theme } from '@/theme';
@@ -13,7 +14,9 @@ const icons: Record<string, string> = {
 
 export default function TabsLayout() {
   return (
-    <Tabs
+    <>
+      <StatusBar style="dark" />
+      <Tabs
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: theme.colors.primary,
@@ -26,6 +29,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="create" options={{ title: '글쓰기' }} />
       <Tabs.Screen name="chat" options={{ title: '채팅' }} />
       <Tabs.Screen name="my" options={{ title: '마이' }} />
-    </Tabs>
+      <Tabs.Screen name="items/[id]" options={{ href: null }} />
+      </Tabs>
+    </>
   );
 }

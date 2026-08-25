@@ -8,13 +8,22 @@ import { registerDeviceToken, unregisterDeviceToken } from './api';
 import type { DevicePlatform } from './api';
 
 const PUSH_TOKEN_KEY = 'save.expoPushToken';
+const PUSH_ENABLED_KEY = 'save.pushNotificationsEnabled';
 const DEFAULT_CHANNEL = 'default';
 
 let currentPushToken: string | null = null;
+let pushTokenSubscription: Notifications.EventSubscription | null = null;
 
 export type PushRegistration = {
   token: string;
   remove: () => void;
+};
+
+export type PushNotificationSettings = {
+  supported: boolean;
+  preferenceEnabled: boolean;
+  permissionGranted: boolean;
+  permissionStatus: Notifications.PermissionStatus;
 };
 
 function projectId(): string {
@@ -32,6 +41,23 @@ function permissionGranted(permission: Notifications.NotificationPermissionsStat
   return iosStatus === Notifications.IosAuthorizationStatus.AUTHORIZED
     || iosStatus === Notifications.IosAuthorizationStatus.PROVISIONAL
     || iosStatus === Notifications.IosAuthorizationStatus.EPHEMERAL;
+}
+
+export async function pushNotificationsEnabled(): Promise<boolean> {
+  return await SecureStore.getItemAsync(PUSH_ENABLED_KEY) !== 'false';
+}
+
+export async function getPushNotificationSettings(): Promise<PushNotificationSettings> {
+  const platform = devicePlatform();
+  const permission = platform && Device.isDevice
+    ? await Notifications.getPermissionsAsync()
+    : ({ status: 'undetermined' } as Notifications.NotificationPermissionsStatus);
+  return {
+    supported: Boolean(platform && Device.isDevice),
+    preferenceEnabled: await pushNotificationsEnabled(),
+    permissionGranted: permissionGranted(permission),
+    permissionStatus: permission.status,
+  };
 }
 
 async function ensurePermission(): Promise<boolean> {
@@ -76,15 +102,25 @@ export async function registerForPushNotifications(
 
   const easProjectId = projectId();
   const token = await obtainAndRegisterToken(accessToken, platform, easProjectId);
+  pushTokenSubscription?.remove();
   const subscription = Notifications.addPushTokenListener(() => {
     void obtainAndRegisterToken(accessToken, platform, easProjectId).catch(() => undefined);
   });
+  pushTokenSubscription = subscription;
 
-  return { token, remove: () => subscription.remove() };
+  return {
+    token,
+    remove: () => {
+      if (pushTokenSubscription === subscription) pushTokenSubscription = null;
+      subscription.remove();
+    },
+  };
 }
 
 export async function unregisterCurrentPushToken(accessToken: string): Promise<void> {
   if (Platform.OS === 'web') return;
+  pushTokenSubscription?.remove();
+  pushTokenSubscription = null;
   const token = currentPushToken ?? await SecureStore.getItemAsync(PUSH_TOKEN_KEY);
   if (!token) return;
 
@@ -94,4 +130,20 @@ export async function unregisterCurrentPushToken(accessToken: string): Promise<v
     currentPushToken = null;
     await SecureStore.deleteItemAsync(PUSH_TOKEN_KEY);
   }
+}
+
+export async function setPushNotificationsEnabled(
+  enabled: boolean,
+  accessToken: string,
+): Promise<PushNotificationSettings> {
+  if (enabled) {
+    const registration = await registerForPushNotifications(accessToken);
+    if (registration) {
+      await SecureStore.setItemAsync(PUSH_ENABLED_KEY, 'true');
+    }
+  } else {
+    await unregisterCurrentPushToken(accessToken);
+    await SecureStore.setItemAsync(PUSH_ENABLED_KEY, 'false');
+  }
+  return getPushNotificationSettings();
 }

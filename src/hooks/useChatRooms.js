@@ -13,6 +13,27 @@ const defaultApi = {
   sendChatMessage,
 }
 
+function mergeMessages(snapshot, current) {
+  const seenIds = new Set(snapshot
+    .filter(message => message.id != null)
+    .map(message => String(message.id)))
+  const merged = [...snapshot]
+
+  current.forEach(message => {
+    if (message.id != null && seenIds.has(String(message.id))) return
+    if (message.id != null) seenIds.add(String(message.id))
+    merged.push(message)
+  })
+
+  return merged.sort((left, right) => {
+    const leftTime = Date.parse(left.raw?.created_at ?? left.raw?.createdAt ?? left.time)
+    const rightTime = Date.parse(right.raw?.created_at ?? right.raw?.createdAt ?? right.time)
+    const safeLeftTime = Number.isNaN(leftTime) ? Number.POSITIVE_INFINITY : leftTime
+    const safeRightTime = Number.isNaN(rightTime) ? Number.POSITIVE_INFINITY : rightTime
+    return safeLeftTime - safeRightTime
+  })
+}
+
 function defaultSocketUrl() {
   if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL
   const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1'
@@ -28,6 +49,7 @@ export function useChatRooms({
   onChatListUpdate,
   onNotification,
   onRoomRead,
+  onReconnect,
 }) {
   const [activeRoom, setActiveRoom] = useState(null)
   const [loadingMessages, setLoadingMessages] = useState(false)
@@ -37,6 +59,8 @@ export function useChatRooms({
   const socketRef = useRef(null)
   const activeRoomRef = useRef(null)
   const roomSelectionRequestRef = useRef(0)
+  const connectedOnceRef = useRef(false)
+  const previousSocketStateRef = useRef('disconnected')
 
   useEffect(() => {
     activeRoomRef.current = activeRoom
@@ -44,15 +68,20 @@ export function useChatRooms({
 
   useEffect(() => {
     if (!realtime || !accessToken) return undefined
-    const socket = socketFactory({
+    connectedOnceRef.current = false
+    previousSocketStateRef.current = 'disconnected'
+    let socket
+    socket = socketFactory({
       url: defaultSocketUrl(),
       accessToken,
-      onStateChange: setSocketState,
+      onStateChange: nextState => {
+        if (socketRef.current === socket) setSocketState(nextState)
+      },
     })
     socketRef.current = socket
     socket.connect()
     return () => {
-      socketRef.current = null
+      if (socketRef.current === socket) socketRef.current = null
       socket.disconnect()
     }
   }, [accessToken, realtime, socketFactory])
@@ -107,7 +136,7 @@ export function useChatRooms({
       setActiveRoom(current => current?.roomId === roomId
         ? {
           ...current,
-          messages: page.messages,
+          messages: mergeMessages(page.messages, current.messages || []),
           nextBefore: page.nextBefore,
           hasOlder: page.hasMore,
           unreadCount: 0,
@@ -121,6 +150,19 @@ export function useChatRooms({
       if (roomSelectionRequestRef.current === requestId) setLoadingMessages(false)
     }
   }, [accessToken, api, currentUserId, onRoomRead])
+
+  useEffect(() => {
+    const previousState = previousSocketStateRef.current
+    previousSocketStateRef.current = socketState
+    if (socketState !== 'connected' || previousState === 'connected') return
+    if (!connectedOnceRef.current) {
+      connectedOnceRef.current = true
+      return
+    }
+
+    onReconnect?.()
+    if (activeRoomRef.current) selectRoom(activeRoomRef.current)
+  }, [onReconnect, selectRoom, socketState])
 
   const loadOlder = useCallback(async () => {
     const roomId = activeRoom?.roomId || activeRoom?.id

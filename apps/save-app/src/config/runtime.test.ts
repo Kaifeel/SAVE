@@ -32,3 +32,18 @@ it('rejects production when the API URL normalizes to empty', () => {
 it('rejects mock mode in production', () => {
   expect(() => readRuntime({ ...configured, EXPO_PUBLIC_API_MODE: 'mock' }, false)).toThrow('mock');
 });
+
+it('derives the development API URL from the Expo LAN host when none is configured', () => {
+  expect(readRuntime({}, true, '192.168.0.24:8081')).toMatchObject({
+    apiBaseUrl: 'http://192.168.0.24:8080/api/v1',
+  });
+});
+
+it('keeps an explicitly configured development API URL', () => {
+  expect(readRuntime({ EXPO_PUBLIC_API_BASE_URL: 'https://dev-api.save.test/api/v1/' }, true, '192.168.0.24:8081'))
+    .toMatchObject({ apiBaseUrl: 'https://dev-api.save.test/api/v1' });
+});
+
+it('does not derive a backend URL from a public Expo tunnel host', () => {
+  expect(readRuntime({}, true, 'example.exp.direct:443')).toMatchObject({ apiBaseUrl: '' });
+});

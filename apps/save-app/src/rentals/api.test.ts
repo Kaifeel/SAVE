@@ -1,5 +1,5 @@
 import { apiRequest } from '@/api/client';
-import { getMyRentals, getRental, submitRentalReview, transitionRental } from './api';
+import { createRental, getMyRentals, getRental, submitRentalReview, transitionRental } from './api';
 import { backendRental } from './schema.test';
 
 jest.mock('@/api/client', () => ({ apiRequest: jest.fn() }));
@@ -15,6 +15,27 @@ it('loads and validates one authorized rental', async () => {
 
   await expect(getRental(41)).resolves.toEqual(expect.objectContaining({ id: 41, itemId: 7 }));
   expect(apiRequestMock).toHaveBeenCalledWith('/rentals/41');
+});
+
+it('creates a rental using the backend request field names', async () => {
+  apiRequestMock.mockResolvedValue(backendRental);
+  await expect(createRental({
+    itemId: 7,
+    chatRoomId: 9,
+    startDate: '2026-08-25T10:00:00',
+    endDate: '2026-08-26T10:00:00',
+    totalPrice: 3000,
+  })).resolves.toEqual(expect.objectContaining({ id: 41 }));
+  expect(apiRequestMock).toHaveBeenCalledWith('/rentals', {
+    method: 'POST',
+    body: JSON.stringify({
+      item_id: 7,
+      chat_room_id: 9,
+      start_date: '2026-08-25T10:00:00',
+      end_date: '2026-08-26T10:00:00',
+      total_price: 3000,
+    }),
+  });
 });
 
 it('loads the authorized list and uses only backend-supported transitions', async () => {

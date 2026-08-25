@@ -3,7 +3,11 @@ import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 
 import { setLogoutCleanup } from '@/auth/logout-cleanup';
-import { registerForPushNotifications, unregisterCurrentPushToken } from './registration';
+import {
+  pushNotificationsEnabled,
+  registerForPushNotifications,
+  unregisterCurrentPushToken,
+} from './registration';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -49,7 +53,8 @@ export function NotificationCoordinator({ accessToken }: { accessToken: string }
     let removePushTokenListener: (() => void) | undefined;
     const removeLogoutCleanup = setLogoutCleanup(unregisterCurrentPushToken);
 
-    void registerForPushNotifications(accessToken)
+    void pushNotificationsEnabled()
+      .then(enabled => enabled ? registerForPushNotifications(accessToken) : null)
       .then(registration => {
         if (!registration) return;
         if (!active) {

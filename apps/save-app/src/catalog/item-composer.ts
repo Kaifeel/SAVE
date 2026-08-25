@@ -3,6 +3,7 @@ import type {
   CreateItemInput,
   ItemPhotoAsset,
 } from './types';
+import { COMMON_SAFETY_NOTICE } from './constants';
 
 export type ItemDraft = {
   type: CatalogItemType;
@@ -27,7 +28,7 @@ export function initialItemDraft(): ItemDraft {
     rentalUnit: '일',
     pickupLocationId: null,
     description: '',
-    precautions: '',
+    precautions: COMMON_SAFETY_NOTICE,
     photos: [],
   };
 }

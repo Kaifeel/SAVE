@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -16,6 +17,7 @@ import com.save.item.PickupLocation;
 import com.save.item.PickupLocationRepository;
 import com.save.university.University;
 import com.save.university.UniversityRepository;
+import java.util.Base64;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,12 +27,15 @@ import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
+@TestPropertySource(properties = "storage.local-root=build/test-uploads")
 class MarketplaceIntegrationTest {
     @Autowired MockMvc mockMvc;
     @Autowired ObjectMapper objectMapper;
@@ -56,8 +61,13 @@ class MarketplaceIntegrationTest {
     void multipartItemCreationUsesJavaBeanFieldNames() throws Exception {
         String ownerToken = signUp("multipart@pukyong.ac.kr", "사진등록자")
                 .get("access_token").asText();
+        byte[] png = Base64.getDecoder().decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+        MockMultipartFile photo = new MockMultipartFile(
+                "photos", "umbrella.png", "image/png", png);
 
-        mockMvc.perform(multipart("/api/v1/items")
+        MvcResult result = mockMvc.perform(multipart("/api/v1/items")
+                        .file(photo)
                         .header("Authorization", bearer(ownerToken))
                         .param("title", "멀티파트 우산")
                         .param("rentalFee", "1000")
@@ -69,7 +79,16 @@ class MarketplaceIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.title").value("멀티파트 우산"))
                 .andExpect(jsonPath("$.rental_fee").value(1000))
-                .andExpect(jsonPath("$.pickup_location_id").value(pickupLocationId));
+                .andExpect(jsonPath("$.pickup_location_id").value(pickupLocationId))
+                .andExpect(jsonPath("$.image_urls[0]").value(matchesPattern(
+                        "/uploads/items/[0-9]{4}/[0-9]{2}/[0-9a-f-]+\\.png")))
+                .andReturn();
+
+        String imageUrl = objectMapper.readTree(result.getResponse().getContentAsString())
+                .get("image_urls").get(0).asText();
+        mockMvc.perform(get(imageUrl))
+                .andExpect(status().isOk())
+                .andExpect(content().bytes(png));
     }
 
     @Test

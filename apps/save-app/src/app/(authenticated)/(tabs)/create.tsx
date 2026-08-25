@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { Linking, Platform } from 'react-native';
 
 import { useAuthStore } from '@/auth/store';
 import { ItemComposeForm } from '@/catalog/components/item-compose-form';
@@ -18,7 +19,27 @@ export default function CreateScreen() {
   const composer = useItemComposer(universityId);
   const [permissionNotice, setPermissionNotice] = useState<string | null>(null);
 
-  const addPhotos = async () => {
+  const appendAssets = (assets: ImagePicker.ImagePickerAsset[]) => {
+    const remaining = Math.max(0, 5 - composer.draft.photos.length);
+    const photos: ItemPhotoAsset[] = assets.slice(0, remaining).map((asset, index) => ({
+      uri: asset.uri,
+      fileName: asset.fileName ?? fallbackFileName(asset.uri, index),
+      mimeType: asset.mimeType ?? 'image/jpeg',
+      file: asset.file,
+    }));
+    composer.addPhotos(photos);
+  };
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    void ImagePicker.getPendingResultAsync().then(result => {
+      if (result && 'canceled' in result && !result.canceled && result.assets) appendAssets(result.assets);
+    }).catch(() => undefined);
+  // Android exposes a one-shot system result only when this screen mounts.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const choosePhotos = async () => {
     setPermissionNotice(null);
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -31,17 +52,25 @@ export default function CreateScreen() {
       allowsMultipleSelection: true,
       selectionLimit: Math.max(1, 5 - composer.draft.photos.length),
       quality: 0.8,
+      preferredAssetRepresentationMode:
+        ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     });
     if (result.canceled) {
       return;
     }
 
-    const photos: ItemPhotoAsset[] = result.assets.map((asset, index) => ({
-      uri: asset.uri,
-      fileName: asset.fileName ?? fallbackFileName(asset.uri, index),
-      mimeType: asset.mimeType ?? 'image/jpeg',
-    }));
-    composer.addPhotos(photos);
+    appendAssets(result.assets);
+  };
+
+  const takePhoto = async () => {
+    setPermissionNotice(null);
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      setPermissionNotice('카메라 권한이 필요합니다.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
+    if (!result.canceled) appendAssets(result.assets);
   };
 
   const submit = async () => {
@@ -58,7 +87,9 @@ export default function CreateScreen() {
     <ItemComposeForm
       composer={composer}
       permissionNotice={permissionNotice}
-      onAddPhotos={() => { void addPhotos(); }}
+      onChoosePhotos={() => { void choosePhotos(); }}
+      onTakePhoto={() => { void takePhoto(); }}
+      onOpenPhotoSettings={() => { void Linking.openSettings(); }}
       onSubmit={() => { void submit(); }}
     />
   );

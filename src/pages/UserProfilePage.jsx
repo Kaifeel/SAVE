@@ -1,4 +1,5 @@
 import { ArrowLeft, Flag, MapPin, PackageOpen, Star, User } from 'lucide-react'
+import ItemPhoto from '../components/ItemPhoto'
 import { useUserProfile } from '../hooks/useUserProfile'
 import { useNow } from '../hooks/useNow'
 import { formatRelativeTime } from '../utils/relativeTime'
@@ -154,7 +155,13 @@ export default function UserProfilePage({
                 return (
                   <button key={item.id} type="button" onClick={() => onSelectItem?.(item)}
                     className="mb-3 w-full rounded-2xl border border-slate-100 bg-white p-3 flex items-center gap-3 text-left">
-                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${item.iconColor || 'bg-slate-100'}`}><ItemIcon className="w-7 h-7" /></div>
+                    <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden ${item.iconColor || 'bg-slate-100'}`}>
+                      <ItemPhoto
+                        item={item}
+                        alt={`${item.title} 사진`}
+                        fallback={<ItemIcon className="w-7 h-7" />}
+                      />
+                    </div>
                     <div className="min-w-0 flex-1"><div className="text-sm font-extrabold truncate">{item.title}</div><div className="mt-1 text-xs font-bold text-indigo-600">{priceLabel(item)}</div></div>
                     <span className={`px-2 py-1 rounded-lg text-[10px] font-extrabold ${available ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-500'}`}>{available ? '대여 가능' : '대여중'}</span>
                   </button>

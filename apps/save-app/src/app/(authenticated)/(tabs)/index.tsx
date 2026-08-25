@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthStore } from '@/auth/store';
 import { ItemCard } from '@/catalog/components/item-card';
@@ -17,18 +18,18 @@ export default function HomeScreen() {
   const openExplore = () => router.push({ pathname: '/explore', params: { query: query.trim() } });
 
   if (catalog.loading) {
-    return <View style={styles.screen}><ScreenState loading /></View>;
+    return <SafeAreaView edges={['top']} style={styles.screen}><ScreenState loading /></SafeAreaView>;
   }
   if (catalog.error && catalog.popular.length === 0 && catalog.recent.length === 0) {
-    return <View style={styles.screen}><ScreenState error={catalog.error} onRetry={catalog.retry} /></View>;
+    return <SafeAreaView edges={['top']} style={styles.screen}><ScreenState error={catalog.error} onRetry={catalog.retry} /></SafeAreaView>;
   }
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={catalog.refreshing} onRefresh={catalog.refresh} tintColor={theme.colors.primary} />}
-    >
+    <SafeAreaView edges={['top']} style={styles.screen}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={catalog.refreshing} onRefresh={catalog.refresh} tintColor={theme.colors.primary} />}
+      >
       <View style={styles.searchWrap}>
         <Text style={styles.searchIcon}>⌕</Text>
         <TextInput
@@ -87,7 +88,8 @@ export default function HomeScreen() {
           ))}
         </View>
       ) : <ScreenState empty emptyMessage="최근 등록된 물품이 없습니다." />}
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 

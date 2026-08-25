@@ -33,7 +33,8 @@ google-services.json
 firebase-service-account*.json
 
 # local env files
-.env*.local
+.env
+.env.*
 
 # typescript
 *.tsbuildinfo

@@ -41,6 +41,14 @@ export type RentalReviewInput = {
   content: string;
 };
 
+export type RentalCreateInput = {
+  itemId: number;
+  chatRoomId: number;
+  startDate: string;
+  endDate: string;
+  totalPrice: number;
+};
+
 export type ReviewSubmission = {
   reviewState: ReviewState;
   reviewDeadline: string | null;

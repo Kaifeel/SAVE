@@ -3,6 +3,7 @@ import { findLinkedItem, itemStatusMeta } from '../chat/presentation.js'
 import ChatComposer from '../components/chat/ChatComposer.jsx'
 import ChatMessageTimeline from '../components/chat/ChatMessageTimeline.jsx'
 import ChatRoomList from '../components/chat/ChatRoomList.jsx'
+import ItemPhoto from '../components/ItemPhoto.jsx'
 
 export default function ChatPage({
   activeChatRoom,
@@ -53,8 +54,12 @@ export default function ChatPage({
               linkedItem ? 'cursor-pointer hover:border-indigo-100 hover:shadow-md hover:shadow-indigo-50/50 active:scale-[0.99]' : ''
             }`}
           >
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${linkedItem?.iconColor || 'text-indigo-500 bg-indigo-50'}`}>
-              <ActiveItemIcon className="w-6 h-6" />
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden ${linkedItem?.iconColor || 'text-indigo-500 bg-indigo-50'}`}>
+              <ItemPhoto
+                item={linkedItem}
+                alt={linkedItem ? `${linkedItem.title} 사진` : ''}
+                fallback={<ActiveItemIcon className="w-6 h-6" />}
+              />
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-extrabold text-slate-800 text-xs truncate">{activeChatRoom.itemTitle}</div>

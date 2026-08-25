@@ -3,9 +3,25 @@ import { parseRental, parseRentals, parseReviewSubmission } from './schema';
 import type {
   Rental,
   RentalAction,
+  RentalCreateInput,
   RentalReviewInput,
   ReviewSubmission,
 } from './types';
+
+export async function createRental(input: RentalCreateInput): Promise<Rental> {
+  requireRentalId(input.itemId);
+  requireRentalId(input.chatRoomId);
+  return parseRental(await apiRequest<unknown>('/rentals', {
+    method: 'POST',
+    body: JSON.stringify({
+      item_id: input.itemId,
+      chat_room_id: input.chatRoomId,
+      start_date: input.startDate,
+      end_date: input.endDate,
+      total_price: input.totalPrice,
+    }),
+  }));
+}
 
 function requireRentalId(id: number): void {
   if (!Number.isInteger(id) || id <= 0) {
