@@ -2,6 +2,25 @@ import { apiRequest } from '@/api/client';
 
 export type DevicePlatform = 'ANDROID' | 'IOS';
 
+export type InAppNotification = {
+  id: number;
+  type: string;
+  rentalId: number;
+  itemId: number;
+  title: string;
+  content: string;
+  read: boolean;
+  createdAt: string;
+};
+
+export function getInAppNotifications(): Promise<InAppNotification[]> {
+  return apiRequest<InAppNotification[]>('/notifications');
+}
+
+export async function markAllInAppNotificationsRead(): Promise<void> {
+  await apiRequest<void>('/notifications/read-all', { method: 'PATCH' });
+}
+
 export async function registerDeviceToken(
   token: string,
   platform: DevicePlatform,

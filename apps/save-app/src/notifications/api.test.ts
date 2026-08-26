@@ -1,5 +1,10 @@
 import { apiRequest } from '@/api/client';
-import { registerDeviceToken, unregisterDeviceToken } from './api';
+import {
+  getInAppNotifications,
+  markAllInAppNotificationsRead,
+  registerDeviceToken,
+  unregisterDeviceToken,
+} from './api';
 
 jest.mock('@/api/client', () => ({
   apiRequest: jest.fn(),
@@ -29,5 +34,21 @@ it('unregisters the exact token before the access token is discarded', async () 
     method: 'DELETE',
     accessToken: 'access-token',
     params: { token: 'ExpoPushToken[demo]' },
+  });
+});
+
+it('loads the authenticated user in-app notifications', async () => {
+  apiRequestMock.mockResolvedValueOnce([]);
+
+  await getInAppNotifications();
+
+  expect(apiRequestMock).toHaveBeenCalledWith('/notifications');
+});
+
+it('marks every in-app notification as read', async () => {
+  await markAllInAppNotificationsRead();
+
+  expect(apiRequestMock).toHaveBeenCalledWith('/notifications/read-all', {
+    method: 'PATCH',
   });
 });

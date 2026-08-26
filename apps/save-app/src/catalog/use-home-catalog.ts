@@ -73,10 +73,13 @@ export function useHomeCatalog(universityId: number | null | undefined) {
     }
   }, []);
 
+  const retry = useCallback(() => load(), [load]);
+  const refresh = useCallback(() => load(true), [load]);
+
   return {
     ...state,
-    retry: () => load(),
-    refresh: () => load(true),
+    retry,
+    refresh,
     requestRecommendation,
   };
 }
