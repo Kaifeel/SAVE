@@ -1,4 +1,5 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useRef } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { FlatList, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -14,6 +15,15 @@ export default function ExploreScreen() {
   const initialQuery = Array.isArray(params.query) ? params.query[0] ?? '' : params.query ?? '';
   const universityId = useAuthStore(state => state.user?.universityId);
   const catalog = useExploreCatalog(initialQuery, universityId);
+  const retryCatalog = catalog.retry;
+  const focusedOnce = useRef(false);
+  useFocusEffect(useCallback(() => {
+    if (!focusedOnce.current) {
+      focusedOnce.current = true;
+      return;
+    }
+    void retryCatalog();
+  }, [retryCatalog]));
   const goBack = () => {
     if (router.canGoBack()) router.back();
     else router.replace('/');

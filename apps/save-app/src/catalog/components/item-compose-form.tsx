@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { theme } from '@/theme';
+import { COMMON_SAFETY_NOTICE } from '../constants';
 import type { UseItemComposerResult } from '../use-item-composer';
 import { ItemPhotoSelector } from './item-photo-selector';
 import { PickupLocationSelector } from './pickup-location-selector';
@@ -40,8 +41,8 @@ export function ItemComposeForm({ composer, permissionNotice, onChoosePhotos, on
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <Text style={styles.title}>물품 등록</Text>
-            <Text style={styles.subtitle}>캠퍼스에서 함께 사용할 물품을 등록해 보세요.</Text>
+            <Text style={styles.title}>{composer.editing ? '물품 수정' : '물품 등록'}</Text>
+            <Text style={styles.subtitle}>{composer.editing ? '등록한 물품 정보를 수정하세요.' : '캠퍼스에서 함께 사용할 물품을 등록해 보세요.'}</Text>
           </View>
 
           <View accessibilityRole="tablist" style={styles.segment}>
@@ -59,15 +60,22 @@ export function ItemComposeForm({ composer, permissionNotice, onChoosePhotos, on
             />
           </View>
 
-          <ItemPhotoSelector
-            photos={composer.draft.photos}
-            notice={notice}
-            disabled={composer.submitting}
-            onChoosePhotos={onChoosePhotos}
-            onTakePhoto={onTakePhoto}
-            onOpenSettings={onOpenPhotoSettings}
-            onRemove={composer.removePhoto}
-          />
+          {composer.editing ? (
+            <View style={styles.existingPhotoNotice}>
+              <Text style={styles.existingPhotoText}>기존 사진은 그대로 유지됩니다.</Text>
+              <Text style={styles.existingPhotoCount}>사진 {composer.existingPhotoCount}장</Text>
+            </View>
+          ) : (
+            <ItemPhotoSelector
+              photos={composer.draft.photos}
+              notice={notice}
+              disabled={composer.submitting}
+              onChoosePhotos={onChoosePhotos}
+              onTakePhoto={onTakePhoto}
+              onOpenSettings={onOpenPhotoSettings}
+              onRemove={composer.removePhoto}
+            />
+          )}
 
           <Field
             label="물품 이름"
@@ -131,14 +139,13 @@ export function ItemComposeForm({ composer, permissionNotice, onChoosePhotos, on
             editable={!composer.submitting}
             multiline
           />
-          <Field
-            label="주의사항"
-            placeholder="반납 시 확인할 내용을 알려주세요."
-            value={composer.draft.precautions}
-            onChangeText={value => composer.setField('precautions', value)}
-            editable={!composer.submitting}
-            multiline
-          />
+          <View style={styles.field}>
+            <Text style={styles.label}>주의사항</Text>
+            <View accessibilityRole="text" style={styles.safetyNotice}>
+              <Text style={styles.safetyIcon}>!</Text>
+              <Text style={styles.safetyText}>{COMMON_SAFETY_NOTICE}</Text>
+            </View>
+          </View>
 
           {composer.submitError ? (
             <Text accessibilityRole="alert" style={styles.error}>{composer.submitError}</Text>
@@ -154,7 +161,7 @@ export function ItemComposeForm({ composer, permissionNotice, onChoosePhotos, on
               (composer.submitting || blocked) && styles.disabled,
             ]}
           >
-            <Text style={styles.submitLabel}>{composer.submitting ? '등록 중...' : '물품 등록'}</Text>
+            <Text style={styles.submitLabel}>{composer.submitting ? (composer.editing ? '수정 중...' : '등록 중...') : (composer.editing ? '물품 수정' : '물품 등록')}</Text>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -221,6 +228,9 @@ const styles = StyleSheet.create({
   label: { color: theme.colors.textSoft, fontSize: 13, fontWeight: '700' },
   input: { minHeight: 48, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, paddingHorizontal: 14, color: theme.colors.text, backgroundColor: theme.colors.surface, fontSize: 14 },
   textarea: { minHeight: 96, paddingTop: 13, paddingBottom: 13 },
+  safetyNotice: { alignItems: 'flex-start', backgroundColor: '#fff7ed', borderColor: '#fed7aa', borderRadius: 14, borderWidth: 1, flexDirection: 'row', gap: 10, paddingHorizontal: 14, paddingVertical: 13 },
+  safetyIcon: { backgroundColor: theme.colors.warning, borderRadius: 10, color: '#ffffff', fontSize: 12, fontWeight: '900', height: 20, lineHeight: 20, textAlign: 'center', width: 20 },
+  safetyText: { color: '#c2410c', flex: 1, fontSize: 12, fontWeight: '700', lineHeight: 19 },
   priceRow: { flexDirection: 'row', gap: 10 },
   priceInput: { flex: 1 },
   unitSegment: { flexDirection: 'row', padding: 3, borderRadius: 13, backgroundColor: theme.colors.border },
@@ -229,6 +239,9 @@ const styles = StyleSheet.create({
   unitLabel: { color: theme.colors.textSoft, fontSize: 12, fontWeight: '700' },
   unitActive: { color: theme.colors.primary, fontSize: 12, fontWeight: '900' },
   error: { color: theme.colors.danger, fontSize: 13, lineHeight: 19 },
+  existingPhotoNotice: { backgroundColor: theme.colors.primarySoft, borderRadius: 14, gap: 4, padding: 14 },
+  existingPhotoText: { color: theme.colors.primary, fontSize: 13, fontWeight: '800' },
+  existingPhotoCount: { color: theme.colors.textSoft, fontSize: 11 },
   submit: { minHeight: 54, alignItems: 'center', justifyContent: 'center', borderRadius: 17, backgroundColor: theme.colors.primary },
   submitLabel: { color: '#ffffff', fontSize: 15, fontWeight: '900' },
   pressed: { opacity: 0.78 },

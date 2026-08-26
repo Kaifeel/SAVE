@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   RefreshControl,
   ScrollView,
@@ -21,9 +21,19 @@ export default function MyScreen() {
   const sessionUser = useAuthStore(state => state.user);
   const logout = useAuthStore(state => state.logout);
   const page = useMyPage();
+  const refreshPage = page.refresh;
   const logoutInFlight = useRef(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const focusedOnce = useRef(false);
+
+  useFocusEffect(useCallback(() => {
+    if (!focusedOnce.current) {
+      focusedOnce.current = true;
+      return;
+    }
+    void refreshPage();
+  }, [refreshPage]));
 
   const openItem = (item: CatalogItem) => {
     router.push({ pathname: '/items/[id]', params: { id: String(item.id) } });

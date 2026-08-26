@@ -1,8 +1,10 @@
-import { useEffect } from 'react';
-import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Feather } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -11,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenState } from '@/catalog/components/screen-state';
+import { getItem } from '@/catalog/api';
 import { useChatStore } from '@/chat/store';
 import type { ChatRoom } from '@/chat/types';
 import { theme } from '@/theme';
@@ -30,10 +33,40 @@ export default function ChatScreen() {
   const loading = useChatStore(state => state.loadingRooms);
   const error = useChatStore(state => state.roomsError);
   const loadRooms = useChatStore(state => state.loadRooms);
+  const [itemImages, setItemImages] = useState<Record<number, string | null>>({});
+  const [imageRefresh, setImageRefresh] = useState(0);
+  const requestedItemIds = useRef(new Set<number>());
+  const mounted = useRef(true);
+
+  useFocusEffect(useCallback(() => {
+    requestedItemIds.current.clear();
+    setItemImages({});
+    setImageRefresh(value => value + 1);
+    void loadRooms();
+  }, [loadRooms]));
 
   useEffect(() => {
-    void loadRooms();
-  }, [loadRooms]);
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const missingItemIds = [...new Set(rooms.map(room => room.itemId))]
+      .filter(itemId => !requestedItemIds.current.has(itemId));
+    missingItemIds.forEach(itemId => {
+      requestedItemIds.current.add(itemId);
+      void getItem(itemId)
+        .then(item => {
+          if (!mounted.current) return;
+          setItemImages(images => ({ ...images, [itemId]: item.imageUrls[0] ?? null }));
+        })
+        .catch(() => {
+          if (!mounted.current) return;
+          setItemImages(images => ({ ...images, [itemId]: null }));
+        });
+    });
+  }, [imageRefresh, rooms]);
 
   if (loading && rooms.length === 0) {
     return (
@@ -70,6 +103,7 @@ export default function ChatScreen() {
         refreshing={loading}
         renderItem={({ item }) => (
           <RoomRow
+            imageUrl={itemImages[item.itemId]}
             room={item}
             onPress={() => router.push({
               pathname: '/chats/[id]',
@@ -82,7 +116,11 @@ export default function ChatScreen() {
   );
 }
 
-function RoomRow({ room, onPress }: { room: ChatRoom; onPress: () => void }) {
+function RoomRow({ room, imageUrl, onPress }: {
+  room: ChatRoom;
+  imageUrl?: string | null;
+  onPress: () => void;
+}) {
   const time = formatRoomTime(room.lastMessageAt);
   return (
     <Pressable
@@ -92,7 +130,20 @@ function RoomRow({ room, onPress }: { room: ChatRoom; onPress: () => void }) {
       style={styles.room}
     >
       <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{room.opponentName.slice(0, 1)}</Text>
+        {imageUrl ? (
+          <Image
+            accessibilityLabel={`${room.itemTitle} 물품 사진`}
+            source={{ uri: imageUrl }}
+            style={styles.itemImage}
+          />
+        ) : (
+          <Feather
+            accessibilityLabel="물품 사진 없음"
+            color={theme.colors.primary}
+            name="camera"
+            size={24}
+          />
+        )}
       </View>
       <View style={styles.roomBody}>
         <View style={styles.roomTitleRow}>
@@ -122,7 +173,7 @@ const styles = StyleSheet.create({
   emptyList: { flexGrow: 1, justifyContent: 'center' },
   room: { alignItems: 'center', backgroundColor: theme.colors.surface, borderColor: theme.colors.border, borderRadius: 18, borderWidth: 1, flexDirection: 'row', gap: 12, padding: 14 },
   avatar: { alignItems: 'center', backgroundColor: theme.colors.primarySoft, borderRadius: 25, height: 50, justifyContent: 'center', width: 50 },
-  avatarText: { color: theme.colors.primary, fontSize: 18, fontWeight: '900' },
+  itemImage: { height: '100%', width: '100%' },
   roomBody: { flex: 1, gap: 4 },
   roomTitleRow: { alignItems: 'center', flexDirection: 'row', gap: 8, justifyContent: 'space-between' },
   opponent: { color: theme.colors.textStrong, flex: 1, fontSize: 14, fontWeight: '900' },

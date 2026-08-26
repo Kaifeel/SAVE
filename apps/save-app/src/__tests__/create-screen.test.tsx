@@ -3,13 +3,16 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import * as ImagePicker from 'expo-image-picker';
 import CreateScreen from '@/app/(authenticated)/(tabs)/create';
 import { useAuthStore } from '@/auth/store';
-import { createItem } from '@/catalog/api';
+import { createItem, getItem, updateItem } from '@/catalog/api';
 import { getPickupLocations } from '@/universities/api';
 import { catalogItem } from '@/test-utils/catalog-fixtures';
+import { COMMON_SAFETY_NOTICE } from '@/catalog/constants';
 
 const mockReplace = jest.fn();
+let mockEditItemId: string | undefined;
 
 jest.mock('expo-router', () => ({
+  useLocalSearchParams: () => ({ itemId: mockEditItemId }),
   useRouter: () => ({ replace: mockReplace }),
 }));
 
@@ -23,11 +26,17 @@ jest.mock('expo-image-picker', () => ({
 }));
 
 jest.mock('@/auth/store', () => ({ useAuthStore: jest.fn() }));
-jest.mock('@/catalog/api', () => ({ createItem: jest.fn() }));
+jest.mock('@/catalog/api', () => ({
+  createItem: jest.fn(),
+  getItem: jest.fn(),
+  updateItem: jest.fn(),
+}));
 jest.mock('@/universities/api', () => ({ getPickupLocations: jest.fn() }));
 
 const useAuthStoreMock = jest.mocked(useAuthStore);
 const createItemMock = jest.mocked(createItem);
+const getItemMock = jest.mocked(getItem);
+const updateItemMock = jest.mocked(updateItem);
 const getPickupLocationsMock = jest.mocked(getPickupLocations);
 const requestPermissionMock = jest.mocked(ImagePicker.requestMediaLibraryPermissionsAsync);
 const requestCameraPermissionMock = jest.mocked(ImagePicker.requestCameraPermissionsAsync);
@@ -40,15 +49,38 @@ const locations = [
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockEditItemId = undefined;
   useAuthStoreMock.mockImplementation(selector => selector({
     user: { universityId: 2 },
   } as never));
   getPickupLocationsMock.mockResolvedValue(locations);
   createItemMock.mockResolvedValue(catalogItem);
+  getItemMock.mockResolvedValue(catalogItem);
+  updateItemMock.mockResolvedValue(catalogItem);
   requestPermissionMock.mockResolvedValue({ granted: true } as never);
   requestCameraPermissionMock.mockResolvedValue({ granted: true } as never);
   launchCameraMock.mockResolvedValue({ canceled: true, assets: null });
   launchPickerMock.mockResolvedValue({ canceled: true, assets: null });
+});
+
+it('loads an owned item into the form and submits an update', async () => {
+  mockEditItemId = String(catalogItem.id);
+  await render(<CreateScreen />);
+
+  expect(await screen.findByDisplayValue(catalogItem.title)).toBeTruthy();
+  expect(screen.getByDisplayValue(String(catalogItem.rentalFee))).toBeTruthy();
+  expect(screen.getByText('기존 사진은 그대로 유지됩니다.')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: '물품 수정' }));
+
+  await waitFor(() => expect(updateItemMock).toHaveBeenCalledWith(
+    catalogItem.id,
+    expect.objectContaining({
+      title: catalogItem.title,
+      rentalFee: catalogItem.rentalFee,
+      pickupLocationId: catalogItem.pickupLocationId,
+    }),
+  ));
+  expect(createItemMock).not.toHaveBeenCalled();
 });
 
 async function selectLocation(name = '도서관 앞') {
@@ -68,7 +100,8 @@ it('submits the complete server-backed draft once and opens its detail', async (
   await render(<CreateScreen />);
   await fillRequiredFields();
   await fireEvent.changeText(screen.getByLabelText('설명'), '정상 작동합니다.');
-  await fireEvent.changeText(screen.getByLabelText('주의사항'), '케이블도 반납해 주세요.');
+  expect(screen.getByText(COMMON_SAFETY_NOTICE)).toBeTruthy();
+  expect(screen.queryByLabelText('주의사항')).toBeNull();
 
   await fireEvent.press(screen.getByRole('button', { name: '물품 등록' }));
   await fireEvent.press(screen.getByRole('button', { name: '등록 중...' }));
@@ -81,7 +114,7 @@ it('submits the complete server-backed draft once and opens its detail', async (
     rentalUnit: '일',
     pickupLocationId: 4,
     description: '정상 작동합니다.',
-    precautions: '케이블도 반납해 주세요.',
+    precautions: COMMON_SAFETY_NOTICE,
     photos: [],
   });
   resolveCreate(catalogItem);

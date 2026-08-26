@@ -3,6 +3,7 @@ import Feather from '@expo/vector-icons/Feather';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   Dimensions,
+  Alert,
   Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -16,6 +17,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ItemVisual } from '@/catalog/components/item-visual';
+import { deleteItem } from '@/catalog/api';
 import { COMMON_SAFETY_NOTICE } from '@/catalog/constants';
 import { ScreenState } from '@/catalog/components/screen-state';
 import { formatFee, formatRelativeTime } from '@/catalog/format';
@@ -39,7 +41,7 @@ export default function ItemDetailScreen() {
   const detail = useItemDetail(itemId);
   const [photoIndex, setPhotoIndex] = useState(0);
   const currentUserId = useAuthStore(state => state.user?.id ?? null);
-  const [actionPending, setActionPending] = useState<'chat' | 'rental' | 'submit' | null>(null);
+  const [actionPending, setActionPending] = useState<'chat' | 'rental' | 'submit' | 'delete' | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [chatRoomId, setChatRoomId] = useState<number | null>(null);
   const [rentalVisible, setRentalVisible] = useState(false);
@@ -117,6 +119,25 @@ export default function ItemDetailScreen() {
     } catch {
       setActionError('게시글을 공유하지 못했습니다.');
     }
+  };
+  const confirmDelete = () => {
+    Alert.alert('게시물 삭제', '이 게시물을 삭제하시겠습니까?', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '삭제',
+        style: 'destructive',
+        onPress: () => {
+          setActionPending('delete');
+          setActionError(null);
+          void deleteItem(item.id)
+            .then(() => router.replace('/'))
+            .catch(error => setActionError(
+              error instanceof Error ? error.message : '게시물을 삭제하지 못했습니다.',
+            ))
+            .finally(() => setActionPending(null));
+        },
+      },
+    ]);
   };
 
   return (
@@ -239,7 +260,26 @@ export default function ItemDetailScreen() {
       </ScrollView>
 
       <View style={styles.bottomArea}>
-        {isOwner ? <Text style={styles.ownerNotice}>내가 등록한 물품입니다.</Text> : (
+        {isOwner ? (
+          <View style={styles.ownerActionRow}>
+            <Pressable
+              accessibilityRole="button"
+              disabled={actionPending !== null}
+              onPress={() => router.push({ pathname: '/create', params: { itemId: String(item.id) } })}
+              style={styles.editButton}
+            >
+              <Text style={styles.editButtonText}>수정</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              disabled={actionPending !== null}
+              onPress={confirmDelete}
+              style={styles.deleteButton}
+            >
+              <Text style={styles.deleteButtonText}>{actionPending === 'delete' ? '삭제 중...' : '삭제'}</Text>
+            </Pressable>
+          </View>
+        ) : (
           <View style={styles.actionRow}>
             <Pressable accessibilityRole="button" disabled={actionPending !== null} onPress={() => void openChat()} style={styles.chatButton}>
               <Text style={styles.chatButtonText}>{actionPending === 'chat' ? '준비 중...' : '채팅하기'}</Text>
@@ -362,5 +402,9 @@ const styles = StyleSheet.create({
   rentalButton: { alignItems: 'center', backgroundColor: theme.colors.primary, borderRadius: 11, flex: 1, justifyContent: 'center', minHeight: 44 },
   rentalButtonText: { color: theme.colors.surface, fontSize: 13, fontWeight: '900' },
   disabledButton: { opacity: 0.45 },
-  ownerNotice: { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border, borderTopWidth: 1, color: theme.colors.textSoft, fontSize: 12, fontWeight: '700', paddingVertical: 13, textAlign: 'center' },
+  ownerActionRow: { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border, borderTopWidth: 1, flexDirection: 'row', gap: 8, paddingHorizontal: 14, paddingVertical: 9 },
+  editButton: { alignItems: 'center', borderColor: theme.colors.border, borderRadius: 11, borderWidth: 1, flex: 1, justifyContent: 'center', minHeight: 44 },
+  editButtonText: { color: theme.colors.text, fontSize: 13, fontWeight: '900' },
+  deleteButton: { alignItems: 'center', backgroundColor: '#f00046', borderRadius: 11, flex: 1, justifyContent: 'center', minHeight: 44 },
+  deleteButtonText: { color: theme.colors.surface, fontSize: 13, fontWeight: '900' },
 });

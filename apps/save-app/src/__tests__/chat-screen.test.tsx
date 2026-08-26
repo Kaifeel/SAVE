@@ -1,15 +1,22 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react-native';
 
 import ChatScreen from '@/app/(authenticated)/(tabs)/chat';
+import { getItem } from '@/catalog/api';
 import { useChatStore } from '@/chat/store';
 import type { ChatRoom } from '@/chat/types';
 
 const mockPush = jest.fn();
+let focusEffect: (() => void) | undefined;
 
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
+jest.mock('expo-router', () => ({
+  useFocusEffect: (effect: () => void) => { focusEffect = effect; },
+  useRouter: () => ({ push: mockPush }),
+}));
+jest.mock('@/catalog/api', () => ({ getItem: jest.fn() }));
 jest.mock('@/chat/store', () => ({ useChatStore: jest.fn() }));
 
 const useChatStoreMock = jest.mocked(useChatStore);
+const getItemMock = jest.mocked(getItem);
 const loadRooms = jest.fn().mockResolvedValue(undefined);
 
 const room: ChatRoom = {
@@ -37,7 +44,55 @@ function renderState(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  focusEffect = undefined;
   loadRooms.mockResolvedValue(undefined);
+  getItemMock.mockReturnValue(new Promise(() => undefined));
+});
+
+it('refreshes rooms whenever the chat tab receives focus', async () => {
+  await renderState();
+  expect(focusEffect).toBeDefined();
+
+  await act(async () => focusEffect?.());
+  await act(async () => focusEffect?.());
+
+  expect(loadRooms).toHaveBeenCalledTimes(2);
+});
+
+it('shows the linked item photo instead of the opponent initial', async () => {
+  let resolveItem: ((value: Awaited<ReturnType<typeof getItem>>) => void) | undefined;
+  getItemMock.mockReturnValue(new Promise(resolve => { resolveItem = resolve; }));
+  await renderState();
+
+  await act(async () => resolveItem?.({
+    id: 11,
+    ownerId: 9,
+    ownerName: '판매자',
+    ownerUniversityId: 1,
+    ownerUniversityName: '부경대학교',
+    type: 'LEND',
+    title: '서버 삼각대',
+    rentalFee: 2000,
+    rentalUnit: 'DAY',
+    pickupLocationId: 2,
+    pickupLocationName: '중앙도서관',
+    description: '튼튼한 삼각대',
+    precautions: null,
+    status: 'AVAILABLE',
+    imageUrls: ['https://example.com/tripod.jpg'],
+    viewCount: 3,
+    wishlistCount: 1,
+    wishlisted: false,
+    ownerRating: 4.8,
+    reviewCount: 2,
+    createdAt: '2026-08-22T12:00:00',
+    updatedAt: '2026-08-22T12:00:00',
+  }));
+
+  expect(screen.getByLabelText('서버 삼각대 물품 사진')).toHaveProp('source', {
+    uri: 'https://example.com/tripod.jpg',
+  });
+  expect(screen.queryByText('김')).toBeNull();
 });
 
 afterEach(cleanup);

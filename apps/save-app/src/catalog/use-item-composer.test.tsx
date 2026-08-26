@@ -102,7 +102,7 @@ it('keeps the draft and allows only one request while submission is pending', as
   expect(result.current.submitting).toBe(false);
 });
 
-it('returns the validated server item after a successful submission', async () => {
+it('returns the server item and clears the draft after a successful submission', async () => {
   const { result } = await renderHook(() => useItemComposer(2));
   await waitFor(() => expect(result.current.locations).toEqual(locations));
   await act(async () => {
@@ -120,6 +120,13 @@ it('returns the validated server item after a successful submission', async () =
     rentalFee: 1000,
     pickupLocationId: 4,
   }));
+  expect(result.current.draft).toMatchObject({
+    title: '',
+    rentalFee: '',
+    pickupLocationId: null,
+    description: '',
+    photos: [],
+  });
 });
 
 it('creates a fresh draft for each hook mount', async () => {

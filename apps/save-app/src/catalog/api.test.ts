@@ -2,10 +2,12 @@ import { apiRequest } from '@/api/client';
 import {
   createItem,
   createRecommendation,
+  deleteItem,
   getItem,
   getRecommendationHistory,
   listItems,
   setWishlist,
+  updateItem,
 } from './api';
 import { backendItem } from './schema.test';
 
@@ -104,6 +106,19 @@ describe('catalog API', () => {
     });
   });
 
+  it('updates a photo-free item with the exact JSON contract', async () => {
+    apiRequestMock.mockResolvedValue(backendItem);
+
+    await expect(updateItem(7, validCreateInput)).resolves.toEqual(
+      expect.objectContaining({ id: 7 }),
+    );
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/items/7', {
+      method: 'PUT',
+      body: expect.stringContaining('"title":"USB-C 충전기"'),
+    });
+  });
+
   it('creates an item with native photo parts and no manual multipart header', async () => {
     apiRequestMock.mockResolvedValue(backendItem);
 
@@ -142,6 +157,14 @@ describe('catalog API', () => {
 
     expect(apiRequestMock).toHaveBeenNthCalledWith(1, '/items/7/wishlist', { method: 'POST' });
     expect(apiRequestMock).toHaveBeenNthCalledWith(2, '/items/7/wishlist', { method: 'DELETE' });
+  });
+
+  it('deletes an owned item with the item endpoint', async () => {
+    apiRequestMock.mockResolvedValue(undefined);
+
+    await deleteItem(7);
+
+    expect(apiRequestMock).toHaveBeenCalledWith('/items/7', { method: 'DELETE' });
   });
 
   it('loads and validates recommendation history', async () => {

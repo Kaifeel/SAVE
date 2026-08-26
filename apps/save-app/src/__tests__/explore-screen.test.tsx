@@ -7,8 +7,14 @@ import { catalogItem, catalogPage } from '@/test-utils/catalog-fixtures';
 
 const mockPush = jest.fn();
 let mockRouteQuery = '';
+let mockFocusEffect: (() => void) | undefined;
 
 jest.mock('expo-router', () => ({
+  useFocusEffect: (effect: () => void) => {
+    const firstRegistration = mockFocusEffect === undefined;
+    mockFocusEffect = effect;
+    if (firstRegistration) effect();
+  },
   useLocalSearchParams: () => ({ query: mockRouteQuery }),
   useRouter: () => ({ push: mockPush }),
 }));
@@ -28,6 +34,7 @@ beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
   mockRouteQuery = '';
+  mockFocusEffect = undefined;
   mockUseAuthStore.mockImplementation(selector => selector({
     user: { universityId: 1 },
   } as never));
@@ -60,6 +67,40 @@ it('sends the route query, board, and availability filters to the server', async
 
   await waitFor(() => expect(listItemsMock).toHaveBeenLastCalledWith(expect.objectContaining({
     type: 'BORROW', query: '우산', onlyAvailable: true, universityId: 1,
+  })));
+});
+
+it('refreshes the current filters when the mounted explore tab regains focus', async () => {
+  await render(<ExploreScreen />);
+  await flushSearch();
+  expect(listItemsMock).toHaveBeenCalledTimes(1);
+  expect(mockFocusEffect).toBeDefined();
+  let resolveRefresh: ((value: ReturnType<typeof catalogPage>) => void) | undefined;
+  listItemsMock.mockReturnValueOnce(new Promise(resolve => { resolveRefresh = resolve; }));
+
+  await act(async () => {
+    mockFocusEffect?.();
+    resolveRefresh?.(catalogPage());
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+
+  expect(listItemsMock).toHaveBeenCalledTimes(2);
+});
+
+it('synchronizes a new route query when the mounted explore screen is reopened', async () => {
+  mockRouteQuery = '첫 검색';
+  const view = await render(<ExploreScreen />);
+  await flushSearch();
+  expect(screen.getByLabelText('탐색 검색어').props.value).toBe('첫 검색');
+
+  mockRouteQuery = '두 번째 검색';
+  view.rerender(<ExploreScreen />);
+
+  expect(screen.getByLabelText('탐색 검색어').props.value).toBe('두 번째 검색');
+  await flushSearch();
+  await waitFor(() => expect(listItemsMock).toHaveBeenLastCalledWith(expect.objectContaining({
+    query: '두 번째 검색',
   })));
 });
 

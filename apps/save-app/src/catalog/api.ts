@@ -86,6 +86,18 @@ export async function createItem(input: CreateItemInput): Promise<CatalogItem> {
   return parseCatalogItem(response);
 }
 
+export async function updateItem(id: number, input: CreateItemInput): Promise<CatalogItem> {
+  const body = input.photos.length > 0
+    ? multipartItemBody(input)
+    : jsonItemBody(input);
+  const response = await apiRequest<unknown>(`/items/${id}`, { method: 'PUT', body });
+  return parseCatalogItem(response);
+}
+
+export async function deleteItem(id: number): Promise<void> {
+  await apiRequest<void>(`/items/${id}`, { method: 'DELETE' });
+}
+
 export async function setWishlist(id: number, wishlisted: boolean): Promise<void> {
   await apiRequest<void>(`/items/${id}/wishlist`, {
     method: wishlisted ? 'POST' : 'DELETE',

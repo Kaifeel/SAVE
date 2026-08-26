@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { createRecommendation, getRecommendationHistory, listItems } from './api';
 import type { CatalogItem, RecommendationSummary } from './types';
@@ -21,8 +21,11 @@ export function useHomeCatalog(universityId: number | null | undefined) {
     recent: [],
     recommendation: null,
   });
+  const requestGeneration = useRef(0);
+  const mounted = useRef(true);
 
   const load = useCallback(async (refreshing = false) => {
+    const generation = ++requestGeneration.current;
     setState(current => ({ ...current, error: null, loading: !refreshing, refreshing }));
     try {
       const [popular, recent, history] = await Promise.all([
@@ -30,6 +33,7 @@ export function useHomeCatalog(universityId: number | null | undefined) {
         listItems({ sort: 'latest', page: 0, size: 8, universityId }),
         getRecommendationHistory(),
       ]);
+      if (!mounted.current || requestGeneration.current !== generation) return;
       setState({
         loading: false,
         refreshing: false,
@@ -39,6 +43,7 @@ export function useHomeCatalog(universityId: number | null | undefined) {
         recommendation: history[0] ?? null,
       });
     } catch {
+      if (!mounted.current || requestGeneration.current !== generation) return;
       setState(current => ({
         ...current,
         loading: false,
@@ -51,10 +56,15 @@ export function useHomeCatalog(universityId: number | null | undefined) {
   }, [universityId]);
 
   useEffect(() => {
+    mounted.current = true;
     const timeout = setTimeout(() => {
       void load();
     }, 0);
-    return () => clearTimeout(timeout);
+    return () => {
+      clearTimeout(timeout);
+      mounted.current = false;
+      requestGeneration.current += 1;
+    };
   }, [load]);
 
   const requestRecommendation = useCallback(async (department: string) => {

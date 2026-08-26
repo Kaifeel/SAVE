@@ -55,7 +55,11 @@ export default function HomeScreen() {
   };
 
   const openItem = (id: number) => router.push({ pathname: '/items/[id]', params: { id: String(id) } });
-  const openExplore = () => router.push({ pathname: '/explore', params: { query: query.trim() } });
+  const openExplore = () => {
+    const submittedQuery = query.trim();
+    setQuery('');
+    router.push({ pathname: '/explore', params: { query: submittedQuery } });
+  };
 
   if (catalog.loading) {
     return <SafeAreaView edges={['top']} style={styles.screen}><ScreenState loading /></SafeAreaView>;

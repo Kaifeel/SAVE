@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getPickupLocations, type PickupLocation } from '@/universities/api';
-import { createItem } from './api';
+import { createItem, getItem, updateItem } from './api';
+import { COMMON_SAFETY_NOTICE } from './constants';
 import {
   initialItemDraft,
   validateItemDraft,
@@ -17,6 +18,8 @@ export type UseItemComposerResult = {
   submitError: string | null;
   photoNotice: string | null;
   submitting: boolean;
+  editing: boolean;
+  existingPhotoCount: number;
   setField: <K extends keyof ItemDraft>(key: K, value: ItemDraft[K]) => void;
   addPhotos: (photos: ItemPhotoAsset[]) => void;
   removePhoto: (uri: string) => void;
@@ -30,6 +33,7 @@ function message(error: unknown, fallback: string): string {
 
 export function useItemComposer(
   universityId: number | null | undefined,
+  itemId: number | null = null,
 ): UseItemComposerResult {
   const [draft, setDraft] = useState<ItemDraft>(() => initialItemDraft());
   const [locations, setLocations] = useState<PickupLocation[]>([]);
@@ -38,6 +42,7 @@ export function useItemComposer(
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [photoNotice, setPhotoNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [existingPhotoCount, setExistingPhotoCount] = useState(0);
   const locationRequest = useRef(0);
   const submittingRef = useRef(false);
   const mounted = useRef(true);
@@ -78,6 +83,32 @@ export function useItemComposer(
       locationRequest.current += 1;
     };
   }, [loadLocations]);
+
+  useEffect(() => {
+    let active = true;
+    if (!itemId) {
+      setExistingPhotoCount(0);
+      return () => { active = false; };
+    }
+    void getItem(itemId).then(item => {
+      if (!active) return;
+      setDraft({
+        type: item.type,
+        title: item.title,
+        rentalFee: String(item.rentalFee),
+        rentalUnit: item.rentalUnit === '시간' ? '시간' : '일',
+        pickupLocationId: item.pickupLocationId,
+        description: item.description,
+        precautions: COMMON_SAFETY_NOTICE,
+        photos: [],
+      });
+      setExistingPhotoCount(item.imageUrls.length);
+      setSubmitError(null);
+    }).catch(error => {
+      if (active) setSubmitError(message(error, '수정할 물품을 불러오지 못했습니다.'));
+    });
+    return () => { active = false; };
+  }, [itemId]);
 
   const setField = useCallback(<K extends keyof ItemDraft>(
     key: K,
@@ -126,7 +157,14 @@ export function useItemComposer(
     setSubmitting(true);
     setSubmitError(null);
     try {
-      return await createItem(validation.input);
+      const item = itemId
+        ? await updateItem(itemId, validation.input)
+        : await createItem(validation.input);
+      if (mounted.current) {
+        setDraft(initialItemDraft());
+        setPhotoNotice(null);
+      }
+      return item;
     } catch (error) {
       if (mounted.current) {
         setSubmitError(message(error, '물품 등록에 실패했습니다.'));
@@ -138,7 +176,7 @@ export function useItemComposer(
         setSubmitting(false);
       }
     }
-  }, [draft, locations]);
+  }, [draft, itemId, locations]);
 
   return {
     draft,
@@ -148,6 +186,8 @@ export function useItemComposer(
     submitError,
     photoNotice,
     submitting,
+    editing: Boolean(itemId),
+    existingPhotoCount,
     setField,
     addPhotos,
     removePhoto,

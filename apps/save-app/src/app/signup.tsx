@@ -1,5 +1,4 @@
 import { Link } from 'expo-router';
-import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -175,7 +174,10 @@ export default function SignupScreen() {
                 onPress={() => void submitGoogle()}
                 style={({ pressed }) => [styles.googleButton, pressed && styles.pressed, pending && styles.disabled]}
               >
-                <Text style={styles.googleLabel}>{google.busy ? '처리 중...' : 'Google로 계속'}</Text>
+                {google.busy ? null : <GoogleLogo />}
+                <Text style={styles.googleLabel}>
+                  {google.busy ? '처리 중...' : 'Google 계정으로 계속하기'}
+                </Text>
               </Pressable>
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
@@ -187,7 +189,7 @@ export default function SignupScreen() {
 
           <View style={styles.form}>
             <Field
-              icon={{ fallback: '○', name: 'person' }}
+              icon="person"
               label="이름"
               value={name}
               onChangeText={setName}
@@ -226,7 +228,7 @@ export default function SignupScreen() {
             </View>
             <Field label="학과" value={department} onChangeText={setDepartment} maxLength={100} />
             <Field
-              icon={{ fallback: '@', name: 'envelope' }}
+              icon="email"
               label="이메일"
               value={email}
               onChangeText={setEmail}
@@ -236,7 +238,7 @@ export default function SignupScreen() {
               inputMode="email"
             />
             <Field
-              icon={{ fallback: '●', name: 'lock' }}
+              icon="lock"
               label="비밀번호"
               value={password}
               onChangeText={setPassword}
@@ -305,10 +307,7 @@ export default function SignupScreen() {
 }
 
 type FieldProps = {
-  icon?: {
-    fallback: string;
-    name: SymbolViewProps['name'];
-  };
+  icon?: 'email' | 'lock' | 'person';
   label: string;
   value: string;
   onChangeText: (value: string) => void;
@@ -325,15 +324,7 @@ function Field({ icon, label, ...inputProps }: FieldProps) {
       <Text style={styles.label}>{label}</Text>
       <View style={styles.inputFrame}>
         {icon ? (
-          <SymbolView
-            accessibilityElementsHidden
-            fallback={<Text style={[styles.inputIcon, styles.fallbackIcon]}>{icon.fallback}</Text>}
-            importantForAccessibility="no-hide-descendants"
-            name={icon.name}
-            size={20}
-            style={styles.inputIcon}
-            tintColor="#94a3b8"
-          />
+          <FieldIcon name={icon} />
         ) : null}
         <TextInput
           accessibilityLabel={label}
@@ -341,6 +332,47 @@ function Field({ icon, label, ...inputProps }: FieldProps) {
           {...inputProps}
         />
       </View>
+    </View>
+  );
+}
+
+function GoogleLogo() {
+  return (
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.googleLogo} testID="google-logo">
+      <Text style={styles.googleLogoLetter}>G</Text>
+      <View style={styles.googleLogoColors}>
+        <View style={[styles.googleLogoColor, styles.googleBlue]} />
+        <View style={[styles.googleLogoColor, styles.googleRed]} />
+        <View style={[styles.googleLogoColor, styles.googleYellow]} />
+        <View style={[styles.googleLogoColor, styles.googleGreen]} />
+      </View>
+    </View>
+  );
+}
+
+function FieldIcon({ name }: { name: NonNullable<FieldProps['icon']> }) {
+  if (name === 'person') {
+    return (
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.inputIcon} testID="name-icon">
+        <View style={styles.personHead} />
+        <View style={styles.personBody} />
+      </View>
+    );
+  }
+
+  if (name === 'email') {
+    return (
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[styles.inputIcon, styles.emailIcon]} testID="email-icon">
+        <View style={styles.emailFlapLeft} />
+        <View style={styles.emailFlapRight} />
+      </View>
+    );
+  }
+
+  return (
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={styles.inputIcon} testID="password-icon">
+      <View style={styles.lockShackle} />
+      <View style={styles.lockBody} />
     </View>
   );
 }
@@ -359,8 +391,16 @@ const styles = StyleSheet.create({
   tabLabel: { color: '#64748b', fontSize: 14, fontWeight: '700' },
   activeTabLabel: { color: theme.colors.primary, fontSize: 14, fontWeight: '700' },
   googleSection: { marginBottom: 4 },
-  googleButton: { alignItems: 'center', borderColor: '#cbd5e1', borderRadius: 7, borderWidth: 1, height: 48, justifyContent: 'center' },
+  googleButton: { alignItems: 'center', borderColor: '#cbd5e1', borderRadius: 7, borderWidth: 1, flexDirection: 'row', height: 48, justifyContent: 'center', position: 'relative' },
   googleLabel: { color: theme.colors.text, fontSize: 14, fontWeight: '700' },
+  googleLogo: { height: 20, left: 14, position: 'absolute', top: 13, width: 20 },
+  googleLogoLetter: { color: '#4285f4', fontSize: 19, fontWeight: '900', lineHeight: 20 },
+  googleLogoColors: { bottom: 0, flexDirection: 'row', height: 3, left: 2, overflow: 'hidden', position: 'absolute', width: 16 },
+  googleLogoColor: { flex: 1 },
+  googleBlue: { backgroundColor: '#4285f4' },
+  googleRed: { backgroundColor: '#ea4335' },
+  googleYellow: { backgroundColor: '#fbbc05' },
+  googleGreen: { backgroundColor: '#34a853' },
   divider: { alignItems: 'center', flexDirection: 'row', gap: 12, marginVertical: 20 },
   dividerLine: { backgroundColor: '#e2e8f0', flex: 1, height: 1 },
   dividerLabel: { color: theme.colors.muted, fontSize: 12, fontWeight: '600' },
@@ -369,8 +409,14 @@ const styles = StyleSheet.create({
   inputFrame: { position: 'relative' },
   input: { borderColor: '#cbd5e1', borderRadius: 7, borderWidth: 1, color: theme.colors.text, fontSize: 14, height: 48, paddingHorizontal: 14, width: '100%' },
   inputWithIcon: { paddingLeft: 44 },
-  inputIcon: { left: 14, position: 'absolute', top: 14, zIndex: 1 },
-  fallbackIcon: { color: '#94a3b8', fontSize: 15, fontWeight: '800' },
+  inputIcon: { height: 20, left: 14, position: 'absolute', top: 14, width: 20, zIndex: 1 },
+  personHead: { alignSelf: 'center', borderColor: '#94a3b8', borderRadius: 4, borderWidth: 1.6, height: 8, width: 8 },
+  personBody: { alignSelf: 'center', borderColor: '#94a3b8', borderRadius: 8, borderWidth: 1.6, borderBottomWidth: 0, height: 9, marginTop: 2, width: 15 },
+  emailIcon: { borderColor: '#94a3b8', borderRadius: 2, borderWidth: 1.6, height: 15, top: 16 },
+  emailFlapLeft: { backgroundColor: '#94a3b8', height: 1.5, left: 1, position: 'absolute', top: 4, transform: [{ rotate: '31deg' }], width: 9 },
+  emailFlapRight: { backgroundColor: '#94a3b8', height: 1.5, position: 'absolute', right: 1, top: 4, transform: [{ rotate: '-31deg' }], width: 9 },
+  lockShackle: { alignSelf: 'center', borderColor: '#94a3b8', borderBottomWidth: 0, borderRadius: 6, borderWidth: 1.6, height: 9, width: 11 },
+  lockBody: { backgroundColor: '#94a3b8', borderRadius: 2, height: 10, marginTop: -1, width: 20 },
   catalogStatus: { color: '#64748b', fontSize: 14, height: 48, paddingVertical: 14 },
   catalogError: { gap: 10 },
   retryButton: { alignItems: 'center', borderColor: theme.colors.primary, borderRadius: 7, borderWidth: 1, minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 },

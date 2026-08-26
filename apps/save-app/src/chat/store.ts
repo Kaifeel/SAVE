@@ -27,6 +27,7 @@ type ChatStateData = {
   nextBefore: number | null;
   hasOlder: boolean;
   socketState: ChatSocketState;
+  hasConnectedRealtime: boolean;
   loadingRooms: boolean;
   loadingMessages: boolean;
   loadingOlder: boolean;
@@ -53,6 +54,7 @@ export const initialChatState: ChatStateData = {
   nextBefore: null,
   hasOlder: false,
   socketState: 'disconnected',
+  hasConnectedRealtime: false,
   loadingRooms: false,
   loadingMessages: false,
   loadingOlder: false,
@@ -67,6 +69,7 @@ let unsubscribeChatList: (() => void) | null = null;
 let unsubscribeNotifications: (() => void) | null = null;
 let roomRequestId = 0;
 let optimisticId = 0;
+let socketGeneration = 0;
 
 function timelineMessage(message: ChatMessage): TimelineMessage {
   return { ...message, deliveryStatus: 'sent' };
@@ -111,6 +114,23 @@ function upsertRoom(rooms: ChatRoom[], incoming: ChatRoom, activeRoomId: number 
   return [room, ...rooms.filter(entry => entry.id !== incoming.id)];
 }
 
+function mergeRoomSnapshot(snapshot: ChatRoom[], current: ChatRoom[], activeRoomId: number | null) {
+  return snapshot.map(room => {
+    const existing = current.find(value => value.id === room.id);
+    const snapshotTime = room.lastMessageAt ? Date.parse(room.lastMessageAt) : 0;
+    const existingTime = existing?.lastMessageAt ? Date.parse(existing.lastMessageAt) : 0;
+    const merged = existing && existingTime > snapshotTime
+      ? {
+        ...room,
+        lastMessage: existing.lastMessage,
+        lastMessageAt: existing.lastMessageAt,
+        unreadCount: existing.unreadCount,
+      }
+      : room;
+    return merged.id === activeRoomId ? { ...merged, unreadCount: 0 } : merged;
+  });
+}
+
 export const useChatStore = create<ChatState>((set, get) => {
   const handleRoomMessage = (message: ChatMessage) => {
     const currentUserId = useAuthStore.getState().user?.id;
@@ -142,7 +162,11 @@ export const useChatStore = create<ChatState>((set, get) => {
     unsubscribeRoom?.();
     unsubscribeRoom = null;
     if (socket && roomId !== null) {
-      unsubscribeRoom = socket.subscribeRoom(roomId, handleRoomMessage);
+      const generation = socketGeneration;
+      unsubscribeRoom = socket.subscribeRoom(roomId, message => {
+        if (generation !== socketGeneration) return;
+        handleRoomMessage(message);
+      });
     }
   };
 
@@ -171,12 +195,10 @@ export const useChatStore = create<ChatState>((set, get) => {
     try {
       const rooms = await listChatRooms();
       const activeRoomId = get().activeRoomId;
-      set({
-        rooms: rooms.map(room => room.id === activeRoomId
-          ? { ...room, unreadCount: 0 }
-          : room),
+      set(state => ({
+        rooms: mergeRoomSnapshot(rooms, state.rooms, activeRoomId),
         loadingRooms: false,
-      });
+      }));
     } catch {
       set({ loadingRooms: false, roomsError: '채팅 목록을 불러오지 못했습니다.' });
     }
@@ -228,7 +250,13 @@ export const useChatStore = create<ChatState>((set, get) => {
       });
       subscribeActiveRoom(roomId);
       try {
-        const page = await loadChatMessages(roomId, null);
+        const roomSnapshot = get().rooms.some(room => room.id === roomId)
+          ? Promise.resolve()
+          : loadRooms();
+        const [page] = await Promise.all([
+          loadChatMessages(roomId, null),
+          roomSnapshot,
+        ]);
         if (roomRequestId !== requestId || get().activeRoomId !== roomId) return;
         set(state => ({
           messages: mergeMessageSnapshot(
@@ -325,6 +353,8 @@ export const useChatStore = create<ChatState>((set, get) => {
       });
     },
     connectRealtime: accessToken => {
+      socketGeneration += 1;
+      const generation = socketGeneration;
       void socket?.disconnect();
       unsubscribeRoom = null;
       unsubscribeChatList = null;
@@ -333,7 +363,10 @@ export const useChatStore = create<ChatState>((set, get) => {
       socket = createChatSocket({
         accessToken,
         onStateChange: state => {
-          set({ socketState: state });
+          if (generation !== socketGeneration) return;
+          set(state === 'connected'
+            ? { socketState: state, hasConnectedRealtime: true }
+            : { socketState: state });
           if (state !== 'connected') return;
 
           void get().loadRooms();
@@ -344,18 +377,24 @@ export const useChatStore = create<ChatState>((set, get) => {
 
           void resynchronizeActiveRoom();
         },
-        onProtocolError: () => set({ socketState: 'error' }),
+        onProtocolError: () => {
+          if (generation !== socketGeneration) return;
+          set({ socketState: 'error' });
+        },
       });
       unsubscribeChatList = socket.subscribeChatList(room => {
+        if (generation !== socketGeneration) return;
         set(state => ({ rooms: upsertRoom(state.rooms, room, state.activeRoomId) }));
       });
       unsubscribeNotifications = socket.subscribeNotifications(() => {
+        if (generation !== socketGeneration) return;
         void get().loadRooms();
       });
       subscribeActiveRoom(get().activeRoomId);
       socket.connect();
     },
     disconnectRealtime: async () => {
+      socketGeneration += 1;
       unsubscribeRoom?.();
       unsubscribeChatList?.();
       unsubscribeNotifications?.();
@@ -365,7 +404,7 @@ export const useChatStore = create<ChatState>((set, get) => {
       const current = socket;
       socket = null;
       if (current) await current.disconnect();
-      set({ socketState: 'disconnected' });
+      set({ socketState: 'disconnected', hasConnectedRealtime: false });
     },
   };
 });

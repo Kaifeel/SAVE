@@ -85,6 +85,8 @@ export function createChatSocket({
   const config: StompConfig = {
     brokerURL: chatSocketUrl(apiBaseUrl),
     connectHeaders: { Authorization: `Bearer ${accessToken}` },
+    forceBinaryWSFrames: true,
+    appendMissingNULLonIncoming: true,
     reconnectDelay: 1000,
     maxReconnectDelay: 30000,
     beforeConnect: () => onStateChange('connecting'),

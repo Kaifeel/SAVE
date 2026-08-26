@@ -137,6 +137,7 @@ it('opens explore with the entered query and opens item detail', async () => {
   await fireEvent.changeText(screen.getByPlaceholderText('빌리고 싶은 물건을 검색하세요'), '렌즈 가방');
   await fireEvent.press(screen.getByRole('button', { name: '검색' }));
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/explore', params: { query: '렌즈 가방' } });
+  expect(screen.getByLabelText('물품 검색어').props.value).toBe('');
 
   await fireEvent.press(screen.getAllByRole('button', { name: `${catalogItem.title} 상세 보기` })[0]);
   expect(mockPush).toHaveBeenCalledWith({ pathname: '/items/[id]', params: { id: '7' } });

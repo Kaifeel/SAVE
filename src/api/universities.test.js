@@ -16,7 +16,7 @@ describe('university reference transport', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(getUniversities()).resolves.toEqual(universities)
-    expect(fetchMock.mock.calls[0][0]).toMatch(/\/universities$/)
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/universities')
   })
 
   it('uses the selected university id for pickup locations', async () => {
@@ -28,6 +28,6 @@ describe('university reference transport', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(getPickupLocations(2)).resolves.toEqual(locations)
-    expect(fetchMock.mock.calls[0][0]).toMatch(/\/universities\/2\/pickup-locations$/)
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/universities/2/pickup-locations')
   })
 })

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Linking, Platform } from 'react-native';
 
@@ -15,8 +15,12 @@ function fallbackFileName(uri: string, index: number): string {
 
 export default function CreateScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ itemId?: string | string[] }>();
+  const rawItemId = Array.isArray(params.itemId) ? params.itemId[0] : params.itemId;
+  const parsedItemId = rawItemId ? Number(rawItemId) : Number.NaN;
+  const itemId = Number.isInteger(parsedItemId) && parsedItemId > 0 ? parsedItemId : null;
   const universityId = useAuthStore(state => state.user?.universityId);
-  const composer = useItemComposer(universityId);
+  const composer = useItemComposer(universityId, itemId);
   const [permissionNotice, setPermissionNotice] = useState<string | null>(null);
 
   const appendAssets = (assets: ImagePicker.ImagePickerAsset[]) => {

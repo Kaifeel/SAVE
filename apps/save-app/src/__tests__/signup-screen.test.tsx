@@ -50,7 +50,7 @@ beforeEach(() => {
   mockGetUniversities.mockResolvedValue(universities);
 });
 
-it('offers the same Google continuation on signup when OAuth is configured', async () => {
+it('matches the web Google continuation and uses graphical field icons', async () => {
   mockUseGoogleLogin.mockReturnValue({
     busy: false,
     enabled: true,
@@ -59,9 +59,16 @@ it('offers the same Google continuation on signup when OAuth is configured', asy
   });
 
   await render(<SignupScreen />);
-  await fireEvent.press(screen.getByRole('button', { name: 'Google로 계속' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Google 계정으로 계속하기' }));
 
   expect(promptGoogle).toHaveBeenCalledTimes(1);
+  expect(screen.getByTestId('google-logo', { includeHiddenElements: true })).toBeTruthy();
+  expect(screen.getByTestId('name-icon', { includeHiddenElements: true })).toBeTruthy();
+  expect(screen.getByTestId('email-icon', { includeHiddenElements: true })).toBeTruthy();
+  expect(screen.getByTestId('password-icon', { includeHiddenElements: true })).toBeTruthy();
+  expect(screen.queryByText('○')).toBeNull();
+  expect(screen.queryByText('@')).toBeNull();
+  expect(screen.queryByText('●')).toBeNull();
 });
 
 async function selectUniversity(name = '한국해양대학교') {

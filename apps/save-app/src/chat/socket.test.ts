@@ -48,6 +48,21 @@ describe('Expo chat STOMP adapter', () => {
     expect(client.activate).toHaveBeenCalledTimes(1);
   });
 
+  it('uses binary frames and restores chopped STOMP terminators on React Native', () => {
+    const { factory } = fakeClientFactory();
+
+    createChatSocket({
+      accessToken: 'jwt-token',
+      apiBaseUrl: 'http://10.0.2.2:8080/api/v1',
+      clientFactory: factory,
+    });
+
+    expect(factory).toHaveBeenCalledWith(expect.objectContaining({
+      forceBinaryWSFrames: true,
+      appendMissingNULLonIncoming: true,
+    }));
+  });
+
   it('isolates malformed JSON without invoking a room handler', () => {
     const { client, factory } = fakeClientFactory();
     const onProtocolError = jest.fn();

@@ -4,6 +4,7 @@ import {
   type ItemDraft,
 } from './item-composer';
 import type { ItemPhotoAsset } from './types';
+import { COMMON_SAFETY_NOTICE } from './constants';
 
 const photo = (index: number): ItemPhotoAsset => ({
   uri: `file:///photo-${index}.jpg`,
@@ -33,7 +34,7 @@ it.each([
   expect(validateItemDraft({ ...validDraft, ...patch })).toEqual({ ok: false, message });
 });
 
-it('trims text and converts a valid fee for submission', () => {
+it('trims editable text and always submits the fixed safety notice', () => {
   expect(validateItemDraft({
     ...validDraft,
     title: '  충전기  ',
@@ -49,7 +50,7 @@ it('trims text and converts a valid fee for submission', () => {
       rentalUnit: '일',
       pickupLocationId: 4,
       description: '정상 작동합니다.',
-      precautions: '분실 주의',
+      precautions: COMMON_SAFETY_NOTICE,
       photos: [],
     },
   });

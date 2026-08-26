@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { listItems } from './api';
 import type { CatalogItem, CatalogItemType } from './types';
@@ -13,8 +13,20 @@ export function useExploreCatalog(
   const [items, setItems] = useState<CatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const requestGeneration = useRef(0);
+  const mounted = useRef(true);
+
+  useEffect(() => () => {
+    mounted.current = false;
+    requestGeneration.current += 1;
+  }, []);
+
+  useEffect(() => {
+    setQuery(initialQuery);
+  }, [initialQuery]);
 
   const load = useCallback(async () => {
+    const generation = ++requestGeneration.current;
     setLoading(true);
     setError(null);
     try {
@@ -27,12 +39,16 @@ export function useExploreCatalog(
         size: 20,
         universityId,
       });
-      setItems(page.content);
+      if (mounted.current && requestGeneration.current === generation) {
+        setItems(page.content);
+      }
     } catch {
-      setItems([]);
-      setError('물품을 불러오지 못했습니다. 네트워크를 확인해 주세요.');
+      if (mounted.current && requestGeneration.current === generation) {
+        setItems([]);
+        setError('물품을 불러오지 못했습니다. 네트워크를 확인해 주세요.');
+      }
     } finally {
-      setLoading(false);
+      if (mounted.current && requestGeneration.current === generation) setLoading(false);
     }
   }, [onlyAvailable, query, type, universityId]);
 

@@ -1,6 +1,6 @@
 import { useAuthStore } from '../store/authStore.js'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
 const unauthorizedListeners = new Set()
 let refreshPromise = null
 
@@ -20,9 +20,11 @@ export function subscribeUnauthorized(listener) {
 }
 
 function buildUrl(path, params) {
-  const baseUrl = API_BASE_URL
-    ? `${API_BASE_URL.replace(/\/$/, '')}/`
-    : `${window.location.origin}/`
+  const absoluteApiBase = /^https?:\/\//i.test(API_BASE_URL)
+  const normalizedApiBase = API_BASE_URL.replace(/\/$/, '')
+  const baseUrl = absoluteApiBase
+    ? `${normalizedApiBase}/`
+    : `${window.location.origin}/${normalizedApiBase.replace(/^\//, '')}/`
   const url = path.startsWith('http')
     ? new URL(path)
     : new URL(path.replace(/^\//, ''), baseUrl)
@@ -35,7 +37,7 @@ function buildUrl(path, params) {
     })
   }
 
-  return API_BASE_URL ? url.toString() : `${url.pathname}${url.search}`
+  return absoluteApiBase ? url.toString() : `${url.pathname}${url.search}`
 }
 
 async function parseResponse(res) {

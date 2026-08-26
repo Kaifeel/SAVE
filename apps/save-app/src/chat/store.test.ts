@@ -40,17 +40,23 @@ const message = (id: number, text = `message-${id}`): ChatMessage => ({
 });
 
 let roomHandler: ((value: ChatMessage) => void) | undefined;
+let roomHandlers: ((value: ChatMessage) => void)[];
 let chatListHandler: ((value: ChatRoom) => void) | undefined;
 let socketStateHandler: ((state: 'connecting' | 'connected' | 'disconnected' | 'error') => void)
   | undefined;
+let socketStateHandlers: ((state: 'connecting' | 'connected' | 'disconnected' | 'error') => void)[];
+let protocolErrorHandlers: ((error: Error, frame: { body: string }) => void)[];
 const disconnectSocket = jest.fn().mockResolvedValue(undefined);
 
 beforeEach(async () => {
   await useChatStore.getState().disconnectRealtime();
   jest.clearAllMocks();
   roomHandler = undefined;
+  roomHandlers = [];
   chatListHandler = undefined;
   socketStateHandler = undefined;
+  socketStateHandlers = [];
+  protocolErrorHandlers = [];
   useChatStore.setState(initialChatState);
   useAuthStore.setState({
     status: 'authenticated',
@@ -69,11 +75,14 @@ beforeEach(async () => {
   markChatRoomRead.mockResolvedValue({ readCount: 1 });
   createChatSocketMock.mockImplementation(options => {
     socketStateHandler = options.onStateChange;
+    if (options.onStateChange) socketStateHandlers.push(options.onStateChange);
+    if (options.onProtocolError) protocolErrorHandlers.push(options.onProtocolError);
     return {
       connect: jest.fn(),
       disconnect: disconnectSocket,
       subscribeRoom: jest.fn((_roomId, handler) => {
         roomHandler = handler;
+        roomHandlers.push(handler);
         return jest.fn();
       }),
       subscribeChatList: jest.fn(handler => {
@@ -85,6 +94,30 @@ beforeEach(async () => {
   });
 });
 
+it('ignores connection state callbacks from an obsolete socket', () => {
+  useChatStore.getState().connectRealtime('old-jwt');
+  useChatStore.getState().connectRealtime('new-jwt');
+
+  socketStateHandlers[1]?.('connected');
+  socketStateHandlers[0]?.('disconnected');
+  protocolErrorHandlers[0]?.(new Error('old socket'), { body: 'obsolete' });
+
+  expect(useChatStore.getState()).toMatchObject({
+    socketState: 'connected',
+    hasConnectedRealtime: true,
+  });
+});
+
+it('ignores room messages delivered by an obsolete socket', () => {
+  useChatStore.setState({ activeRoomId: 7 });
+  useChatStore.getState().connectRealtime('old-jwt');
+  useChatStore.getState().connectRealtime('new-jwt');
+
+  roomHandlers[0]?.(message(5, '폐기된 연결 메시지'));
+
+  expect(useChatStore.getState().messages).toEqual([]);
+});
+
 it('loads a validated room snapshot', async () => {
   listChatRooms.mockResolvedValue([room]);
 
@@ -94,6 +127,47 @@ it('loads a validated room snapshot', async () => {
     rooms: [room],
     loadingRooms: false,
     roomsError: null,
+  });
+});
+
+it('does not let an older room snapshot overwrite a newer realtime summary', async () => {
+  let resolveRooms: ((value: ChatRoom[]) => void) | undefined;
+  listChatRooms.mockReturnValue(new Promise(resolve => { resolveRooms = resolve; }));
+  useChatStore.setState({ rooms: [room] });
+  useChatStore.getState().connectRealtime('jwt');
+
+  const loading = useChatStore.getState().loadRooms();
+  chatListHandler?.({
+    ...room,
+    lastMessage: '방금 온 메시지',
+    lastMessageAt: '2026-08-23T17:00:00',
+    unreadCount: 3,
+  });
+  resolveRooms?.([room]);
+  await loading;
+
+  expect(useChatStore.getState().rooms[0]).toMatchObject({
+    lastMessage: '방금 온 메시지',
+    lastMessageAt: '2026-08-23T17:00:00',
+    unreadCount: 3,
+  });
+});
+
+it('loads missing room metadata when opening a room directly', async () => {
+  listChatRooms.mockResolvedValue([room]);
+  loadChatMessages.mockResolvedValue({
+    messages: [message(5, '먼저 온 메시지')],
+    nextBefore: null,
+    hasMore: false,
+  });
+
+  await useChatStore.getState().openRoom(7);
+
+  expect(useChatStore.getState()).toMatchObject({
+    rooms: [{ ...room, unreadCount: 0 }],
+    messages: [{ id: 5, message: '먼저 온 메시지' }],
+    loadingRooms: false,
+    loadingMessages: false,
   });
 });
 

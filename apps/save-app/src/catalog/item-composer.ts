@@ -63,7 +63,7 @@ export function validateItemDraft(draft: ItemDraft): ItemDraftValidation {
       rentalUnit: draft.rentalUnit,
       pickupLocationId: draft.pickupLocationId,
       description: draft.description.trim(),
-      precautions: draft.precautions.trim(),
+      precautions: COMMON_SAFETY_NOTICE,
       photos: [...draft.photos],
     },
   };

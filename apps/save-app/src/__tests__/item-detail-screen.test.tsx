@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import ItemDetailScreen from '@/app/(authenticated)/(tabs)/items/[id]';
-import { Share } from 'react-native';
+import { Alert, Share } from 'react-native';
 import { ApiError } from '@/api/client';
-import { getItem, setWishlist } from '@/catalog/api';
+import { deleteItem, getItem, setWishlist } from '@/catalog/api';
 import { COMMON_SAFETY_NOTICE } from '@/catalog/constants';
 import { createOrGetChatRoom } from '@/chat/api';
 import { createRental } from '@/rentals/api';
@@ -13,12 +13,14 @@ import { catalogItem } from '@/test-utils/catalog-fixtures';
 const mockBack = jest.fn();
 const mockPush = jest.fn();
 const mockNavigate = jest.fn();
+const mockReplace = jest.fn();
 let mockRouteId = '7';
+let mockCurrentUserId = 1;
 const mockSafeAreaInsets = { top: 24, right: 0, bottom: 0, left: 0 };
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ id: mockRouteId }),
-  useRouter: () => ({ back: mockBack, navigate: mockNavigate, push: mockPush }),
+  useRouter: () => ({ back: mockBack, navigate: mockNavigate, push: mockPush, replace: mockReplace }),
 }));
 
 jest.mock('react-native-safe-area-context', () => {
@@ -29,6 +31,7 @@ jest.mock('react-native-safe-area-context', () => {
 jest.mock('@/catalog/api', () => ({
   getItem: jest.fn(),
   setWishlist: jest.fn(),
+  deleteItem: jest.fn(),
 }));
 
 jest.mock('@/chat/api', () => ({ createOrGetChatRoom: jest.fn() }));
@@ -36,17 +39,25 @@ jest.mock('@/chat/store', () => ({
   useChatStore: { getState: () => ({ loadRooms: jest.fn().mockResolvedValue(undefined) }) },
 }));
 jest.mock('@/rentals/api', () => ({ createRental: jest.fn() }));
+jest.mock('@/auth/store', () => ({
+  useAuthStore: (selector: (state: unknown) => unknown) => selector({
+    user: { id: mockCurrentUserId },
+  }),
+}));
 
 const getItemMock = jest.mocked(getItem);
 const setWishlistMock = jest.mocked(setWishlist);
+const deleteItemMock = jest.mocked(deleteItem);
 const createOrGetChatRoomMock = jest.mocked(createOrGetChatRoom);
 const createRentalMock = jest.mocked(createRental);
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockRouteId = '7';
+  mockCurrentUserId = 1;
   getItemMock.mockResolvedValue(catalogItem);
   setWishlistMock.mockResolvedValue(undefined);
+  deleteItemMock.mockResolvedValue(undefined);
   createOrGetChatRoomMock.mockResolvedValue({ id: 44, itemId: 7 });
   createRentalMock.mockResolvedValue({ id: 41 } as Rental);
 });
@@ -58,8 +69,7 @@ it('renders only API-provided detail values and the actual photo count', async (
   });
   await render(<ItemDetailScreen />);
 
-  expect(await screen.findByText('1 / 2')).toBeTruthy();
-  expect(screen.getByLabelText('사진 1/2')).toBeTruthy();
+  expect(await screen.findByLabelText('사진 1/2')).toBeTruthy();
   expect(screen.getByLabelText('물품 사진 1').props.style).toEqual(expect.objectContaining({
     resizeMode: 'contain',
   }));
@@ -168,6 +178,39 @@ it('opens the native share sheet for the current item', async () => {
   expect(share).toHaveBeenCalledWith(expect.objectContaining({
     message: expect.stringContaining(`saveapp://items/${catalogItem.id}`),
   }));
+});
+
+it('offers the owner an edit action that opens the item editor', async () => {
+  mockCurrentUserId = catalogItem.ownerId;
+  await render(<ItemDetailScreen />);
+  await screen.findByText(catalogItem.title);
+
+  await fireEvent.press(screen.getByRole('button', { name: '수정' }));
+
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: '/create',
+    params: { itemId: String(catalogItem.id) },
+  });
+  expect(screen.queryByText('내가 등록한 물품입니다.')).toBeNull();
+});
+
+it('confirms and deletes an owned item before returning home', async () => {
+  mockCurrentUserId = catalogItem.ownerId;
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation((_title, _message, buttons) => {
+    buttons?.find(button => button.text === '삭제')?.onPress?.();
+  });
+  await render(<ItemDetailScreen />);
+  await screen.findByText(catalogItem.title);
+
+  await fireEvent.press(screen.getByRole('button', { name: '삭제' }));
+
+  expect(alert).toHaveBeenCalledWith(
+    '게시물 삭제',
+    '이 게시물을 삭제하시겠습니까?',
+    expect.any(Array),
+  );
+  await waitFor(() => expect(deleteItemMock).toHaveBeenCalledWith(catalogItem.id));
+  expect(mockReplace).toHaveBeenCalledWith('/');
 });
 
 it('places the detail header below the Android status bar inset', async () => {
