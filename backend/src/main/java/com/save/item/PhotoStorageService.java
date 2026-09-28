@@ -8,12 +8,15 @@ import com.save.storage.UploadPolicy;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
 public class PhotoStorageService {
+    private static final Logger log = LoggerFactory.getLogger(PhotoStorageService.class);
     private final UploadPolicy uploadPolicy;
     private final ObjectStorage objectStorage;
 
@@ -35,6 +38,20 @@ public class PhotoStorageService {
             urls.add(stored.url());
         }
         return urls;
+    }
+
+    public String storeProfile(MultipartFile photo) {
+        if (photo == null || photo.isEmpty()) return null;
+        return objectStorage.storeProfile(uploadPolicy.validate(photo)).url();
+    }
+
+    public void deleteLocalProfile(String url) {
+        if (!(objectStorage instanceof LocalObjectStorage local)) return;
+        try {
+            local.deleteByPublicUrl(url);
+        } catch (BusinessException exception) {
+            log.warn("프로필 사진 파일을 정리하지 못했습니다: {}", url, exception);
+        }
     }
 
     public Path getUploadDirectory() {

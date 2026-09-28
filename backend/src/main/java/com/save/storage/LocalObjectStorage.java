@@ -21,7 +21,15 @@ public class LocalObjectStorage implements ObjectStorage {
 
     @Override
     public StoredObject store(ValidatedImage image) {
-        String key = ObjectKeyFactory.itemImage(image.extension());
+        return store(image, ObjectKeyFactory.itemImage(image.extension()));
+    }
+
+    @Override
+    public StoredObject storeProfile(ValidatedImage image) {
+        return store(image, ObjectKeyFactory.profileImage(image.extension()));
+    }
+
+    private StoredObject store(ValidatedImage image, String key) {
         Path target = root.resolve(key).normalize();
         if (!target.startsWith(root)) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "올바르지 않은 저장 경로입니다.");
@@ -33,6 +41,20 @@ public class LocalObjectStorage implements ObjectStorage {
         } catch (IOException exception) {
             throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "사진 저장에 실패했습니다.");
+        }
+    }
+
+    public void deleteByPublicUrl(String url) {
+        if (url == null || url.isBlank()) return;
+        String prefix = publicBaseUrl + "/";
+        if (!url.startsWith(prefix)) return;
+        Path target = root.resolve(url.substring(prefix.length())).normalize();
+        if (!target.startsWith(root.resolve("profiles").normalize())) return;
+        try {
+            Files.deleteIfExists(target);
+        } catch (IOException exception) {
+            throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "이전 프로필 사진 삭제에 실패했습니다.");
         }
     }
 

@@ -19,10 +19,16 @@ public class UserController {
         return userService.getMe(userId(jwt));
     }
 
-    @PutMapping("/profile")
+    @PutMapping(value = "/profile", consumes = "application/json")
     public UserResponse updateProfile(@AuthenticationPrincipal Jwt jwt,
                                       @Valid @RequestBody UserProfileUpdateRequest request) {
         return userService.updateProfile(userId(jwt), request);
+    }
+
+    @PutMapping(value = "/profile", consumes = "multipart/form-data")
+    public UserResponse editProfile(@AuthenticationPrincipal Jwt jwt,
+                                    @Valid @ModelAttribute UserProfileEditRequest request) {
+        return userService.editProfile(userId(jwt), request);
     }
 
     @GetMapping("/items")

@@ -25,4 +25,22 @@ class LocalObjectStorageTest {
         assertThat(stored.url()).startsWith("/uploads/items/");
         assertThat(Files.exists(tempDirectory.resolve(stored.key()))).isTrue();
     }
+
+    @Test
+    void storesProfileImagesSeparatelyAndDeletesOnlyTheirOwnPublicUrl() {
+        StorageProperties properties = new StorageProperties();
+        properties.setLocalRoot(tempDirectory.toString());
+        LocalObjectStorage storage = new LocalObjectStorage(properties);
+
+        StoredObject stored = storage.storeProfile(
+                new ValidatedImage(new byte[]{1, 2, 3}, "png", "image/png"));
+
+        assertThat(stored.key()).startsWith("profiles/");
+        assertThat(stored.url()).startsWith("/uploads/profiles/");
+        assertThat(Files.exists(tempDirectory.resolve(stored.key()))).isTrue();
+
+        storage.deleteByPublicUrl(stored.url());
+
+        assertThat(Files.exists(tempDirectory.resolve(stored.key()))).isFalse();
+    }
 }

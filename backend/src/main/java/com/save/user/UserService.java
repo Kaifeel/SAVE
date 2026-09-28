@@ -12,10 +12,13 @@ import com.save.wishlist.WishlistRepository;
 import com.save.university.University;
 import com.save.university.UniversityRepository;
 import com.save.security.CampusAccessPolicy;
+import com.save.item.PhotoStorageService;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class UserService {
@@ -26,13 +29,15 @@ public class UserService {
     private final RentalRepository rentalRepository;
     private final ReviewQueryService reviewQueryService;
     private final CampusAccessPolicy campusAccessPolicy;
+    private final PhotoStorageService photoStorageService;
 
     public UserService(UserRepository userRepository, ItemRepository itemRepository,
                        WishlistRepository wishlistRepository,
                        UniversityRepository universityRepository,
                        RentalRepository rentalRepository,
                        ReviewQueryService reviewQueryService,
-                       CampusAccessPolicy campusAccessPolicy) {
+                       CampusAccessPolicy campusAccessPolicy,
+                       PhotoStorageService photoStorageService) {
         this.userRepository = userRepository;
         this.itemRepository = itemRepository;
         this.wishlistRepository = wishlistRepository;
@@ -40,10 +45,23 @@ public class UserService {
         this.rentalRepository = rentalRepository;
         this.reviewQueryService = reviewQueryService;
         this.campusAccessPolicy = campusAccessPolicy;
+        this.photoStorageService = photoStorageService;
     }
 
     @Transactional(readOnly = true)
     public UserResponse getMe(Integer userId) { return UserResponse.from(findUser(userId)); }
+
+    @Transactional
+    public UserResponse editProfile(Integer userId, UserProfileEditRequest request) {
+        User user = findUser(userId);
+        String oldPhotoUrl = user.getProfileImageUrl();
+        String newPhotoUrl = photoStorageService.storeProfile(request.photo());
+        user.updateProfile(request.name(), user.getDepartment(), user.getUniversity(), newPhotoUrl);
+        if (newPhotoUrl != null) {
+            registerProfileCleanup(oldPhotoUrl, newPhotoUrl);
+        }
+        return UserResponse.from(user);
+    }
 
     @Transactional
     public UserResponse updateProfile(Integer userId, UserProfileUpdateRequest request) {
@@ -118,5 +136,24 @@ public class UserService {
     private User findUser(Integer id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "사용자가 존재하지 않습니다."));
+    }
+
+    private void registerProfileCleanup(String oldPhotoUrl, String newPhotoUrl) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                if (oldPhotoUrl != null && !oldPhotoUrl.equals(newPhotoUrl)) {
+                    photoStorageService.deleteLocalProfile(oldPhotoUrl);
+                }
+            }
+
+            @Override
+            public void afterCompletion(int status) {
+                if (status != STATUS_COMMITTED) {
+                    photoStorageService.deleteLocalProfile(newPhotoUrl);
+                }
+            }
+
+        });
     }
 }

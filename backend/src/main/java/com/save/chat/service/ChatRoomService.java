@@ -13,6 +13,7 @@ import com.save.user.User;
 import com.save.user.UserRepository;
 import com.save.security.CampusAccessPolicy;
 import java.util.List;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -63,7 +64,12 @@ public class ChatRoomService {
     @Transactional(readOnly = true)
     public List<ChatRoomListResponse> getMyRooms(Integer loginUserId) {
         return chatRoomRepository.findByBorrowerIdOrLenderIdOrderByCreatedAtDesc(loginUserId, loginUserId)
-                .stream().map(room -> toListResponse(room, loginUserId)).toList();
+                .stream().map(room -> toListResponse(room, loginUserId))
+                .sorted(Comparator.comparing(ChatRoomListResponse::activityAt,
+                        Comparator.nullsLast(Comparator.reverseOrder()))
+                        .thenComparing(ChatRoomListResponse::chatRoomId,
+                                Comparator.reverseOrder()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -95,7 +101,8 @@ public class ChatRoomService {
         return new ChatRoomListResponse(room.getId(), room.getItem().getId(), room.getItem().getTitle(),
                 opponent.getId(), opponent.getName(), last == null ? null : last.getContent(),
                 last == null ? null : last.getCreatedAt(),
-                chatMessageRepository.countByChatRoomIdAndSenderIdNotAndReadFalse(room.getId(), userId));
+                chatMessageRepository.countByChatRoomIdAndSenderIdNotAndReadFalse(
+                        room.getId(), userId), room.getCreatedAt());
     }
 
     private ChatRoomCreateResponse toResponse(ChatRoom room) {

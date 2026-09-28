@@ -28,7 +28,15 @@ public class S3ObjectStorage implements ObjectStorage {
 
     @Override
     public StoredObject store(ValidatedImage image) {
-        String key = ObjectKeyFactory.itemImage(image.extension());
+        return store(image, ObjectKeyFactory.itemImage(image.extension()));
+    }
+
+    @Override
+    public StoredObject storeProfile(ValidatedImage image) {
+        return store(image, ObjectKeyFactory.profileImage(image.extension()));
+    }
+
+    private StoredObject store(ValidatedImage image, String key) {
         PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(properties.getBucket())
                 .key(key)

@@ -31,4 +31,21 @@ class S3ObjectStorageTest {
         assertThat(request.getValue().contentType()).isEqualTo("image/png");
         assertThat(result.url()).startsWith("https://cdn.save.example/items/");
     }
+
+    @Test
+    void storesProfileImagesUnderProfilePrefix() {
+        S3Client client = mock(S3Client.class);
+        StorageProperties properties = new StorageProperties();
+        properties.getS3().setBucket("save-items");
+        properties.getS3().setPublicBaseUrl("https://cdn.save.example");
+        S3ObjectStorage storage = new S3ObjectStorage(properties, client);
+
+        StoredObject result = storage.storeProfile(
+                new ValidatedImage(new byte[]{1, 2, 3}, "png", "image/png"));
+
+        ArgumentCaptor<PutObjectRequest> request = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(client).putObject(request.capture(), any(RequestBody.class));
+        assertThat(request.getValue().key()).startsWith("profiles/");
+        assertThat(result.url()).startsWith("https://cdn.save.example/profiles/");
+    }
 }
