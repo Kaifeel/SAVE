@@ -6,6 +6,7 @@ import {
   formatRentalDate,
   rentalActionLabel,
   rentalStatusLabel,
+  rentalWaitingMessage,
   reviewStateLabel,
   type RentalRole,
 } from '../presentation';
@@ -88,6 +89,7 @@ export function RentalSection({
                 ) : null}
               </View>
             ) : null}
+            {rentalWaitingMessage(rental, role) ? <Text style={styles.reviewState}>{rentalWaitingMessage(rental, role)}</Text> : null}
             {reviewStateLabel[rental.reviewState] ? (
               <Text style={styles.reviewState}>{reviewStateLabel[rental.reviewState]}</Text>
             ) : null}

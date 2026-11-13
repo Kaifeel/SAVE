@@ -19,7 +19,8 @@ export interface RuntimeConfig {
 const requiredProductionFields = [
   'EXPO_PUBLIC_API_BASE_URL',
   'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID',
-  'EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID',
+  // iOS 배포를 시작할 때 플랫폼별 필수 검증으로 다시 활성화한다.
+  // 'EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID',
   'EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID',
 ] as const;
 

@@ -16,6 +16,7 @@ public class UploadResourceConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         if (photoStorageService.getUploadDirectory() != null) {
             String location = photoStorageService.getUploadDirectory().toUri().toString();
+            if (!location.endsWith("/")) location += "/";
             registry.addResourceHandler("/uploads/**").addResourceLocations(location);
         }
     }

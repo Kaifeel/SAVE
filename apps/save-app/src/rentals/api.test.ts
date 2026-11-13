@@ -41,15 +41,15 @@ it('creates a rental using the backend request field names', async () => {
 it('loads the authorized list and uses only backend-supported transitions', async () => {
   apiRequestMock.mockResolvedValueOnce([backendRental]).mockResolvedValueOnce({
     ...backendRental,
-    status: 'RENTING',
+    status: 'APPROVED',
   });
 
   await expect(getMyRentals()).resolves.toHaveLength(1);
-  await expect(transitionRental(41, 'start')).resolves.toEqual(
-    expect.objectContaining({ status: 'RENTING' }),
+  await expect(transitionRental(41, 'approve')).resolves.toEqual(
+    expect.objectContaining({ status: 'APPROVED' }),
   );
   expect(apiRequestMock).toHaveBeenNthCalledWith(1, '/rentals/me');
-  expect(apiRequestMock).toHaveBeenNthCalledWith(2, '/rentals/41/start', { method: 'PATCH' });
+  expect(apiRequestMock).toHaveBeenNthCalledWith(2, '/rentals/41/approve', { method: 'PATCH' });
 });
 
 it('trims and submits a validated review', async () => {

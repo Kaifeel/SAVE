@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 import com.save.item.Item;
@@ -57,15 +58,22 @@ class InAppNotificationServiceTest {
     }
 
     @Test
-    void storesRentalStartForBorrower() {
+    void storesRentalStartForBothParticipants() {
         service.rentalStarted(rental);
 
-        InAppNotification stored = captureStoredNotification();
-        assertThat(stored.getRecipient()).isSameAs(borrower);
-        assertThat(stored.getType()).isEqualTo(InAppNotificationType.RENTAL_APPROVED);
-        assertThat(stored.getTitle()).isEqualTo("거래 시작");
-        assertThat(stored.getContent()).contains("거래가 시작되었습니다");
-        assertPublishedFor(3, InAppNotificationType.RENTAL_APPROVED);
+        ArgumentCaptor<InAppNotification> stored =
+                ArgumentCaptor.forClass(InAppNotification.class);
+        verify(repository, times(2)).save(stored.capture());
+        assertThat(stored.getAllValues()).extracting(InAppNotification::getRecipient)
+                .containsExactly(lender, borrower);
+        assertThat(stored.getAllValues()).extracting(InAppNotification::getType)
+                .containsOnly(InAppNotificationType.RENTAL_UPDATED);
+
+        ArgumentCaptor<InAppNotificationCreatedEvent> events =
+                ArgumentCaptor.forClass(InAppNotificationCreatedEvent.class);
+        verify(eventPublisher, times(2)).publishEvent(events.capture());
+        assertThat(events.getAllValues()).extracting(InAppNotificationCreatedEvent::recipientId)
+                .containsExactly(2, 3);
     }
 
     @Test

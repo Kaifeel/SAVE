@@ -8,6 +8,8 @@ export type ApiRequestOptions = Omit<RequestInit, 'headers'> & {
   retried?: boolean;
 };
 
+
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -18,6 +20,9 @@ export class ApiError extends Error {
     this.name = 'ApiError';
   }
 }
+
+
+
 
 function requestUrl(
   path: string,

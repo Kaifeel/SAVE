@@ -156,7 +156,7 @@ it('moves through every item image and shows item-specific precautions', async (
 it('keeps the common safety notice when an item has no specific precautions', () => {
   render(<ProductDetailPage item={item} onClose={vi.fn()} />)
 
-  expect(screen.getByText(/분실 및 파손 시/)).toBeInTheDocument()
+  expect(screen.getByText('분실 및 파손에 대해 서비스는 책임지지 않습니다.')).toBeInTheDocument()
   expect(screen.queryByText(/1 \/ 3/)).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: '다음 사진' })).not.toBeInTheDocument()
 })

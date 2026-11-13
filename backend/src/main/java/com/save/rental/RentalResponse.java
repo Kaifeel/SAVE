@@ -12,7 +12,8 @@ public record RentalResponse(Integer id, Integer itemId, String itemTitle,
                              LocalDateTime startDate, LocalDateTime endDate,
                              Integer totalPrice, LocalDateTime createdAt,
                              LocalDateTime updatedAt, Instant returnedAt,
-                             Instant reviewDeadline, ReviewState reviewState) {
+                             Instant reviewDeadline, ReviewState reviewState,
+                             Instant lenderHandedOverAt, Instant borrowerReceivedAt) {
     public static RentalResponse from(Rental rental, ReviewWorkflow workflow) {
         return new RentalResponse(rental.getId(), rental.getItem().getId(),
                 rental.getItem().getTitle(),
@@ -20,6 +21,7 @@ public record RentalResponse(Integer id, Integer itemId, String itemTitle,
                 rental.getLender().getId(), rental.getLender().getName(),
                 rental.getChatRoom().getId(), rental.getStatus().name(), rental.getStartDate(),
                 rental.getEndDate(), rental.getTotalPrice(), rental.getCreatedAt(), rental.getUpdatedAt(),
-                rental.getReturnedAt(), workflow.deadline(), workflow.state());
+                rental.getReturnedAt(), workflow.deadline(), workflow.state(),
+                rental.getLenderHandedOverAt(), rental.getBorrowerReceivedAt());
     }
 }

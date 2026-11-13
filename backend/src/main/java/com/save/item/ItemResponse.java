@@ -35,7 +35,11 @@ public record ItemResponse(
 
     public static ItemResponse from(Item item, boolean wishlisted, long wishlistCount,
                                     ReviewSummary reviewSummary) {
-        List<String> images = item.getPhotoUrls();
+        return from(item, wishlisted, wishlistCount, reviewSummary, item.getPhotoUrls());
+    }
+
+    public static ItemResponse from(Item item, boolean wishlisted, long wishlistCount,
+                                    ReviewSummary reviewSummary, List<String> images) {
         Integer universityId = item.getOwner().getUniversity() == null
                 ? null : item.getOwner().getUniversity().getId();
         String universityName = item.getOwner().getUniversity() == null

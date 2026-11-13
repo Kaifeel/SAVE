@@ -25,8 +25,20 @@ public class InAppNotificationService {
     }
 
     public void rentalStarted(Rental rental) {
-        create(rental, rental.getBorrower().getId(), InAppNotificationType.RENTAL_APPROVED,
+        create(rental, rental.getLender().getId(), InAppNotificationType.RENTAL_UPDATED,
+                "대여 시작", rental.getItem().getTitle() + " 양쪽 전달 확인이 완료되었습니다.");
+        create(rental, rental.getBorrower().getId(), InAppNotificationType.RENTAL_UPDATED,
                 "거래 시작", rental.getItem().getTitle() + " 거래가 시작되었습니다.");
+    }
+
+    public void rentalUpdated(Rental rental, Integer recipientId, String title) {
+        create(rental, recipientId, InAppNotificationType.RENTAL_UPDATED,
+                title, rental.getItem().getTitle() + " · " + title);
+    }
+
+    public void rentalApproved(Rental rental) {
+        create(rental, rental.getBorrower().getId(), InAppNotificationType.RENTAL_APPROVED,
+                "대여 승인", rental.getItem().getTitle() + " 대여가 승인되었습니다. 물품 전달을 진행해주세요.");
     }
 
     public void rentalRejected(Rental rental) {

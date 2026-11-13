@@ -5,6 +5,7 @@ import type { ItemPhotoAsset } from '../types';
 
 type Props = {
   photos: ItemPhotoAsset[];
+  existingImageUrls: string[];
   notice: string | null;
   disabled: boolean;
   onChoosePhotos: () => void;
@@ -15,6 +16,7 @@ type Props = {
 
 export function ItemPhotoSelector({
   photos,
+  existingImageUrls,
   notice,
   disabled,
   onChoosePhotos,
@@ -22,11 +24,12 @@ export function ItemPhotoSelector({
   onOpenSettings,
   onRemove,
 }: Props) {
+  const displayedCount = photos.length > 0 ? photos.length : existingImageUrls.length;
   return (
     <View style={styles.section}>
       <View style={styles.headingRow}>
         <Text style={styles.label}>사진 (선택)</Text>
-        <Text style={styles.count}>{photos.length}/5</Text>
+        <Text style={styles.count}>{displayedCount}/5</Text>
       </View>
       <View style={styles.addRow}>
         <PhotoButton disabled={disabled || photos.length >= 5} icon="◎" label="카메라 촬영" onPress={onTakePhoto} />
@@ -60,6 +63,18 @@ export function ItemPhotoSelector({
               >
                 <Text style={styles.removeLabel}>×</Text>
               </Pressable>
+            </View>
+          ))}
+        </ScrollView>
+      ) : existingImageUrls.length > 0 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photos}>
+          {existingImageUrls.map((uri, index) => (
+            <View key={uri} style={styles.photoCard}>
+              <Image
+                accessibilityLabel={`기존 사진 ${index + 1}`}
+                source={{ uri }}
+                style={styles.photo}
+              />
             </View>
           ))}
         </ScrollView>

@@ -5,6 +5,7 @@ public enum RentalStatus {
     APPROVED,
     PAID,
     RENTING,
+    RETURN_REQUESTED,
     RETURNED,
     REJECTED,
     CANCELED

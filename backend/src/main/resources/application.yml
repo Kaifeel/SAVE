@@ -14,12 +14,20 @@ server:
   error:
     include-message: never
 
+auth:
+  signup:
+    enabled: ${SIGNUP_ENABLED:true}
+
 expo:
   push:
     enabled: ${EXPO_PUSH_ENABLED:false}
     base-url: ${EXPO_PUSH_BASE_URL:https://exp.host}
     connect-timeout: ${EXPO_PUSH_CONNECT_TIMEOUT:3s}
     read-timeout: ${EXPO_PUSH_READ_TIMEOUT:5s}
+
+fcm:
+  enabled: ${FCM_ENABLED:false}
+  credentials-path: ${FCM_CREDENTIALS_PATH:}
 
 security:
   cors:
@@ -38,6 +46,13 @@ security:
 storage:
   max-file-size: ${UPLOAD_MAX_FILE_SIZE:10485760}
   max-files: ${UPLOAD_MAX_FILES:5}
+  max-width: ${UPLOAD_MAX_WIDTH:8000}
+  max-height: ${UPLOAD_MAX_HEIGHT:8000}
+  max-pixels: ${UPLOAD_MAX_PIXELS:20000000}
+  max-concurrent-images: ${UPLOAD_MAX_CONCURRENT_IMAGES:1}
+  upload-requests-per-window: ${UPLOAD_REQUESTS_PER_WINDOW:20}
+  upload-window-seconds: ${UPLOAD_WINDOW_SECONDS:60}
+  max-tracked-upload-users: ${UPLOAD_MAX_TRACKED_USERS:10000}
 
 google:
   oauth:

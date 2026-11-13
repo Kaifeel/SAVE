@@ -55,7 +55,7 @@ it('places every signed-in route beneath one protected authenticated group', asy
   expect(screen.queryByText('(tabs)')).toBeNull();
 });
 
-it('keeps login and signup available only in the signed-out tree', async () => {
+it('keeps signup source outside the signed-out route tree', async () => {
   mockUseAuthStore.mockImplementation(selector =>
     selector({ status: 'unauthenticated' } as never),
   );
@@ -63,6 +63,6 @@ it('keeps login and signup available only in the signed-out tree', async () => {
   await render(<RootLayout />);
 
   expect(screen.getByText('login')).toBeTruthy();
-  expect(screen.getByText('signup')).toBeTruthy();
+  expect(screen.queryByText('signup')).toBeNull();
   expect(screen.queryByText('(authenticated)')).toBeNull();
 });

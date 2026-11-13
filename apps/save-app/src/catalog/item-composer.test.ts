@@ -70,7 +70,7 @@ it('returns a fresh draft and photo array for every mount', () => {
     rentalUnit: '일',
     pickupLocationId: null,
     description: '',
-    precautions: '분실 및 파손 시 수리비 전액 청구됩니다. 대여 전 상태 사진을 반드시 확인하세요.',
+    precautions: '분실 및 파손에 대해 서비스는 책임지지 않습니다.',
     photos: [],
   });
 });

@@ -54,7 +54,7 @@ public class RentalService {
         if (item.getStatus() != ItemStatus.AVAILABLE
                 || rentalRepository.existsByItemIdAndStatusIn(item.getId(),
                 List.of(RentalStatus.REQUESTED, RentalStatus.APPROVED,
-                        RentalStatus.PAID, RentalStatus.RENTING))) {
+                        RentalStatus.PAID, RentalStatus.RENTING, RentalStatus.RETURN_REQUESTED))) {
             throw new BusinessException(HttpStatus.CONFLICT, "현재 대여 신청할 수 없는 물품입니다.");
         }
         if (request.startDate() == null || request.endDate() == null
@@ -116,20 +116,67 @@ public class RentalService {
         }
         requireItemStatus(rental, rental.getStatus() == RentalStatus.REQUESTED
                 ? ItemStatus.REQUEST_PENDING : ItemStatus.RESERVED);
+        if (rental.getLenderHandedOverAt() != null || rental.getBorrowerReceivedAt() != null) {
+            throw new BusinessException(HttpStatus.CONFLICT, "전달 확인이 시작된 대여는 취소할 수 없습니다.");
+        }
         rental.getItem().changeStatus(ItemStatus.AVAILABLE);
         rental.changeStatus(RentalStatus.CANCELED);
+        notificationService.rentalUpdated(rental, rental.getLender().getId(), "대여 신청 취소");
+        return response(rental, userId);
+    }
+
+    @Transactional
+    public RentalResponse approve(Integer rentalId, Integer userId) {
+        Rental rental = findRentalForUpdate(rentalId);
+        requireLender(rental, userId);
+        requireStatus(rental, RentalStatus.REQUESTED);
+        requireItemStatus(rental, ItemStatus.REQUEST_PENDING);
+        rental.changeStatus(RentalStatus.APPROVED);
+        rental.getItem().changeStatus(ItemStatus.RESERVED);
+        notificationService.rentalApproved(rental);
         return response(rental, userId);
     }
 
     @Transactional
     public RentalResponse startRenting(Integer rentalId, Integer userId) {
+        return confirmDelivery(rentalId, userId, true);
+    }
+
+    @Transactional
+    public RentalResponse receive(Integer rentalId, Integer userId) {
+        return confirmDelivery(rentalId, userId, false);
+    }
+
+    private RentalResponse confirmDelivery(Integer rentalId, Integer userId, boolean lender) {
         Rental rental = findRentalForUpdate(rentalId);
-        requireLender(rental, userId);
-        requireStatus(rental, RentalStatus.REQUESTED);
-        requireItemStatus(rental, ItemStatus.REQUEST_PENDING);
-        rental.changeStatus(RentalStatus.RENTING);
-        rental.getItem().changeStatus(ItemStatus.RENTED);
-        notificationService.rentalStarted(rental);
+        if (lender) requireLender(rental, userId);
+        else requireBorrower(rental, userId);
+        requireStatus(rental, RentalStatus.APPROVED);
+        requireItemStatus(rental, ItemStatus.RESERVED);
+        if (lender && rental.getLenderHandedOverAt() != null
+                || !lender && rental.getBorrowerReceivedAt() != null) return response(rental, userId);
+        if (lender) rental.confirmHandover(clock.instant());
+        else rental.confirmReceipt(clock.instant());
+        if (rental.getLenderHandedOverAt() != null && rental.getBorrowerReceivedAt() != null) {
+            rental.changeStatus(RentalStatus.RENTING);
+            rental.getItem().changeStatus(ItemStatus.RENTED);
+            notificationService.rentalStarted(rental);
+        } else {
+            notificationService.rentalUpdated(rental,
+                    lender ? rental.getBorrower().getId() : rental.getLender().getId(),
+                    lender ? "물건 전달 완료 · 수령 확인 필요" : "물품 수령 완료 · 전달 확인 필요");
+        }
+        return response(rental, userId);
+    }
+
+    @Transactional
+    public RentalResponse requestReturn(Integer rentalId, Integer userId) {
+        Rental rental = findRentalForUpdate(rentalId);
+        requireBorrower(rental, userId);
+        requireStatus(rental, RentalStatus.RENTING);
+        requireItemStatus(rental, ItemStatus.RENTED);
+        rental.changeStatus(RentalStatus.RETURN_REQUESTED);
+        notificationService.rentalUpdated(rental, rental.getLender().getId(), "반납 확인 필요");
         return response(rental, userId);
     }
 
@@ -137,9 +184,10 @@ public class RentalService {
     public RentalResponse returnItem(Integer rentalId, Integer userId) {
         Rental rental = findRentalForUpdate(rentalId);
         requireLender(rental, userId);
-        requireStatus(rental, RentalStatus.RENTING);
+        requireStatus(rental, RentalStatus.RETURN_REQUESTED);
         requireItemStatus(rental, ItemStatus.RENTED);
         rental.returnItem(clock.instant());
+        notificationService.rentalUpdated(rental, rental.getBorrower().getId(), "반납 확인 완료");
         rental.getItem().changeStatus(ItemStatus.AVAILABLE);
         return response(rental, userId);
     }
@@ -169,6 +217,12 @@ public class RentalService {
     private void requireLender(Rental rental, Integer userId) {
         if (!rental.getLender().getId().equals(userId)) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "대여 요청을 처리할 권한이 없습니다.");
+        }
+    }
+
+    private void requireBorrower(Rental rental, Integer userId) {
+        if (!rental.getBorrower().getId().equals(userId)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "빌리는 사람만 처리할 수 있습니다.");
         }
     }
 

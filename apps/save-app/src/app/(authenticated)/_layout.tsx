@@ -18,6 +18,7 @@ export default function AuthenticatedLayout() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="profile-setup" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="users/[id]" />
       <Stack.Screen name="chats/[id]" />

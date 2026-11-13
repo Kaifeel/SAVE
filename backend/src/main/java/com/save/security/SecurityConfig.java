@@ -37,7 +37,7 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
                                              JwtAuthenticationConverter jwtConverter,
-                                             UserRepository userRepository) throws Exception {
+                                             UserRepository userRepository, com.save.storage.UploadRequestLimiter uploadLimiter) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> {})
@@ -57,6 +57,7 @@ public class SecurityConfig {
                 .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtConverter)))
                 .addFilterAfter(new SuspendedUserFilter(userRepository),
                         BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(new UploadRateLimitFilter(uploadLimiter), SuspendedUserFilter.class)
                 .build();
     }
 

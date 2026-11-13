@@ -38,6 +38,9 @@ class ProductionConfigurationTest {
                     assertThat(context.getEnvironment()
                             .getProperty("expo.push.base-url"))
                             .isEqualTo("https://exp.host");
+                    assertThat(context.getEnvironment()
+                            .getProperty("auth.signup.enabled"))
+                            .isEqualTo("false");
                 });
     }
 }

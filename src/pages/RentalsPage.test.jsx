@@ -5,6 +5,25 @@ import RentalsPage from './RentalsPage'
 
 afterEach(cleanup)
 
+it('shows each delivery confirmation once and waits for the other participant', () => {
+  const data = { loading: false, error: null, reload: vi.fn(), transition: vi.fn(), pendingAction: null,
+    rentals: [{ id: 1 }, { id: 2 }],
+    received: [{ id: 1, itemTitle: '우산', status: 'APPROVED' }],
+    sent: [{ id: 2, itemTitle: '가방', status: 'APPROVED', lenderHandedOverAt: '2026-09-11T10:00:00Z' }],
+  }
+  const view = render(<RentalsPage onBack={vi.fn()} data={data} />)
+  expect(screen.getByRole('button', { name: '물건 전달 완료' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '물품 수령 완료' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '요청 취소' })).not.toBeInTheDocument()
+  view.rerender(<RentalsPage onBack={vi.fn()} data={{ ...data,
+    received: [{ ...data.received[0], lenderHandedOverAt: '2026-09-11T10:00:00Z' }],
+    sent: [{ ...data.sent[0], borrowerReceivedAt: '2026-09-11T10:01:00Z' }],
+  }} />)
+  expect(screen.queryByRole('button', { name: '물건 전달 완료' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '물품 수령 완료' })).not.toBeInTheDocument()
+  expect(screen.getAllByText('상대방 전달·수령 확인 대기')).toHaveLength(2)
+})
+
 it('shows only role-appropriate offline transaction actions', async () => {
   const user = userEvent.setup()
   const transition = vi.fn()
@@ -19,7 +38,7 @@ it('shows only role-appropriate offline transaction actions', async () => {
       rentals: [{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }],
       received: [
         { id: 1, item_id: 10, itemTitle: '캠핑 의자', status: 'REQUESTED' },
-        { id: 2, item_id: 11, itemTitle: '공학용 계산기', status: 'RENTING' },
+        { id: 2, item_id: 11, itemTitle: '공학용 계산기', status: 'RETURN_REQUESTED' },
       ],
       sent: [
         { id: 3, item_id: 12, itemTitle: '장우산', status: 'REQUESTED' },
@@ -28,19 +47,21 @@ it('shows only role-appropriate offline transaction actions', async () => {
     }}
   />)
 
-  expect(screen.getByRole('button', { name: '거래 시작' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '승인' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '요청 거절' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '요청 취소' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: '반납 완료 처리' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '반납 확인' })).toBeInTheDocument()
   expect(screen.getByText('캠핑 의자')).toBeInTheDocument()
-  expect(screen.getAllByText('대여 중')).toHaveLength(2)
+  expect(screen.getAllByText('대여 중')).toHaveLength(1)
+  expect(screen.getByText('반납 확인 필요')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '반납 요청' })).toBeInTheDocument()
   expect(screen.queryByText('RENTING')).not.toBeInTheDocument()
   expect(screen.queryByText(/물품 #/)).not.toBeInTheDocument()
-  expect(screen.queryByText('승인')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '승인' })).toBeInTheDocument()
   expect(screen.queryByText(/결제/)).not.toBeInTheDocument()
 
-  await user.click(screen.getByRole('button', { name: '거래 시작' }))
-  expect(transition).toHaveBeenCalledWith(1, 'startRental')
+  await user.click(screen.getByRole('button', { name: '승인' }))
+  expect(transition).toHaveBeenCalledWith(1, 'approveRental')
 })
 
 it('disables every action for a rental while its transition is pending', () => {
@@ -51,14 +72,14 @@ it('disables every action for a rental while its transition is pending', () => {
       error: null,
       reload: vi.fn(),
       transition: vi.fn(),
-      pendingAction: '1:startRental',
+      pendingAction: '1:approveRental',
       rentals: [{ id: 1 }],
       received: [{ id: 1, item_id: 10, status: 'REQUESTED' }],
       sent: [],
     }}
   />)
 
-  expect(screen.getByRole('button', { name: '거래 시작' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: '승인' })).toBeDisabled()
   expect(screen.getByRole('button', { name: '요청 거절' })).toBeDisabled()
 })
 
@@ -70,7 +91,7 @@ it('shows review action and waiting state after return', () => {
     sent: [{ id: 6, item_id: 16, itemTitle: '미니 빔프로젝터', status: 'RETURNED', reviewState: 'SUBMITTED_WAITING' }],
   }} />)
   expect(screen.getByRole('button', { name: '후기 작성' })).toBeInTheDocument()
-  expect(screen.getAllByText('반납 완료')).toHaveLength(2)
+  expect(screen.getAllByText('거래 완료')).toHaveLength(2)
   expect(screen.getByText('후기를 작성했어요. 상대방의 후기를 기다리고 있습니다.')).toBeInTheDocument()
 })
 

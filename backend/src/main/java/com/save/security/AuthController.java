@@ -24,6 +24,7 @@ public class AuthController {
     private final AuthSessionService authSessionService;
     private final RefreshCookieService refreshCookieService;
     private final AuthOriginValidator authOriginValidator;
+    private final SignupPolicy signupPolicy;
     private final String googleRedirectSuccessUri;
 
     public AuthController(AuthService authService, GoogleOAuthService googleOAuthService,
@@ -31,6 +32,7 @@ public class AuthController {
                           AuthSessionService authSessionService,
                           RefreshCookieService refreshCookieService,
                           AuthOriginValidator authOriginValidator,
+                          SignupPolicy signupPolicy,
                           @Value("${google.oauth.redirect-success-uri:http://localhost:5173}")
                           String googleRedirectSuccessUri) {
         this.authService = authService;
@@ -39,6 +41,7 @@ public class AuthController {
         this.authSessionService = authSessionService;
         this.refreshCookieService = refreshCookieService;
         this.authOriginValidator = authOriginValidator;
+        this.signupPolicy = signupPolicy;
         this.googleRedirectSuccessUri = googleRedirectSuccessUri;
     }
 
@@ -80,6 +83,7 @@ public class AuthController {
     @ResponseStatus(HttpStatus.CREATED)
     public AuthResponse signUp(@Valid @RequestBody SignUpRequest request,
                                HttpServletResponse servletResponse) {
+        signupPolicy.requireEnabled();
         return startSession(authService.signUp(request), servletResponse);
     }
 

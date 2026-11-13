@@ -16,6 +16,7 @@ export default function HomePage(props) {
     recommendationHeadline,
     recommendationError,
     onRefreshRecommendations,
+    recommendationsEnabled = false,
   } = props
   const now = useNow()
 
@@ -42,8 +43,9 @@ export default function HomePage(props) {
               </div>
 
 
-              {/* SECTION 1: 오늘의 AI 추천 물품 */}
-              <div className="mt-4 mx-5 px-4 py-4 bg-indigo-50 border border-indigo-100 rounded-3xl">
+              {/* AI 추천은 현재 논문 범위에서 제외했으며, 플래그를 켜면 기존 UI를 복구할 수 있다. */}
+              {recommendationsEnabled && (
+                <div className="mt-4 mx-5 px-4 py-4 bg-indigo-50 border border-indigo-100 rounded-3xl">
                 <div className="flex justify-between items-center mb-2">
                   <h2 className="text-[17px] font-black text-indigo-950">오늘의 AI 추천 물품</h2>
                 </div>
@@ -98,7 +100,8 @@ export default function HomePage(props) {
                     )
                   })}
                 </div>
-              </div>
+                </div>
+              )}
 
               {/* SECTION 2: 인기 대여 물품 (Image 2 - 인기 대여 물품) */}
               {homePopularItems.length > 0 && (

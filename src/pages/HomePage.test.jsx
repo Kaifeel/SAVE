@@ -46,6 +46,13 @@ it('shows the actual age of each recent item', () => {
   expect(screen.getByText('5분 전')).toBeInTheDocument()
 })
 
+it('does not expose the AI recommendation feature while it is out of scope', () => {
+  render(<HomePage {...props} recentItems={[recentItem]} />)
+
+  expect(screen.queryByText('오늘의 AI 추천 물품')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'AI 추천 받기' })).not.toBeInTheDocument()
+})
+
 it('shows an uploaded photo in a home item card', () => {
   render(<HomePage {...props} recentItems={[{
     ...recentItem,

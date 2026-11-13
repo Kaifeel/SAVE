@@ -7,6 +7,8 @@ import {
   itemStatusMeta,
 } from './presentation.js'
 
+
+
 describe('chat presentation', () => {
   it('formats valid timestamps and preserves legacy display strings', () => {
     expect(formatChatTime('2026-08-02T12:51:07')).toBe('12:51')

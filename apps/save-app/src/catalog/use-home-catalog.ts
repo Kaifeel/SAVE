@@ -3,6 +3,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createRecommendation, getRecommendationHistory, listItems } from './api';
 import type { CatalogItem, RecommendationSummary } from './types';
 
+// 논문 범위에서 AI 추천을 제외했다. 관련 API 코드는 향후 확장을 위해 보존한다.
+const AI_RECOMMENDATIONS_ENABLED = false;
+
 type HomeCatalogState = {
   loading: boolean;
   refreshing: boolean;
@@ -31,7 +34,7 @@ export function useHomeCatalog(universityId: number | null | undefined) {
       const [popular, recent, history] = await Promise.all([
         listItems({ sort: 'popular', onlyAvailable: true, page: 0, size: 4, universityId }),
         listItems({ sort: 'latest', page: 0, size: 8, universityId }),
-        getRecommendationHistory(),
+        AI_RECOMMENDATIONS_ENABLED ? getRecommendationHistory() : Promise.resolve([]),
       ]);
       if (!mounted.current || requestGeneration.current !== generation) return;
       setState({
@@ -88,6 +91,7 @@ export function useHomeCatalog(universityId: number | null | undefined) {
 
   return {
     ...state,
+    recommendationsEnabled: AI_RECOMMENDATIONS_ENABLED,
     retry,
     refresh,
     requestRecommendation,

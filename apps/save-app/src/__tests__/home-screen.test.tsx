@@ -114,20 +114,15 @@ it('reloads catalog items when the home screen regains focus', async () => {
 it('renders the web-reference sections in order from server data', async () => {
   await render(<HomeScreen />);
 
-  expect(await screen.findByText('오늘의 AI 추천 물품')).toBeTruthy();
+  expect(await screen.findByText('인기 대여 물품')).toBeTruthy();
+  expect(screen.queryByText('오늘의 AI 추천 물품')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'AI 추천 받기' })).toBeNull();
   expect(screen.getByText('인기 대여 물품')).toBeTruthy();
   expect(screen.getByText('방금 올라왔어요')).toBeTruthy();
   expect(screen.getAllByText('서버 삼각대').length).toBeGreaterThan(0);
   expect(listItemsMock).toHaveBeenCalledWith(expect.objectContaining({ sort: 'popular' }));
   expect(listItemsMock).toHaveBeenCalledWith(expect.objectContaining({ sort: 'latest' }));
-});
-
-it('does not replace an empty recommendation with catalog items', async () => {
-  historyMock.mockResolvedValue([]);
-  await render(<HomeScreen />);
-
-  expect(await screen.findByRole('button', { name: 'AI 추천 받기' })).toBeTruthy();
-  expect(screen.queryByText('오늘 필요한 물품')).toBeNull();
+  expect(historyMock).not.toHaveBeenCalled();
 });
 
 it('opens explore with the entered query and opens item detail', async () => {

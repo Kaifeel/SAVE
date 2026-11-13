@@ -37,6 +37,8 @@ import org.springframework.transaction.annotation.Transactional;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @TestPropertySource(properties = "storage.local-root=build/test-uploads")
 class MarketplaceIntegrationTest {
+    @org.springframework.boot.test.mock.mockito.MockBean
+    com.save.notification.FcmPushClient fcmPushClient;
     @Autowired MockMvc mockMvc;
     @Autowired ObjectMapper objectMapper;
     @Autowired UniversityRepository universityRepository;
@@ -57,6 +59,19 @@ class MarketplaceIntegrationTest {
                 .save(new PickupLocation(university, "대연캠퍼스")).getId();
     }
 
+    @Test
+    void nonOwnerCannotUploadReplacementPhoto() throws Exception {
+        String owner = signUp("upload-owner@pukyong.ac.kr", "소유자").get("access_token").asText();
+        String stranger = signUp("upload-stranger@pukyong.ac.kr", "다른 사용자").get("access_token").asText();
+        int itemId = createItem(owner, "권한 확인 물품");
+        mockMvc.perform(multipart("/api/v1/items/" + itemId)
+                .file(new MockMultipartFile("photos", "invalid.png", "image/png", new byte[]{1}))
+                .param("title", "수정 시도").param("rental_fee", "0")
+                .param("rentalFee", "0")
+                .with(request -> { request.setMethod("PUT"); return request; })
+                .header("Authorization", bearer(stranger)))
+                .andExpect(status().isForbidden());
+    }
     @Test
     void multipartItemCreationUsesJavaBeanFieldNames() throws Exception {
         String ownerToken = signUp("multipart@pukyong.ac.kr", "사진등록자")
@@ -88,7 +103,15 @@ class MarketplaceIntegrationTest {
                 .get("image_urls").get(0).asText();
         mockMvc.perform(get(imageUrl))
                 .andExpect(status().isOk())
-                .andExpect(content().bytes(png));
+                .andExpect(content().contentTypeCompatibleWith("image/png"))
+                .andExpect(response -> {
+                    var original = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(png));
+                    var stored = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(
+                            response.getResponse().getContentAsByteArray()));
+                    org.assertj.core.api.Assertions.assertThat(stored.getWidth()).isEqualTo(original.getWidth());
+                    org.assertj.core.api.Assertions.assertThat(stored.getHeight()).isEqualTo(original.getHeight());
+                    org.assertj.core.api.Assertions.assertThat(stored.getRGB(0, 0)).isEqualTo(original.getRGB(0, 0));
+                });
     }
 
     @Test
@@ -186,12 +209,17 @@ class MarketplaceIntegrationTest {
 
         mockMvc.perform(patch("/api/v1/rentals/{rentalId}/approve", rentalId)
                         .header("Authorization", bearer(ownerToken)))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
         mockMvc.perform(patch("/api/v1/rentals/{rentalId}/paid", rentalId)
                         .header("Authorization", bearer(borrowerToken)))
                 .andExpect(status().isNotFound());
         mockMvc.perform(patch("/api/v1/rentals/{rentalId}/start", rentalId)
                         .header("Authorization", bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
+        mockMvc.perform(patch("/api/v1/rentals/{rentalId}/receive", rentalId)
+                        .header("Authorization", bearer(borrowerToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("RENTING"));
         mockMvc.perform(get("/api/v1/items/{itemId}", itemId)
@@ -201,6 +229,10 @@ class MarketplaceIntegrationTest {
         mockMvc.perform(patch("/api/v1/rentals/{rentalId}/return", rentalId)
                         .header("Authorization", bearer(borrowerToken)))
                 .andExpect(status().isForbidden());
+        mockMvc.perform(patch("/api/v1/rentals/{rentalId}/request-return", rentalId)
+                        .header("Authorization", bearer(borrowerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("RETURN_REQUESTED"));
         mockMvc.perform(patch("/api/v1/rentals/{rentalId}/return", rentalId)
                         .header("Authorization", bearer(ownerToken)))
                 .andExpect(status().isOk())

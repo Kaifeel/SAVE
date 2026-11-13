@@ -16,8 +16,6 @@ export default function ProfileSetupPage({
   memberDepartment,
   setMemberDepartment,
   memberUniversityId,
-  setMemberUniversityId,
-  universities,
   onComplete,
 }) {
   return (
@@ -49,19 +47,10 @@ export default function ProfileSetupPage({
 
             <div className="mt-8 space-y-4">
               <div>
-                <label htmlFor="profile-university" className="block text-sm font-bold text-slate-700 mb-1.5">대학교</label>
-                <select
-                  id="profile-university"
-                  value={memberUniversityId || ''}
-                  onChange={(e) => setMemberUniversityId(Number(e.target.value))}
-                  className="w-full h-12 rounded-lg bg-slate-200 px-4 text-[15px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-                  required
-                >
-                  <option value="">대학교 선택</option>
-                  {universities.map(university => (
-                    <option key={university.id} value={university.id}>{university.name}</option>
-                  ))}
-                </select>
+                <label className="block text-sm font-bold text-slate-700 mb-1.5">대학교</label>
+                <div className="w-full h-12 rounded-lg bg-slate-200 px-4 flex items-center text-[15px] font-semibold text-slate-800">
+                  부경대학교
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1.5">이름</label>

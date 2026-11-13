@@ -1,4 +1,5 @@
-import { Link } from 'expo-router';
+// 회원가입을 다시 열 때 expo-router의 Link import와 아래 회원가입 탭을 함께 복원합니다.
+// import { Link } from 'expo-router';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -77,11 +78,13 @@ export default function LoginScreen() {
             <Pressable accessibilityRole="tab" accessibilityState={{ selected: true }} style={styles.activeTab}>
               <Text style={styles.activeTabLabel}>로그인</Text>
             </Pressable>
+            {/* 회원가입 재활성화 시 복원합니다.
             <Link href="/signup" asChild>
               <Pressable accessibilityRole="tab" accessibilityState={{ selected: false }} style={styles.tab}>
                 <Text style={styles.tabLabel}>회원가입</Text>
               </Pressable>
             </Link>
+            */}
           </View>
 
           {google.enabled ? (

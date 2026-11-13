@@ -19,14 +19,16 @@ public class GoogleOAuthService {
     private final UserRepository userRepository;
     private final JwtTokenService jwtTokenService;
     private final PknuEmailPolicy emailPolicy;
+    private final UniversityEmailMapper universityEmailMapper;
     private final List<String> clientIds;
 
     public GoogleOAuthService(UserRepository userRepository, JwtTokenService jwtTokenService,
-                              PknuEmailPolicy emailPolicy,
+                              PknuEmailPolicy emailPolicy, UniversityEmailMapper universityEmailMapper,
                               @Value("${google.oauth.client-ids:}") String clientIds) {
         this.userRepository = userRepository;
         this.jwtTokenService = jwtTokenService;
         this.emailPolicy = emailPolicy;
+        this.universityEmailMapper = universityEmailMapper;
         this.clientIds = parseClientIds(clientIds);
     }
 
@@ -67,8 +69,9 @@ public class GoogleOAuthService {
                 user.linkGoogleAccount(subject, picture);
                 isNewUser = false;
             }
-            user = userRepository.save(user);
         }
+        universityEmailMapper.assignIfMissing(user);
+        user = userRepository.save(user);
         return new AuthResponse(jwtTokenService.issue(user), "Bearer", isNewUser,
                 AuthUserResponse.from(user));
     }

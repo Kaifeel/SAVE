@@ -26,11 +26,15 @@ import { useSharedItemRoute } from './hooks/useSharedItemRoute.js'
 import { useToast } from './components/toast.js'
 import { clearSharedItemId, shareItem } from './utils/itemShare.js'
 
+
 const DEV_AUTO_LOGIN = isAutoLoginEnabled(USE_API, import.meta.env.VITE_AUTO_LOGIN)
+// 논문 범위에서 AI 추천을 제외했다. 백엔드와 훅은 향후 확장을 위해 보존한다.
+const AI_RECOMMENDATIONS_ENABLED = false
 function App() {
   const toast = useToast()
   const isAdminPath = window.location.pathname === '/admin'
     || window.location.pathname.startsWith('/admin/')
+
   const [activeTab, setActiveTab] = useState('home') // home, search, chat, my
   const session = useAppSession({ apiEnabled: USE_API, devAutoLogin: DEV_AUTO_LOGIN, toast })
   const {
@@ -121,7 +125,8 @@ function App() {
   })
   const recommendationData = useRecommendations({
     accessToken,
-    enabled: USE_API && isLoggedIn && Boolean(accessToken) && !isAdminPath,
+    enabled: AI_RECOMMENDATIONS_ENABLED
+      && USE_API && isLoggedIn && Boolean(accessToken) && !isAdminPath,
     department: memberDepartment,
     interestItems: (myPageData.wishlist.data || []).map(item => item.title),
   })
@@ -194,8 +199,6 @@ function App() {
         memberDepartment={memberDepartment}
         setMemberDepartment={session.memberSetters.setDepartment}
         memberUniversityId={memberUniversityId}
-        setMemberUniversityId={session.memberSetters.setUniversityId}
-        universities={universities}
         onComplete={session.completeProfile}
       />
     )
@@ -204,6 +207,7 @@ function App() {
   const homeProps = {
     searchQuery, setSearchQuery, recommendItems, setSelectedItem,
     homePopularItems, setActiveTab, recentItems, filteredItems,
+    recommendationsEnabled: AI_RECOMMENDATIONS_ENABLED,
     recommendationHeadline: recommendationData.current?.headline,
     recommendationError: recommendationData.error,
     onRefreshRecommendations: recommendationData.refresh,

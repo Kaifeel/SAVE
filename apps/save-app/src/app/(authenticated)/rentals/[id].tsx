@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuthStore } from '@/auth/store';
@@ -10,8 +10,10 @@ import {
   availableActions,
   formatRentalDate,
   rentalActionLabel,
+  rentalActionConfirmation,
   rentalRole,
   rentalStatusLabel,
+  rentalWaitingMessage,
   reviewStateLabel,
 } from '@/rentals/presentation';
 import type { RentalAction } from '@/rentals/types';
@@ -35,7 +37,7 @@ export default function RentalDetailScreen() {
   const confirm = (action: RentalAction) => {
     Alert.alert(
       rentalActionLabel[action],
-      '이 대여 상태를 변경하시겠습니까?',
+      rentalActionConfirmation[action],
       [
         { text: '아니요', style: 'cancel' },
         { text: '예', onPress: () => { void detail.run(action); } },
@@ -59,7 +61,7 @@ export default function RentalDetailScreen() {
 
   return (
     <Shell onBack={router.back}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={detail.loading} onRefresh={detail.reload} />}>
         <View style={styles.titleRow}>
           <View style={styles.titleCopy}>
             <Text style={styles.eyebrow}>{role === 'lender' ? '받은 요청' : '보낸 요청'}</Text>
@@ -83,6 +85,7 @@ export default function RentalDetailScreen() {
           <LinkButton label="거래 채팅" onPress={() => router.push({ pathname: '/chats/[id]', params: { id: String(rental.chatRoomId) } })} />
         </View>
         {detail.error ? <Text accessibilityRole="alert" style={styles.error}>{detail.error}</Text> : null}
+        {rentalWaitingMessage(rental, role) ? <Text style={styles.reviewState}>{rentalWaitingMessage(rental, role)}</Text> : null}
         {actions.length > 0 ? (
           <View style={styles.actions}>
             {actions.map(action => (

@@ -23,6 +23,7 @@ public class ItemService {
     private final PickupLocationRepository pickupLocationRepository;
     private final ReviewQueryService reviewQueryService;
     private final CampusAccessPolicy campusAccessPolicy;
+    private final ItemResponseMapper itemResponseMapper;
 
     public ItemService(ItemRepository itemRepository, UserRepository userRepository,
                        WishlistRepository wishlistRepository, PhotoStorageService photoStorageService,
@@ -36,6 +37,7 @@ public class ItemService {
         this.pickupLocationRepository = pickupLocationRepository;
         this.reviewQueryService = reviewQueryService;
         this.campusAccessPolicy = campusAccessPolicy;
+        this.itemResponseMapper = new ItemResponseMapper(photoStorageService);
     }
 
     @Transactional(readOnly = true)
@@ -119,7 +121,7 @@ public class ItemService {
 
     private ItemResponse response(Item item, Integer userId) {
         boolean wishlisted = userId != null && wishlistRepository.existsByUserIdAndItemId(userId, item.getId());
-        return ItemResponse.from(item, wishlisted, wishlistRepository.countByItemId(item.getId()),
+        return itemResponseMapper.from(item, wishlisted, wishlistRepository.countByItemId(item.getId()),
                 reviewQueryService.summary(item.getOwner().getId()));
     }
 

@@ -35,6 +35,7 @@ function rentalStatus(value: unknown): RentalStatus {
     || value === 'APPROVED'
     || value === 'PAID'
     || value === 'RENTING'
+    || value === 'RETURN_REQUESTED'
     || value === 'RETURNED'
     || value === 'REJECTED'
     || value === 'CANCELED'
@@ -70,6 +71,8 @@ export function parseRental(value: unknown): Rental {
     createdAt: string(rental.created_at, 'created_at'),
     updatedAt: string(rental.updated_at, 'updated_at'),
     returnedAt: nullableString(rental.returned_at, 'returned_at'),
+    lenderHandedOverAt: nullableString(rental.lender_handed_over_at ?? null, 'lender_handed_over_at'),
+    borrowerReceivedAt: nullableString(rental.borrower_received_at ?? null, 'borrower_received_at'),
     reviewDeadline: nullableString(rental.review_deadline, 'review_deadline'),
     reviewState: reviewState(rental.review_state),
   };

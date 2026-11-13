@@ -1,0 +1,2 @@
+ALTER TABLE rentals ADD COLUMN lender_handed_over_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE rentals ADD COLUMN borrower_received_at TIMESTAMP WITH TIME ZONE;

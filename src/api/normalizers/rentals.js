@@ -12,6 +12,8 @@ export function normalizeRental(response) {
     lender_id: rental.lender_id ?? rental.lenderId,
     lenderName: rental.lender_name ?? rental.lenderName,
     returnedAt: rental.returned_at ?? rental.returnedAt ?? null,
+    lenderHandedOverAt: rental.lender_handed_over_at ?? rental.lenderHandedOverAt ?? null,
+    borrowerReceivedAt: rental.borrower_received_at ?? rental.borrowerReceivedAt ?? null,
     reviewDeadline: rental.review_deadline ?? rental.reviewDeadline ?? null,
     reviewState: rental.review_state ?? rental.reviewState ?? 'NOT_AVAILABLE',
   }

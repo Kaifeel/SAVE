@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 
 import { ApiError } from '@/api/client';
 import { getItem, setWishlist } from './api';
@@ -35,12 +36,9 @@ export function useItemDetail(id: number | null) {
     }
   }, [id]);
 
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      void load();
-    }, 0);
-    return () => clearTimeout(timeout);
-  }, [load]);
+  useFocusEffect(useCallback(() => {
+    void load();
+  }, [load]));
 
   const toggleWishlist = useCallback(async () => {
     if (!item || wishlistPending) return;

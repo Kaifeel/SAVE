@@ -28,6 +28,13 @@ beforeEach(() => {
   mockUseGoogleLogin.mockReturnValue({ enabled: false, busy: false, error: null, prompt });
 });
 
+it('does not expose a signup tab from the login screen', async () => {
+  await render(<LoginScreen />);
+
+  expect(screen.queryByText('회원가입')).toBeNull();
+  expect(screen.getByRole('tab', { name: '로그인' })).toBeTruthy();
+});
+
 it('submits the entered email and password through the auth store', async () => {
   await render(<LoginScreen />);
 

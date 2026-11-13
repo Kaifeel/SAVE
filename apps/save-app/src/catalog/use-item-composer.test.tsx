@@ -1,15 +1,21 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 
-import { createItem } from './api';
+import { createItem, getItem, updateItem } from './api';
 import { useItemComposer } from './use-item-composer';
 import { getPickupLocations } from '@/universities/api';
 import { catalogItem } from '@/test-utils/catalog-fixtures';
 import type { CatalogItem, ItemPhotoAsset } from './types';
 
-jest.mock('./api', () => ({ createItem: jest.fn() }));
+jest.mock('./api', () => ({
+  createItem: jest.fn(),
+  getItem: jest.fn(),
+  updateItem: jest.fn(),
+}));
 jest.mock('@/universities/api', () => ({ getPickupLocations: jest.fn() }));
 
 const createItemMock = jest.mocked(createItem);
+const getItemMock = jest.mocked(getItem);
+const updateItemMock = jest.mocked(updateItem);
 const getPickupLocationsMock = jest.mocked(getPickupLocations);
 const locations = [{ id: 4, name: '도서관 앞' }];
 
@@ -35,6 +41,8 @@ beforeEach(() => {
   jest.clearAllMocks();
   getPickupLocationsMock.mockResolvedValue(locations);
   createItemMock.mockResolvedValue(catalogItem);
+  getItemMock.mockResolvedValue(catalogItem);
+  updateItemMock.mockResolvedValue(catalogItem);
 });
 
 it('loads only the signed-in university pickup catalog and retries failures', async () => {
@@ -102,7 +110,7 @@ it('keeps the draft and allows only one request while submission is pending', as
   expect(result.current.submitting).toBe(false);
 });
 
-it('returns the server item and clears the draft after a successful submission', async () => {
+it('returns the server item without clearing the visible draft before navigation', async () => {
   const { result } = await renderHook(() => useItemComposer(2));
   await waitFor(() => expect(result.current.locations).toEqual(locations));
   await act(async () => {
@@ -121,12 +129,51 @@ it('returns the server item and clears the draft after a successful submission',
     pickupLocationId: 4,
   }));
   expect(result.current.draft).toMatchObject({
+    title: '충전기',
+    rentalFee: '1000',
+    pickupLocationId: 4,
+  });
+});
+
+it('keeps a pending Android replacement when the editing item finishes loading', async () => {
+  const pendingItem = deferred<CatalogItem>();
+  getItemMock.mockReturnValue(pendingItem.promise);
+  const { result } = await renderHook(() => useItemComposer(2, catalogItem.id));
+  const replacement = photo(1);
+
+  await act(async () => {
+    result.current.addPhotos([replacement]);
+  });
+  await act(async () => {
+    pendingItem.resolve({
+      ...catalogItem,
+      imageUrls: ['https://signed.example/items/existing.jpg'],
+    });
+  });
+
+  await waitFor(() => expect(result.current.draft.title).toBe(catalogItem.title));
+  expect(result.current.draft.photos).toEqual([replacement]);
+  expect(result.current.existingImageUrls).toEqual([
+    'https://signed.example/items/existing.jpg',
+  ]);
+});
+
+it('clears editing data when the same route switches back to registration', async () => {
+  const { result, rerender } = await renderHook(
+    ({ itemId }: { itemId: number | null }) => useItemComposer(2, itemId),
+    { initialProps: { itemId: catalogItem.id } },
+  );
+  await waitFor(() => expect(result.current.draft.title).toBe(catalogItem.title));
+
+  rerender({ itemId: null });
+
+  await waitFor(() => expect(result.current.draft).toMatchObject({
     title: '',
     rentalFee: '',
     pickupLocationId: null,
-    description: '',
     photos: [],
-  });
+  }));
+  expect(result.current.existingImageUrls).toEqual([]);
 });
 
 it('creates a fresh draft for each hook mount', async () => {

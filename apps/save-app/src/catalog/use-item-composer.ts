@@ -20,6 +20,7 @@ export type UseItemComposerResult = {
   submitting: boolean;
   editing: boolean;
   existingPhotoCount: number;
+  existingImageUrls: string[];
   setField: <K extends keyof ItemDraft>(key: K, value: ItemDraft[K]) => void;
   addPhotos: (photos: ItemPhotoAsset[]) => void;
   removePhoto: (uri: string) => void;
@@ -43,6 +44,7 @@ export function useItemComposer(
   const [photoNotice, setPhotoNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [existingPhotoCount, setExistingPhotoCount] = useState(0);
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
   const locationRequest = useRef(0);
   const submittingRef = useRef(false);
   const mounted = useRef(true);
@@ -86,13 +88,17 @@ export function useItemComposer(
 
   useEffect(() => {
     let active = true;
+    setDraft(initialItemDraft());
+    setExistingPhotoCount(0);
+    setExistingImageUrls([]);
+    setPhotoNotice(null);
+    setSubmitError(null);
     if (!itemId) {
-      setExistingPhotoCount(0);
       return () => { active = false; };
     }
     void getItem(itemId).then(item => {
       if (!active) return;
-      setDraft({
+      setDraft(current => ({
         type: item.type,
         title: item.title,
         rentalFee: String(item.rentalFee),
@@ -100,9 +106,10 @@ export function useItemComposer(
         pickupLocationId: item.pickupLocationId,
         description: item.description,
         precautions: COMMON_SAFETY_NOTICE,
-        photos: [],
-      });
+        photos: current.photos,
+      }));
       setExistingPhotoCount(item.imageUrls.length);
+      setExistingImageUrls(item.imageUrls);
       setSubmitError(null);
     }).catch(error => {
       if (active) setSubmitError(message(error, '수정할 물품을 불러오지 못했습니다.'));
@@ -161,7 +168,6 @@ export function useItemComposer(
         ? await updateItem(itemId, validation.input)
         : await createItem(validation.input);
       if (mounted.current) {
-        setDraft(initialItemDraft());
         setPhotoNotice(null);
       }
       return item;
@@ -188,6 +194,7 @@ export function useItemComposer(
     submitting,
     editing: Boolean(itemId),
     existingPhotoCount,
+    existingImageUrls,
     setField,
     addPhotos,
     removePhoto,

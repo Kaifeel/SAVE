@@ -3,6 +3,7 @@ export type RentalStatus =
   | 'APPROVED'
   | 'PAID'
   | 'RENTING'
+  | 'RETURN_REQUESTED'
   | 'RETURNED'
   | 'REJECTED'
   | 'CANCELED';
@@ -30,11 +31,13 @@ export type Rental = {
   createdAt: string;
   updatedAt: string;
   returnedAt: string | null;
+  lenderHandedOverAt?: string | null;
+  borrowerReceivedAt?: string | null;
   reviewDeadline: string | null;
   reviewState: ReviewState;
 };
 
-export type RentalAction = 'start' | 'reject' | 'cancel' | 'return';
+export type RentalAction = 'approve' | 'handover' | 'receive' | 'request-return' | 'reject' | 'cancel' | 'return';
 
 export type RentalReviewInput = {
   rating: number;

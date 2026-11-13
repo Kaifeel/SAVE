@@ -6,6 +6,7 @@ export type ChatRoom = {
   opponentName: string;
   lastMessage: string | null;
   lastMessageAt: string | null;
+  createdAt?: string | null;
   unreadCount: number;
 };
 

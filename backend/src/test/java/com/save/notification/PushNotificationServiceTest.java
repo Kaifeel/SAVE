@@ -20,10 +20,11 @@ import org.mockito.ArgumentCaptor;
 class PushNotificationServiceTest {
     private final ExpoPushClient client = mock(ExpoPushClient.class);
     private final DeviceTokenService tokenService = mock(DeviceTokenService.class);
+    private final FcmPushClient fcmClient = mock(FcmPushClient.class);
     private final PushDeliveryTicketRepository ticketRepository =
             mock(PushDeliveryTicketRepository.class);
     private final PushNotificationService service =
-            new PushNotificationService(client, tokenService, ticketRepository);
+            new PushNotificationService(client, fcmClient, tokenService, ticketRepository);
     private UserDeviceToken device;
 
     @BeforeEach

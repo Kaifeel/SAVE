@@ -62,20 +62,22 @@ export function ItemComposeForm({ composer, permissionNotice, onChoosePhotos, on
 
           {composer.editing ? (
             <View style={styles.existingPhotoNotice}>
-              <Text style={styles.existingPhotoText}>기존 사진은 그대로 유지됩니다.</Text>
+              <Text style={styles.existingPhotoText}>
+                새 사진을 선택하지 않으면 기존 사진이 유지되고, 선택하면 교체됩니다.
+              </Text>
               <Text style={styles.existingPhotoCount}>사진 {composer.existingPhotoCount}장</Text>
             </View>
-          ) : (
-            <ItemPhotoSelector
-              photos={composer.draft.photos}
-              notice={notice}
-              disabled={composer.submitting}
-              onChoosePhotos={onChoosePhotos}
-              onTakePhoto={onTakePhoto}
-              onOpenSettings={onOpenPhotoSettings}
-              onRemove={composer.removePhoto}
-            />
-          )}
+          ) : null}
+          <ItemPhotoSelector
+            photos={composer.draft.photos}
+            existingImageUrls={composer.existingImageUrls}
+            notice={notice}
+            disabled={composer.submitting}
+            onChoosePhotos={onChoosePhotos}
+            onTakePhoto={onTakePhoto}
+            onOpenSettings={onOpenPhotoSettings}
+            onRemove={composer.removePhoto}
+          />
 
           <Field
             label="물품 이름"

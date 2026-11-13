@@ -35,6 +35,7 @@ export function normalizeChatRoom(apiRoom) {
     itemTitle: room.item_title || room.itemTitle || room.item?.title || room.item?.name || '물품',
     lastMessage: room.last_message || room.lastMessage || messages.at(-1)?.text || '',
     time: room.time || room.updated_at || room.updatedAt || room.last_message_at || room.lastMessageAt || '',
+    createdAt: room.created_at ?? room.createdAt ?? null,
     unread: Boolean(room.unread || (room.unread_count ?? room.unreadCount) > 0),
     unreadCount: Number(room.unread_count ?? room.unreadCount ?? 0),
     avatar: room.avatar || room.profile_image_url || room.profileImageUrl || DEFAULT_AVATAR,
@@ -44,12 +45,18 @@ export function normalizeChatRoom(apiRoom) {
 }
 
 export function normalizeChatRoomsResponse(response) {
-  return unwrapList(response).map(normalizeChatRoom)
+  return sortChatRooms(unwrapList(response).map(normalizeChatRoom))
 }
 
 function chatRoomTimestamp(room) {
-  const timestamp = new Date(room?.time || '').getTime()
+  const timestamp = new Date(room?.time || room?.createdAt || '').getTime()
   return Number.isNaN(timestamp) ? null : timestamp
+}
+
+export function sortChatRooms(rooms) {
+  return [...rooms].sort((left, right) =>
+    (chatRoomTimestamp(right) ?? 0) - (chatRoomTimestamp(left) ?? 0)
+      || Number(right.id) - Number(left.id))
 }
 
 export function mergeChatRoomSnapshot(currentRooms, response) {
@@ -72,12 +79,7 @@ export function mergeChatRoomSnapshot(currentRooms, response) {
   })
 
   const realtimeOnly = currentRooms.filter(room => !snapshotIds.has(String(room.id)))
-  return [...merged, ...realtimeOnly].sort((left, right) => {
-    const leftTime = chatRoomTimestamp(left)
-    const rightTime = chatRoomTimestamp(right)
-    if (leftTime == null || rightTime == null) return 0
-    return rightTime - leftTime
-  })
+  return sortChatRooms([...merged, ...realtimeOnly])
 }
 
 export function mergeChatListUpdate(currentRooms, response, activeRoomId = null) {
@@ -95,10 +97,10 @@ export function mergeChatListUpdate(currentRooms, response, activeRoomId = null)
     unread: unreadCount > 0,
   }
 
-  return [
+  return sortChatRooms([
     updated,
     ...currentRooms.filter(room => String(room.id) !== String(incoming.id)),
-  ]
+  ])
 }
 
 export function normalizeMessagesResponse(response, currentUserId) {

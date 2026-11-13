@@ -14,17 +14,20 @@ public class MobileAuthController {
     private final AuthService authService;
     private final GoogleOAuthService googleOAuthService;
     private final AuthSessionService authSessionService;
+    private final SignupPolicy signupPolicy;
 
     public MobileAuthController(AuthService authService, GoogleOAuthService googleOAuthService,
-                                AuthSessionService authSessionService) {
+                                AuthSessionService authSessionService, SignupPolicy signupPolicy) {
         this.authService = authService;
         this.googleOAuthService = googleOAuthService;
         this.authSessionService = authSessionService;
+        this.signupPolicy = signupPolicy;
     }
 
     @PostMapping("/signup")
     @ResponseStatus(HttpStatus.CREATED)
     public MobileAuthResponse signUp(@Valid @RequestBody SignUpRequest request) {
+        signupPolicy.requireEnabled();
         return startSession(authService.signUp(request));
     }
 

@@ -59,6 +59,7 @@ export function parseChatRoom(value: unknown): ChatRoom {
     opponentName: string(room.opponent_name, 'opponent_name'),
     lastMessage: nullableString(room.last_message, 'last_message'),
     lastMessageAt: nullableTimestamp(room.last_message_at, 'last_message_at'),
+    ...(room.created_at !== undefined ? { createdAt: nullableTimestamp(room.created_at, 'created_at') } : {}),
     unreadCount: integer(room.unread_count, 'unread_count'),
   };
 }

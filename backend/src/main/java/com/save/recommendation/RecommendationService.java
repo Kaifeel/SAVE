@@ -4,6 +4,7 @@ import com.save.common.BusinessException;
 import com.save.item.Item;
 import com.save.item.ItemRepository;
 import com.save.item.ItemStatus;
+import com.save.item.ItemResponseMapper;
 import com.save.user.User;
 import com.save.user.UserRepository;
 import java.util.LinkedHashSet;
@@ -21,14 +22,17 @@ public class RecommendationService {
     private final ItemRepository itemRepository;
     private final UserRepository userRepository;
     private final RecommendationAiPort openAiClient;
+    private final ItemResponseMapper itemResponseMapper;
 
     public RecommendationService(RecommendationRepository recommendationRepository,
                                  ItemRepository itemRepository, UserRepository userRepository,
-                                 RecommendationAiPort openAiClient) {
+                                 RecommendationAiPort openAiClient,
+                                 ItemResponseMapper itemResponseMapper) {
         this.recommendationRepository = recommendationRepository;
         this.itemRepository = itemRepository;
         this.userRepository = userRepository;
         this.openAiClient = openAiClient;
+        this.itemResponseMapper = itemResponseMapper;
     }
 
     @Transactional
@@ -62,13 +66,14 @@ public class RecommendationService {
         Recommendation saved = recommendationRepository.save(new Recommendation(user, request,
                 aiResult.headline(), valid.stream().map(
                         AiRecommendationResult.RecommendedItem::reason).toList(), selected));
-        return RecommendationResponse.from(saved);
+        return RecommendationResponse.from(saved, itemResponseMapper);
     }
 
     @Transactional(readOnly = true)
     public List<RecommendationResponse> history(Integer userId) {
         return recommendationRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
-                .map(RecommendationResponse::from).toList();
+                .map(recommendation -> RecommendationResponse.from(
+                        recommendation, itemResponseMapper)).toList();
     }
 
     @Transactional(readOnly = true)
@@ -78,6 +83,6 @@ public class RecommendationService {
         if (!recommendation.getUser().getId().equals(userId)) {
             throw new BusinessException(HttpStatus.FORBIDDEN, "추천 내역에 접근할 권한이 없습니다.");
         }
-        return RecommendationResponse.from(recommendation);
+        return RecommendationResponse.from(recommendation, itemResponseMapper);
     }
 }

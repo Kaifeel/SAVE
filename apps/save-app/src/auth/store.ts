@@ -24,6 +24,7 @@ type AuthState = {
   loginWithEmail: (input: LoginInput) => Promise<void>;
   signupWithEmail: (input: SignupInput) => Promise<void>;
   loginWithGoogleToken: (idToken: string) => Promise<void>;
+  updateUser: (user: AuthUser) => void;
   refreshAccessToken: () => Promise<string>;
   logout: () => Promise<void>;
 };
@@ -164,6 +165,7 @@ export const useAuthStore = create<AuthState>((set, get) => {
       const generation = sessionGeneration;
       return authenticate(loginWithGoogle(idToken), generation);
     },
+    updateUser: user => set({ user }),
     refreshAccessToken: () => refreshAccessToken(),
     logout: () => {
       const accessToken = get().accessToken;

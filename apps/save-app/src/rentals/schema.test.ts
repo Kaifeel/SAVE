@@ -37,9 +37,19 @@ it('normalizes the complete snake_case rental response', () => {
     createdAt: '2026-08-23T10:00:00',
     updatedAt: '2026-08-23T10:05:00',
     returnedAt: null,
+    lenderHandedOverAt: null,
+    borrowerReceivedAt: null,
     reviewDeadline: null,
     reviewState: 'NOT_AVAILABLE',
   });
+});
+
+it('parses return requests and the two independently recorded delivery times', () => {
+  expect(parseRental({ ...backendRental, status: 'RETURN_REQUESTED',
+    lender_handed_over_at: '2026-09-11T10:00:00Z', borrower_received_at: '2026-09-11T10:01:00Z',
+  })).toEqual(expect.objectContaining({ status: 'RETURN_REQUESTED',
+    lenderHandedOverAt: '2026-09-11T10:00:00Z', borrowerReceivedAt: '2026-09-11T10:01:00Z',
+  }));
 });
 
 it('validates rental lists and review workflow responses', () => {

@@ -20,6 +20,18 @@ apps/save-app/.env.local
 apps/save-app/dist/
 
 backend/uploads/
+backend/.gradle-user/
+backend/bin/
+backend/local.properties
+backend/src/main/resources/data-demo.sql
+
+# Local build, test, and review artifacts
+.codex-review/
+.tmp-*/
+tmp/
+output/
+releases/
+*.apk
 
 # Editor directories and files
 .vscode/*

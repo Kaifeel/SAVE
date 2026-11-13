@@ -2,25 +2,32 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 import { useAuthStore } from '@/auth/store';
 
-import { selectGoogleClientId, useGoogleLogin } from './google-login';
+import { useGoogleLogin } from './google-login';
 
-const mockUseAuthRequest = jest.fn();
-const mockUseIdTokenAuthRequest = jest.fn();
-const mockPromptAsync = jest.fn<Promise<{ type: 'dismiss' }>, []>();
+const mockConfigure = jest.fn();
+const mockCheckPlayServices = jest.fn<Promise<void>, []>();
+const mockSignIn = jest.fn<Promise<unknown>, []>();
+const mockCreateAccount = jest.fn<Promise<unknown>, []>();
+const mockPresentExplicitSignIn = jest.fn<Promise<unknown>, []>();
 
-jest.mock('expo-auth-session/providers/google', () => ({
-  useAuthRequest: (...args: unknown[]) => mockUseAuthRequest(...args),
-  useIdTokenAuthRequest: (...args: unknown[]) => mockUseIdTokenAuthRequest(...args),
-}));
-
-jest.mock('expo-web-browser', () => ({
-  maybeCompleteAuthSession: jest.fn(),
+jest.mock('react-native-nitro-google-signin', () => ({
+  GoogleOneTapSignIn: {
+    checkPlayServices: () => mockCheckPlayServices(),
+    configure: (...args: unknown[]) => mockConfigure(...args),
+    createAccount: () => mockCreateAccount(),
+    presentExplicitSignIn: () => mockPresentExplicitSignIn(),
+    signIn: () => mockSignIn(),
+  },
+  isNoSavedCredentialFoundResponse: (response: { type?: string }) =>
+    response?.type === 'noSavedCredentialFound',
+  isCancelledResponse: (response: { type?: string }) => response?.type === 'cancelled',
+  isSuccessResponse: (response: { type?: string }) => response?.type === 'success',
 }));
 
 jest.mock('@/config/runtime', () => ({
   runtime: {
     googleAndroidClientId: 'android-client.apps.googleusercontent.com',
-    googleIosClientId: 'ios-client.apps.googleusercontent.com',
+    googleIosClientId: '',
     googleWebClientId: 'web-client.apps.googleusercontent.com',
   },
 }));
@@ -32,82 +39,76 @@ jest.mock('@/auth/store', () => ({
 const mockUseAuthStore = jest.mocked(useAuthStore);
 const loginWithGoogleToken = jest.fn<Promise<void>, [string]>();
 const successResponse = {
-  authentication: null,
-  errorCode: null,
-  params: { id_token: 'google-web-id-token' },
-  type: 'success' as const,
-  url: 'https://save.example/auth',
+  data: { idToken: 'google-web-id-token', user: { email: 'user@pukyong.ac.kr' } },
+  type: 'success',
 };
 
 beforeEach(() => {
   jest.clearAllMocks();
   loginWithGoogleToken.mockResolvedValue(undefined);
-  mockPromptAsync.mockResolvedValue({ type: 'dismiss' });
+  mockCheckPlayServices.mockResolvedValue(undefined);
+  mockSignIn.mockResolvedValue(successResponse);
+  mockCreateAccount.mockResolvedValue(successResponse);
+  mockPresentExplicitSignIn.mockResolvedValue(successResponse);
   mockUseAuthStore.mockImplementation(selector =>
     selector({ loginWithGoogleToken } as never),
   );
-  mockUseAuthRequest.mockReturnValue([{}, null, mockPromptAsync]);
-  mockUseIdTokenAuthRequest.mockReturnValue([{}, null, mockPromptAsync]);
 });
 
-it.each([
-  ['android', 'android-client.apps.googleusercontent.com'],
-  ['ios', 'ios-client.apps.googleusercontent.com'],
-  ['web', 'web-client.apps.googleusercontent.com'],
-] as const)('selects the independent %s Google client ID', (platform, expectedClientId) => {
-  expect(selectGoogleClientId(platform, {
-    googleAndroidClientId: 'android-client.apps.googleusercontent.com',
-    googleIosClientId: 'ios-client.apps.googleusercontent.com',
-    googleWebClientId: 'web-client.apps.googleusercontent.com',
-  })).toBe(expectedClientId);
-});
+it('configures native Google sign-in with the server web client ID', () => {
+  renderHook(() => useGoogleLogin());
 
-it('selects the current platform client ID through the ID-token request hook', async () => {
-  await renderHook(() => useGoogleLogin());
-
-  expect(mockUseIdTokenAuthRequest).toHaveBeenCalledWith({
-    androidClientId: 'android-client.apps.googleusercontent.com',
-    clientId: 'ios-client.apps.googleusercontent.com',
-    iosClientId: 'ios-client.apps.googleusercontent.com',
-    language: 'ko',
-    selectAccount: true,
+  expect(mockConfigure).toHaveBeenCalledWith({
     webClientId: 'web-client.apps.googleusercontent.com',
   });
-  expect(mockUseAuthRequest).not.toHaveBeenCalled();
 });
 
-it('forwards a successful web ID-token response to the auth store', async () => {
-  mockUseIdTokenAuthRequest.mockReturnValue([{}, successResponse, mockPromptAsync]);
-  mockUseAuthRequest.mockReturnValue([
-    {},
-    { ...successResponse, params: { access_token: 'google-access-token' } },
-    mockPromptAsync,
-  ]);
+it('opens the explicit account chooser and forwards its Google ID token', async () => {
+  const { result } = renderHook(() => useGoogleLogin());
 
-  await renderHook(() => useGoogleLogin());
+  await act(() => result.current.prompt());
 
-  await waitFor(() =>
-    expect(loginWithGoogleToken).toHaveBeenCalledWith('google-web-id-token'),
-  );
+  expect(mockCheckPlayServices).toHaveBeenCalledTimes(1);
+  expect(mockPresentExplicitSignIn).toHaveBeenCalledTimes(1);
+  expect(mockSignIn).not.toHaveBeenCalled();
+  expect(mockCreateAccount).not.toHaveBeenCalled();
+  expect(loginWithGoogleToken).toHaveBeenCalledWith('google-web-id-token');
 });
 
-it('exposes a store rejection and retries the same ID token before reopening Google', async () => {
+it('returns quietly when the explicit account chooser is cancelled', async () => {
+  mockPresentExplicitSignIn.mockResolvedValue({ type: 'cancelled' });
+  const { result } = renderHook(() => useGoogleLogin());
+
+  await act(() => result.current.prompt());
+
+  expect(loginWithGoogleToken).not.toHaveBeenCalled();
+  expect(result.current.error).toBeNull();
+});
+
+it('reopens the chooser after rejection instead of retrying the rejected ID token', async () => {
+  mockPresentExplicitSignIn
+    .mockResolvedValueOnce({
+      data: { idToken: 'gmail-token', user: { email: 'user@gmail.com' } },
+      type: 'success',
+    })
+    .mockResolvedValueOnce({
+      data: { idToken: 'pukyong-token', user: { email: 'user@pukyong.ac.kr' } },
+      type: 'success',
+    });
   loginWithGoogleToken
     .mockRejectedValueOnce(new Error('Google 계정 로그인을 완료하지 못했습니다.'))
     .mockResolvedValueOnce(undefined);
-  mockUseIdTokenAuthRequest.mockReturnValue([{}, successResponse, mockPromptAsync]);
-  mockUseAuthRequest.mockReturnValue([{}, successResponse, mockPromptAsync]);
+  const { result } = renderHook(() => useGoogleLogin());
 
-  const { result } = await renderHook(() => useGoogleLogin());
-
+  await act(() => result.current.prompt());
   await waitFor(() =>
     expect(result.current.error).toBe('Google 계정 로그인을 완료하지 못했습니다.'),
   );
 
   await act(() => result.current.prompt());
 
-  await waitFor(() => expect(loginWithGoogleToken).toHaveBeenCalledTimes(2));
-  expect(loginWithGoogleToken).toHaveBeenLastCalledWith('google-web-id-token');
-  expect(mockPromptAsync).not.toHaveBeenCalled();
+  expect(mockPresentExplicitSignIn).toHaveBeenCalledTimes(2);
+  expect(loginWithGoogleToken).toHaveBeenNthCalledWith(1, 'gmail-token');
+  expect(loginWithGoogleToken).toHaveBeenNthCalledWith(2, 'pukyong-token');
   expect(result.current.error).toBeNull();
 });

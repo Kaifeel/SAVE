@@ -40,7 +40,22 @@ public class RentalController {
         return rentalService.cancel(rentalId, userId(jwt));
     }
 
-    @PatchMapping("/{rentalId}/start")
+    @PatchMapping("/{rentalId}/approve")
+    public RentalResponse approve(@PathVariable Integer rentalId, @AuthenticationPrincipal Jwt jwt) {
+        return rentalService.approve(rentalId, userId(jwt));
+    }
+
+    @PatchMapping("/{rentalId}/receive")
+    public RentalResponse receive(@PathVariable Integer rentalId, @AuthenticationPrincipal Jwt jwt) {
+        return rentalService.receive(rentalId, userId(jwt));
+    }
+
+    @PatchMapping("/{rentalId}/request-return")
+    public RentalResponse requestReturn(@PathVariable Integer rentalId, @AuthenticationPrincipal Jwt jwt) {
+        return rentalService.requestReturn(rentalId, userId(jwt));
+    }
+
+    @PatchMapping({"/{rentalId}/handover", "/{rentalId}/start"})
     public RentalResponse startRenting(@PathVariable Integer rentalId,
                                        @AuthenticationPrincipal Jwt jwt) {
         return rentalService.startRenting(rentalId, userId(jwt));

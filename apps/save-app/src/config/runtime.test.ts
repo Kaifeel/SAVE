@@ -17,11 +17,15 @@ it('normalizes a configured production runtime', () => {
 it.each([
   'EXPO_PUBLIC_API_BASE_URL',
   'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID',
-  'EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID',
   'EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID',
 ])('rejects production when %s is absent', key =>
   expect(() => readRuntime({ ...configured, [key]: '' }, false)).toThrow(key),
 );
+
+it('allows an Android production runtime without an iOS Google client ID', () => {
+  expect(readRuntime({ ...configured, EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: '' }, false))
+    .toMatchObject({ googleIosClientId: '' });
+});
 
 it('rejects production when the API URL normalizes to empty', () => {
   expect(() => readRuntime({ ...configured, EXPO_PUBLIC_API_BASE_URL: '/' }, false)).toThrow(

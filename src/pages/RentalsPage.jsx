@@ -24,13 +24,14 @@ const reviewLabels = {
 
 const statusMeta = {
   REQUESTED: {
-    lender: ['응답 필요', 'bg-amber-50 text-amber-700'],
-    borrower: ['승인 대기', 'bg-amber-50 text-amber-700'],
+    lender: ['승인 필요', 'bg-amber-50 text-amber-700'],
+    borrower: ['승인 필요', 'bg-amber-50 text-amber-700'],
   },
-  APPROVED: ['대여 예정', 'bg-blue-50 text-blue-700'],
+  APPROVED: ['전달 대기', 'bg-blue-50 text-blue-700'],
   PAID: ['결제 완료', 'bg-blue-50 text-blue-700'],
   RENTING: ['대여 중', 'bg-indigo-50 text-indigo-700'],
-  RETURNED: ['반납 완료', 'bg-slate-100 text-slate-600'],
+  RETURN_REQUESTED: ['반납 확인 필요', 'bg-amber-50 text-amber-700'],
+  RETURNED: ['거래 완료', 'bg-slate-100 text-slate-600'],
   REJECTED: ['요청 거절', 'bg-rose-50 text-rose-700'],
   CANCELED: ['요청 취소', 'bg-slate-100 text-slate-600'],
 }
@@ -38,16 +39,26 @@ const statusMeta = {
 const actions = {
   REQUESTED: {
     lender: [
-      { label: '거래 시작', action: 'startRental', variant: 'primary' },
+      { label: '승인', action: 'approveRental', variant: 'primary' },
       { label: '요청 거절', action: 'rejectRental', variant: 'danger' },
     ],
     borrower: [
       { label: '요청 취소', action: 'cancelRental', variant: 'secondary' },
     ],
   },
+  APPROVED: {
+    lender: [{ label: '물건 전달 완료', action: 'startRental', variant: 'primary' }],
+    borrower: [
+      { label: '물품 수령 완료', action: 'receiveRental', variant: 'primary' },
+      { label: '요청 취소', action: 'cancelRental', variant: 'secondary' },
+    ],
+  },
   RENTING: {
+    borrower: [{ label: '반납 요청', action: 'requestReturnRental', variant: 'primary' }],
+  },
+  RETURN_REQUESTED: {
     lender: [
-      { label: '반납 완료 처리', action: 'returnRental', variant: 'primary' },
+      { label: '반납 확인', action: 'returnRental', variant: 'primary' },
     ],
   },
 }
@@ -103,7 +114,14 @@ function RentalCard({ rental, role, items, onTransition, onReview, pendingAction
       ? `${counterpartName}이 보낸 요청`
       : `${counterpartName}에게 보낸 요청`
     : '거래 상대방 정보를 확인할 수 없습니다.'
-  const availableActions = actions[rental.status]?.[role] || []
+  const availableActions = (actions[rental.status]?.[role] || []).filter(({ action }) => {
+    if (action === 'startRental') return !rental.lenderHandedOverAt
+    if (action === 'receiveRental') return !rental.borrowerReceivedAt
+    if (action === 'cancelRental') return !rental.lenderHandedOverAt && !rental.borrowerReceivedAt
+    return true
+  })
+  const waitingForDelivery = rental.status === 'APPROVED'
+    && (role === 'lender' ? rental.lenderHandedOverAt : rental.borrowerReceivedAt)
   const reviewLabel = reviewLabels[rental.reviewState]
   const isPending = pendingAction?.startsWith(`${rental.id}:`)
   const hasActions = availableActions.length > 0 || rental.reviewState === 'AVAILABLE'
@@ -146,6 +164,7 @@ function RentalCard({ rental, role, items, onTransition, onReview, pendingAction
           <span>{reviewLabel}</span>
         </p>
       )}
+      {waitingForDelivery && <p className="mt-3 text-xs text-slate-500">상대방 전달·수령 확인 대기</p>}
 
       {hasActions && (
         <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">

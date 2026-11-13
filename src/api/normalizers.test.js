@@ -280,3 +280,16 @@ describe('chat room API normalization', () => {
     ])
   })
 })
+
+it('keeps read updates in activity order and promotes new messages', () => {
+  const rooms = mergeChatRoomSnapshot([], [
+    { chat_room_id: 1, last_message_at: '2026-09-12T12:00:00' },
+    { chat_room_id: 2, created_at: '2026-09-12T13:00:00' },
+    { chat_room_id: 3, last_message_at: '2026-09-12T12:00:00' },
+  ])
+  expect(rooms.map(room => room.id)).toEqual([2, 3, 1])
+  const read = mergeChatListUpdate(rooms, { chat_room_id: 1, last_message_at: '2026-09-12T12:00:00', unread_count: 0 })
+  expect(read.map(room => room.id)).toEqual([2, 3, 1])
+  const received = mergeChatListUpdate(read, { chat_room_id: 1, last_message_at: '2026-09-12T14:00:00' })
+  expect(received.map(room => room.id)).toEqual([1, 2, 3])
+})

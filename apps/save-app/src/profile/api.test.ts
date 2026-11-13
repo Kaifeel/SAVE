@@ -1,6 +1,6 @@
 import { apiRequest } from '@/api/client';
 import { backendItem } from '@/catalog/schema.test';
-import { getMyItems, getMyProfile, getMyWishlist } from './api';
+import { getMyItems, getMyProfile, getMyWishlist, updateMyProfile } from './api';
 
 jest.mock('@/api/client', () => ({ apiRequest: jest.fn() }));
 const request = jest.mocked(apiRequest);
@@ -33,4 +33,26 @@ it('loads and validates every My Page resource independently', async () => {
 it('does not accept an object as an item-list fallback', async () => {
   request.mockResolvedValue({ content: [] });
   await expect(getMyItems()).rejects.toThrow('Invalid my items response');
+});
+
+it('updates the incomplete Google profile with the fixed university id', async () => {
+  request.mockResolvedValue({ ...profile, department: '컴퓨터공학과' });
+
+  await expect(updateMyProfile({
+    name: '이용자',
+    department: '컴퓨터공학과',
+    universityId: 1,
+  })).resolves.toEqual(expect.objectContaining({
+    department: '컴퓨터공학과',
+    universityName: '부경대학교',
+  }));
+  expect(request).toHaveBeenCalledWith('/users/me/profile', {
+    method: 'PUT',
+    body: JSON.stringify({
+      name: '이용자',
+      department: '컴퓨터공학과',
+      university_id: 1,
+      profile_image_url: null,
+    }),
+  });
 });

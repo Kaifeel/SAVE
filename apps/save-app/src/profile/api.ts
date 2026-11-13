@@ -7,6 +7,22 @@ export async function getMyProfile(): Promise<AuthUser> {
   return parseMyProfile(await apiRequest<unknown>('/users/me'));
 }
 
+export async function updateMyProfile(input: {
+  name: string;
+  department: string;
+  universityId: number;
+}): Promise<AuthUser> {
+  return parseMyProfile(await apiRequest<unknown>('/users/me/profile', {
+    method: 'PUT',
+    body: JSON.stringify({
+      name: input.name,
+      department: input.department,
+      university_id: input.universityId,
+      profile_image_url: null,
+    }),
+  }));
+}
+
 export async function getMyItems(): Promise<CatalogItem[]> {
   const response = await apiRequest<unknown>('/users/me/items');
   return parseCatalogItemList(response, 'my items');

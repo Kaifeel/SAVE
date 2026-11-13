@@ -39,8 +39,8 @@ it('replaces a rental with the authoritative transition response', async () => {
   const { result } = await renderHook(() => useRentals(3));
   await waitFor(() => expect(result.current.loading).toBe(false));
 
-  await act(async () => { await result.current.run(41, 'start'); });
-  expect(transitionMock).toHaveBeenCalledWith(41, 'start');
+  await act(async () => { await result.current.run(41, 'approve'); });
+  expect(transitionMock).toHaveBeenCalledWith(41, 'approve');
   expect(result.current.rentals[0].status).toBe('RENTING');
 });
 

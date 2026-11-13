@@ -5,13 +5,10 @@ import { Linking, Platform } from 'react-native';
 
 import { useAuthStore } from '@/auth/store';
 import { ItemComposeForm } from '@/catalog/components/item-compose-form';
+import { normalizeImageAssets } from '@/catalog/normalize-image-assets';
 import { useItemComposer } from '@/catalog/use-item-composer';
-import type { ItemPhotoAsset } from '@/catalog/types';
 
-function fallbackFileName(uri: string, index: number): string {
-  const candidate = uri.split('/').pop();
-  return candidate?.trim() || `photo-${index + 1}.jpg`;
-}
+const NORMALIZATION_ERROR = '사진을 JPEG로 변환하지 못했습니다. 다른 사진을 선택해 주세요.';
 
 export default function CreateScreen() {
   const router = useRouter();
@@ -23,21 +20,22 @@ export default function CreateScreen() {
   const composer = useItemComposer(universityId, itemId);
   const [permissionNotice, setPermissionNotice] = useState<string | null>(null);
 
-  const appendAssets = (assets: ImagePicker.ImagePickerAsset[]) => {
+  const appendAssets = async (assets: ImagePicker.ImagePickerAsset[]) => {
     const remaining = Math.max(0, 5 - composer.draft.photos.length);
-    const photos: ItemPhotoAsset[] = assets.slice(0, remaining).map((asset, index) => ({
-      uri: asset.uri,
-      fileName: asset.fileName ?? fallbackFileName(asset.uri, index),
-      mimeType: asset.mimeType ?? 'image/jpeg',
-      file: asset.file,
-    }));
-    composer.addPhotos(photos);
+    try {
+      const photos = await normalizeImageAssets(assets, remaining);
+      composer.addPhotos(photos);
+    } catch {
+      setPermissionNotice(NORMALIZATION_ERROR);
+    }
   };
 
   useEffect(() => {
     if (Platform.OS !== 'android') return;
     void ImagePicker.getPendingResultAsync().then(result => {
-      if (result && 'canceled' in result && !result.canceled && result.assets) appendAssets(result.assets);
+      if (result && 'canceled' in result && !result.canceled && result.assets) {
+        void appendAssets(result.assets);
+      }
     }).catch(() => undefined);
   // Android exposes a one-shot system result only when this screen mounts.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,7 +61,7 @@ export default function CreateScreen() {
       return;
     }
 
-    appendAssets(result.assets);
+    await appendAssets(result.assets);
   };
 
   const takePhoto = async () => {
@@ -74,7 +72,7 @@ export default function CreateScreen() {
       return;
     }
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
-    if (!result.canceled) appendAssets(result.assets);
+    if (!result.canceled) await appendAssets(result.assets);
   };
 
   const submit = async () => {

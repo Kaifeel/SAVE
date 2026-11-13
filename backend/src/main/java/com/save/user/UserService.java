@@ -13,6 +13,7 @@ import com.save.university.University;
 import com.save.university.UniversityRepository;
 import com.save.security.CampusAccessPolicy;
 import com.save.item.PhotoStorageService;
+import com.save.item.ItemResponseMapper;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ public class UserService {
     private final ReviewQueryService reviewQueryService;
     private final CampusAccessPolicy campusAccessPolicy;
     private final PhotoStorageService photoStorageService;
+    private final ItemResponseMapper itemResponseMapper;
 
     public UserService(UserRepository userRepository, ItemRepository itemRepository,
                        WishlistRepository wishlistRepository,
@@ -46,6 +48,7 @@ public class UserService {
         this.reviewQueryService = reviewQueryService;
         this.campusAccessPolicy = campusAccessPolicy;
         this.photoStorageService = photoStorageService;
+        this.itemResponseMapper = new ItemResponseMapper(photoStorageService);
     }
 
     @Transactional(readOnly = true)
@@ -80,7 +83,7 @@ public class UserService {
         findUser(userId);
         return itemRepository.findByOwnerIdAndStatusNotOrderByCreatedAtDesc(
                 userId, ItemStatus.DELETED)
-                .stream().map(item -> ItemResponse.from(item, false,
+                .stream().map(item -> itemResponseMapper.from(item, false,
                         wishlistRepository.countByItemId(item.getId()),
                         reviewQueryService.summary(item.getOwner().getId()))).toList();
     }
@@ -90,7 +93,7 @@ public class UserService {
         findUser(userId);
         return wishlistRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
                 .filter(wishlist -> wishlist.getItem().getStatus() != ItemStatus.DELETED)
-                .map(wishlist -> ItemResponse.from(wishlist.getItem(), true,
+                .map(wishlist -> itemResponseMapper.from(wishlist.getItem(), true,
                         wishlistRepository.countByItemId(wishlist.getItem().getId()),
                         reviewQueryService.summary(wishlist.getItem().getOwner().getId()))).toList();
     }
@@ -119,7 +122,7 @@ public class UserService {
         return itemRepository.findByOwnerIdAndStatusNotOrderByCreatedAtDesc(
                         userId, ItemStatus.DELETED)
                 .stream()
-                .map(item -> ItemResponse.from(
+                .map(item -> itemResponseMapper.from(
                         item,
                         viewerId != null && wishlistRepository.existsByUserIdAndItemId(
                                 viewerId, item.getId()),

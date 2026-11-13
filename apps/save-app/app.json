@@ -48,12 +48,18 @@
           "cameraPermission": "물품 사진 촬영을 위해 카메라를 사용합니다.",
           "microphonePermission": false
         }
-      ],
-      "expo-web-browser"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "3d208a7a-3bf2-44d7-8798-c2853f790ea3"
+      }
+    },
+    "owner": "kimsunwoo"
   }
 }

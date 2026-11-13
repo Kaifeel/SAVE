@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import * as rentalApi from '../api/rentals'
 
 const MOCK_TRANSITION_STATUS = {
-  startRental: 'RENTING',
+  approveRental: 'APPROVED',
+  requestReturnRental: 'RETURN_REQUESTED',
   rejectRental: 'REJECTED',
   cancelRental: 'CANCELED',
   returnRental: 'RETURNED',
@@ -64,6 +65,9 @@ export function useRentals({
             status: status || rental.status,
             ...(status === 'RETURNED' ? { reviewState: 'AVAILABLE' } : {}),
           }
+          if (action === 'startRental') updated.lenderHandedOverAt = new Date().toISOString()
+          if (action === 'receiveRental') updated.borrowerReceivedAt = new Date().toISOString()
+          if (updated.status === 'APPROVED' && updated.lenderHandedOverAt && updated.borrowerReceivedAt) updated.status = 'RENTING'
           return updated
         }))
         return updated

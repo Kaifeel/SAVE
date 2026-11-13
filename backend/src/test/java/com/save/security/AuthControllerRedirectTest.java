@@ -24,7 +24,7 @@ class AuthControllerRedirectTest {
         AuthOriginValidator authOriginValidator = mock(AuthOriginValidator.class);
         AuthController controller = new AuthController(authService, googleOAuthService,
                 ticketService, authSessionService, refreshCookieService, authOriginValidator,
-                "http://localhost:5173");
+                mock(SignupPolicy.class), "http://localhost:5173");
         AuthResponse auth = new AuthResponse("save-jwt", "Bearer", false, null);
         when(googleOAuthService.login("google-id-token")).thenReturn(auth);
         when(ticketService.issue(auth)).thenReturn("one-time-code");
@@ -47,7 +47,7 @@ class AuthControllerRedirectTest {
         AuthOriginValidator authOriginValidator = mock(AuthOriginValidator.class);
         AuthController controller = new AuthController(authService, googleOAuthService,
                 ticketService, authSessionService, refreshCookieService, authOriginValidator,
-                "http://localhost:5173");
+                mock(SignupPolicy.class), "http://localhost:5173");
 
         assertThatThrownBy(() -> controller.googleRedirect(
                 "google-id-token", "request-token", "different-cookie"))

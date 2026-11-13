@@ -50,10 +50,22 @@ export async function returnRental(rentalId, accessToken) {
 }
 
 export async function startRental(rentalId, accessToken) {
-  return normalizeRentalResponse(await apiFetch(`/rentals/${rentalId}/start`, {
+  return normalizeRentalResponse(await apiFetch(`/rentals/${rentalId}/handover`, {
     method: 'PATCH',
     accessToken,
   }))
+}
+
+export async function approveRental(rentalId, accessToken) {
+  return normalizeRentalResponse(await apiFetch(`/rentals/${rentalId}/approve`, { method: 'PATCH', accessToken }))
+}
+
+export async function receiveRental(rentalId, accessToken) {
+  return normalizeRentalResponse(await apiFetch(`/rentals/${rentalId}/receive`, { method: 'PATCH', accessToken }))
+}
+
+export async function requestReturnRental(rentalId, accessToken) {
+  return normalizeRentalResponse(await apiFetch(`/rentals/${rentalId}/request-return`, { method: 'PATCH', accessToken }))
 }
 
 export async function submitRentalReview(rentalId, review, accessToken) {

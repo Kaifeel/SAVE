@@ -54,7 +54,7 @@ beforeEach(() => {
     },
   });
   getRentalMock.mockResolvedValue(rental);
-  transitionMock.mockResolvedValue({ ...rental, status: 'RENTING' });
+  transitionMock.mockResolvedValue({ ...rental, status: 'APPROVED' });
   jest.mocked(submitRentalReview).mockResolvedValue({
     reviewState: 'SUBMITTED_WAITING', reviewDeadline: null,
   });
@@ -67,12 +67,33 @@ it('renders API-provided detail and links to the real item and chat', async () =
   expect(screen.getByText('군화')).toBeTruthy();
   expect(screen.getByText('신청자')).toBeTruthy();
   expect(screen.getByText('대여학생')).toBeTruthy();
-  expect(screen.getByText('요청됨')).toBeTruthy();
+  expect(screen.getByText('승인 필요')).toBeTruthy();
   expect(screen.getByText('6,000원')).toBeTruthy();
   await fireEvent.press(screen.getByRole('button', { name: '물품 상세' }));
   await fireEvent.press(screen.getByRole('button', { name: '거래 채팅' }));
   expect(mockPush).toHaveBeenNthCalledWith(1, { pathname: '/items/[id]', params: { id: '7' } });
   expect(mockPush).toHaveBeenNthCalledWith(2, { pathname: '/chats/[id]', params: { id: '12' } });
+});
+
+it('shows delivery waiting after the lender confirms and blocks repeat confirmation', async () => {
+  getRentalMock.mockResolvedValue({ ...rental, status: 'APPROVED', lenderHandedOverAt: '2026-09-11T10:00:00Z' });
+  await render(<RentalDetailScreen />);
+  expect(await screen.findByText('물건 전달 완료 · 상대방 수령 확인 대기')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '물건 전달 완료' })).toBeNull();
+  expect(screen.queryByRole('button', { name: '반납 확인' })).toBeNull();
+});
+
+it('lets the borrower confirm receipt and request return in the correct stages', async () => {
+  useAuthStore.setState({ user: { ...useAuthStore.getState().user!, id: 17 } });
+  getRentalMock.mockResolvedValue({ ...rental, status: 'APPROVED' });
+  const view = await render(<RentalDetailScreen />);
+  expect(await screen.findByRole('button', { name: '물품 수령 완료' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '물건 전달 완료' })).toBeNull();
+  await view.unmount();
+  getRentalMock.mockResolvedValue({ ...rental, status: 'RENTING' });
+  await render(<RentalDetailScreen />);
+  expect(await screen.findByRole('button', { name: '반납 요청' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '반납 확인' })).toBeNull();
 });
 
 it('confirms and performs only a role-allowed transition', async () => {
@@ -83,10 +104,10 @@ it('confirms and performs only a role-allowed transition', async () => {
   await render(<RentalDetailScreen />);
   await screen.findByText('대여 #41');
 
-  await fireEvent.press(screen.getByRole('button', { name: '거래 시작' }));
+  await fireEvent.press(screen.getByRole('button', { name: '승인' }));
   await act(async () => { confirm?.(); });
-  await waitFor(() => expect(transitionMock).toHaveBeenCalledWith(41, 'start'));
-  expect(await screen.findByText('대여 중')).toBeTruthy();
+  await waitFor(() => expect(transitionMock).toHaveBeenCalledWith(41, 'approve'));
+  expect(await screen.findByText('전달 대기')).toBeTruthy();
   alert.mockRestore();
 });
 

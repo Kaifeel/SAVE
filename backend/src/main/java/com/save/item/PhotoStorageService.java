@@ -45,6 +45,11 @@ public class PhotoStorageService {
         return objectStorage.storeProfile(uploadPolicy.validate(photo)).url();
     }
 
+    public List<String> readUrls(List<String> storedUrls) {
+        if (storedUrls == null || storedUrls.isEmpty()) return List.of();
+        return storedUrls.stream().map(objectStorage::readUrl).toList();
+    }
+
     public void deleteLocalProfile(String url) {
         if (!(objectStorage instanceof LocalObjectStorage local)) return;
         try {

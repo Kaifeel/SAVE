@@ -12,13 +12,16 @@ public class AuthSessionService {
     private final RefreshTokenService refreshTokenService;
     private final UserRepository userRepository;
     private final JwtTokenService jwtTokenService;
+    private final UniversityEmailMapper universityEmailMapper;
 
     public AuthSessionService(RefreshTokenService refreshTokenService,
                               UserRepository userRepository,
-                              JwtTokenService jwtTokenService) {
+                              JwtTokenService jwtTokenService,
+                              UniversityEmailMapper universityEmailMapper) {
         this.refreshTokenService = refreshTokenService;
         this.userRepository = userRepository;
         this.jwtTokenService = jwtTokenService;
+        this.universityEmailMapper = universityEmailMapper;
     }
 
     @Transactional
@@ -35,6 +38,8 @@ public class AuthSessionService {
     public AuthSession refresh(String rawToken) {
         RotatedRefreshToken rotated = refreshTokenService.rotate(rawToken);
         User user = userRepository.findById(rotated.user().getId()).orElseThrow(this::invalidSession);
+        universityEmailMapper.assignIfMissing(user);
+        userRepository.save(user);
         AuthResponse response = new AuthResponse(jwtTokenService.issue(user), "Bearer", false,
                 AuthUserResponse.from(user));
         return new AuthSession(response, rotated.rawToken(), rotated.expiresAt());

@@ -12,12 +12,14 @@ public class PushNotificationService {
     private static final Logger log = LoggerFactory.getLogger(PushNotificationService.class);
     private static final String DEVICE_NOT_REGISTERED = "DeviceNotRegistered";
     private final ExpoPushClient pushClient;
+    private final FcmPushClient fcmClient;
     private final DeviceTokenService tokenService;
     private final PushDeliveryTicketRepository ticketRepository;
 
-    public PushNotificationService(ExpoPushClient pushClient, DeviceTokenService tokenService,
+    public PushNotificationService(ExpoPushClient pushClient, FcmPushClient fcmClient, DeviceTokenService tokenService,
                                    PushDeliveryTicketRepository ticketRepository) {
         this.pushClient = pushClient;
+        this.fcmClient = fcmClient;
         this.tokenService = tokenService;
         this.ticketRepository = ticketRepository;
     }
@@ -41,21 +43,31 @@ public class PushNotificationService {
     }
 
     private void send(Integer recipientId, String title, String body, Map<String, Object> data) {
-        if (!pushClient.enabled()) return;
+        if (!pushClient.enabled() && !fcmClient.enabled()) return;
         try {
             List<UserDeviceToken> devices = tokenService.activeTokens(recipientId);
             if (devices.isEmpty()) return;
-            List<ExpoPushMessage> messages = devices.stream()
+            List<UserDeviceToken> nativeAndroid = devices.stream().filter(device -> device.getPlatform() == DevicePlatform.ANDROID && !device.getToken().startsWith("ExpoPushToken[")).toList();
+            nativeAndroid.forEach(device -> deliverFcm(device, title, body, data));
+            List<UserDeviceToken> expoDevices = devices.stream().filter(device -> !nativeAndroid.contains(device)).toList();
+            if (!pushClient.enabled() || expoDevices.isEmpty()) return;
+            List<ExpoPushMessage> messages = expoDevices.stream()
                     .map(device -> new ExpoPushMessage(
                             device.getToken(), title, body, Map.copyOf(data)))
                     .toList();
             List<ExpoPushTicketResponse> responses = pushClient.send(messages);
             for (int index = 0; index < responses.size(); index++) {
-                handleResponse(devices.get(index), responses.get(index));
+                handleResponse(expoDevices.get(index), responses.get(index));
             }
         } catch (RuntimeException exception) {
             log.warn("Expo push delivery failed for user {}", recipientId, exception);
         }
+    }
+
+    private void deliverFcm(UserDeviceToken device, String title, String body, Map<String, Object> data) {
+        if (!fcmClient.enabled()) return;
+        try { fcmClient.send(device.getToken(), title, body, data); }
+        catch (RuntimeException exception) { log.warn("FCM push delivery failed for device {}", device.getId(), exception); }
     }
 
     private void handleResponse(UserDeviceToken device, ExpoPushTicketResponse response) {

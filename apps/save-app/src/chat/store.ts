@@ -109,13 +109,18 @@ function replaceOptimistic(
     message.clientId === clientId ? replacement : message));
 }
 
+export function sortRooms(rooms: ChatRoom[]): ChatRoom[] {
+  const time = (room: ChatRoom) => Date.parse(room.lastMessageAt ?? room.createdAt ?? '') || 0;
+  return [...rooms].sort((left, right) => time(right) - time(left) || right.id - left.id);
+}
+
 function upsertRoom(rooms: ChatRoom[], incoming: ChatRoom, activeRoomId: number | null) {
   const room = incoming.id === activeRoomId ? { ...incoming, unreadCount: 0 } : incoming;
-  return [room, ...rooms.filter(entry => entry.id !== incoming.id)];
+  return sortRooms([room, ...rooms.filter(entry => entry.id !== incoming.id)]);
 }
 
 function mergeRoomSnapshot(snapshot: ChatRoom[], current: ChatRoom[], activeRoomId: number | null) {
-  return snapshot.map(room => {
+  return sortRooms(snapshot.map(room => {
     const existing = current.find(value => value.id === room.id);
     const snapshotTime = room.lastMessageAt ? Date.parse(room.lastMessageAt) : 0;
     const existingTime = existing?.lastMessageAt ? Date.parse(existing.lastMessageAt) : 0;
@@ -128,7 +133,7 @@ function mergeRoomSnapshot(snapshot: ChatRoom[], current: ChatRoom[], activeRoom
       }
       : room;
     return merged.id === activeRoomId ? { ...merged, unreadCount: 0 } : merged;
-  });
+  }));
 }
 
 export const useChatStore = create<ChatState>((set, get) => {
@@ -143,14 +148,14 @@ export const useChatStore = create<ChatState>((set, get) => {
         : [...state.messages, timelineMessage(message)];
       return {
         messages,
-        rooms: state.rooms.map(room => room.id === message.roomId
+        rooms: sortRooms(state.rooms.map(room => room.id === message.roomId
           ? {
             ...room,
             lastMessage: message.message,
             lastMessageAt: message.createdAt,
             unreadCount: 0,
           }
-          : room),
+          : room)),
       };
     });
     if (message.senderId !== currentUserId) {
@@ -176,9 +181,9 @@ export const useChatStore = create<ChatState>((set, get) => {
       set(state => ({
         messages: replaceOptimistic(state.messages, clientId, saved),
         sendError: null,
-        rooms: state.rooms.map(room => room.id === roomId
+        rooms: sortRooms(state.rooms.map(room => room.id === roomId
           ? { ...room, lastMessage: saved.message, lastMessageAt: saved.createdAt }
-          : room),
+          : room)),
       }));
     } catch {
       set(state => ({

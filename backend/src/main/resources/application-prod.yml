@@ -21,6 +21,10 @@ spring:
 server:
   forward-headers-strategy: framework
 
+auth:
+  signup:
+    enabled: ${SIGNUP_ENABLED:false}
+
 security:
   refresh-token:
     cookie-secure: true

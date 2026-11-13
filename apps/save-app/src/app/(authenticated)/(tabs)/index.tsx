@@ -145,7 +145,8 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.recommendation}>
+      {/* AI 추천은 현재 논문 범위에서 제외했으며, 훅 플래그로 복구할 수 있다. */}
+      {catalog.recommendationsEnabled ? <View style={styles.recommendation}>
         <Text style={styles.recommendationTitle}>오늘의 AI 추천 물품</Text>
         <Text style={styles.recommendationHeadline}>
           {catalog.recommendation?.headline ?? '상황에 맞는 물품을 추천받아 보세요.'}
@@ -167,7 +168,7 @@ export default function HomeScreen() {
             <Text style={styles.recommendationButtonText}>AI 추천 받기</Text>
           </Pressable>
         )}
-      </View>
+      </View> : null}
 
       <SectionTitle title="인기 대여 물품" onMore={openExplore} />
       {catalog.popular.length ? (

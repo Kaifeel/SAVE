@@ -277,3 +277,16 @@ it('keeps the active room unread count at zero and reloads snapshots on reconnec
   expect(loadChatMessages).toHaveBeenCalledTimes(2);
   expect(useChatStore.getState().socketState).toBe('connected');
 });
+
+it('orders snapshots and realtime updates by activity, without promoting read-only updates', async () => {
+  const older = { ...room, id: 8, lastMessageAt: '2026-08-22T12:00:00' };
+  const empty = { ...room, id: 9, lastMessage: null, lastMessageAt: null, createdAt: '2026-08-23T15:00:00' };
+  listChatRooms.mockResolvedValue([older, empty, room]);
+  await useChatStore.getState().loadRooms();
+  expect(useChatStore.getState().rooms.map(value => value.id)).toEqual([7, 9, 8]);
+  useChatStore.getState().connectRealtime('jwt');
+  chatListHandler?.({ ...older, unreadCount: 0 });
+  expect(useChatStore.getState().rooms.map(value => value.id)).toEqual([7, 9, 8]);
+  chatListHandler?.({ ...older, lastMessageAt: '2026-08-24T12:00:00' });
+  expect(useChatStore.getState().rooms.map(value => value.id)).toEqual([8, 7, 9]);
+});

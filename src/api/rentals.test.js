@@ -12,13 +12,18 @@ it('exposes only the offline rental transition endpoints', async () => {
   await rentals.startRental(3, 'jwt')
   await rentals.returnRental(3, 'jwt')
 
-  expect(apiFetch).toHaveBeenNthCalledWith(1, '/rentals/3/start', {
+  expect(apiFetch).toHaveBeenNthCalledWith(1, '/rentals/3/handover', {
     method: 'PATCH', accessToken: 'jwt',
   })
   expect(apiFetch).toHaveBeenNthCalledWith(2, '/rentals/3/return', {
     method: 'PATCH', accessToken: 'jwt',
   })
-  expect(rentals.approveRental).toBeUndefined()
+  await rentals.approveRental(3, 'jwt')
+  await rentals.receiveRental(3, 'jwt')
+  await rentals.requestReturnRental(3, 'jwt')
+  expect(apiFetch).toHaveBeenCalledWith('/rentals/3/approve', { method: 'PATCH', accessToken: 'jwt' })
+  expect(apiFetch).toHaveBeenCalledWith('/rentals/3/receive', { method: 'PATCH', accessToken: 'jwt' })
+  expect(apiFetch).toHaveBeenCalledWith('/rentals/3/request-return', { method: 'PATCH', accessToken: 'jwt' })
   expect(rentals.markRentalPaid).toBeUndefined()
 })
 

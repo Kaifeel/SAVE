@@ -1,6 +1,7 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { theme } from '@/theme';
 
@@ -15,6 +16,10 @@ const routeIcons: Record<string, TabName> = {
 };
 
 export default function TabsLayout() {
+  const router = useRouter();
+  const { bottom } = useSafeAreaInsets();
+  const bottomPadding = Math.max(bottom, 8);
+
   return (
     <>
       <StatusBar style="dark" />
@@ -29,12 +34,24 @@ export default function TabsLayout() {
           tabBarIconStyle: styles.iconSlot,
           tabBarItemStyle: styles.tabItem,
           tabBarLabelStyle: styles.tabLabel,
-          tabBarStyle: styles.tabBar,
+          tabBarStyle: [
+            styles.tabBar,
+            { height: 64 + bottomPadding, paddingBottom: bottomPadding },
+          ],
         })}
       >
         <Tabs.Screen name="index" options={{ title: '홈' }} />
         <Tabs.Screen name="explore" options={{ title: '탐색' }} />
-        <Tabs.Screen name="create" options={{ title: '글쓰기' }} />
+        <Tabs.Screen
+          name="create"
+          listeners={{
+            tabPress: event => {
+              event.preventDefault();
+              router.replace('/create');
+            },
+          }}
+          options={{ title: '글쓰기' }}
+        />
         <Tabs.Screen name="chat" options={{ title: '채팅' }} />
         <Tabs.Screen name="my" options={{ title: '마이' }} />
         <Tabs.Screen name="items/[id]" options={{ href: null }} />

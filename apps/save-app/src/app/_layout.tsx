@@ -18,6 +18,9 @@ export default function RootLayout() {
         </Stack.Protected>
         <Stack.Protected guard={!authenticated}>
           <Stack.Screen name="login" />
+        </Stack.Protected>
+        {/* 회원가입 재활성화 시 guard를 별도 가입 정책과 함께 복원합니다. */}
+        <Stack.Protected guard={false}>
           <Stack.Screen name="signup" />
         </Stack.Protected>
       </Stack>

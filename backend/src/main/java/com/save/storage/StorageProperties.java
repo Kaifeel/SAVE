@@ -10,6 +10,27 @@ public class StorageProperties {
     private String publicBaseUrl = "/uploads";
     private long maxFileSize = 10 * 1024 * 1024;
     private int maxFiles = 5;
+    private int maxWidth = 8000;
+    private int maxHeight = 8000;
+    private long maxPixels = 20_000_000;
+    private int maxConcurrentImages = 1;
+    private int uploadRequestsPerWindow = 20;
+    private long uploadWindowSeconds = 60;
+    private int maxTrackedUploadUsers = 10000;
+    public int getMaxWidth() { return maxWidth; }
+    public void setMaxWidth(int value) { maxWidth = value; }
+    public int getMaxHeight() { return maxHeight; }
+    public void setMaxHeight(int value) { maxHeight = value; }
+    public long getMaxPixels() { return maxPixels; }
+    public void setMaxPixels(long value) { maxPixels = value; }
+    public int getMaxConcurrentImages() { return maxConcurrentImages; }
+    public void setMaxConcurrentImages(int value) { maxConcurrentImages = value; }
+    public int getUploadRequestsPerWindow() { return uploadRequestsPerWindow; }
+    public void setUploadRequestsPerWindow(int value) { uploadRequestsPerWindow = value; }
+    public long getUploadWindowSeconds() { return uploadWindowSeconds; }
+    public void setUploadWindowSeconds(long value) { uploadWindowSeconds = value; }
+    public int getMaxTrackedUploadUsers() { return maxTrackedUploadUsers; }
+    public void setMaxTrackedUploadUsers(int value) { maxTrackedUploadUsers = value; }
     private final S3 s3 = new S3();
 
     public String getLocalRoot() { return localRoot; }

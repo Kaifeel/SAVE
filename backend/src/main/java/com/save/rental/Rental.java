@@ -51,6 +51,21 @@ public class Rental {
     @Column(name = "returned_at")
     private Instant returnedAt;
 
+    @Column(name = "lender_handed_over_at")
+    private Instant lenderHandedOverAt;
+
+    @Column(name = "borrower_received_at")
+    private Instant borrowerReceivedAt;
+
+    public Instant getLenderHandedOverAt() { return lenderHandedOverAt; }
+    public Instant getBorrowerReceivedAt() { return borrowerReceivedAt; }
+    public void confirmHandover(Instant now) {
+        if (lenderHandedOverAt == null) lenderHandedOverAt = now;
+    }
+    public void confirmReceipt(Instant now) {
+        if (borrowerReceivedAt == null) borrowerReceivedAt = now;
+    }
+
     protected Rental() {}
     public Rental(Item item, User borrower, User lender, ChatRoom chatRoom,
                   LocalDateTime startDate, LocalDateTime endDate, Integer totalPrice) {
